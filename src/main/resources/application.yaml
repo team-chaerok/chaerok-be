@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: chaerok-be
+
+  # TODO: Supabase PostgreSQL 연결 전까지 임시로 DB/JPA 자동 설정 제외
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+
+server:
+  port: 8080
