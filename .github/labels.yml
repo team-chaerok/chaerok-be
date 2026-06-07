@@ -1,0 +1,35 @@
+- name: 긴급
+  color: d73a4a
+  description: 서버 실행 오류, DB 연결 실패, 배포 차단 등 즉시 처리해야 하는 작업
+
+- name: 문서
+  color: "000000"
+  description: README, API 명세, 개발 기준, Supabase 설정 등 문서 작업
+
+- name: 작업전
+  color: E3F2FD
+  description: 아직 개발을 시작하지 않은 준비 상태
+
+- name: 작업중
+  color: 74D7CB
+  description: 담당자가 기능 구현 또는 수정 작업을 진행 중인 상태
+
+- name: 담당자확인
+  color: FBC61E
+  description: 구현 후 담당자 또는 팀원의 확인이 필요한 상태
+
+- name: 피드백
+  color: A439D6
+  description: 리뷰 또는 확인 후 수정이 필요한 상태
+
+- name: 작업완료
+  color: 0A4ABB
+  description: 구현, 테스트, 확인이 완료되어 이슈를 닫을 수 있는 상태
+
+- name: 보류
+  color: 9E9E9E
+  description: 1차 개발 범위에서 제외되었거나 추후 진행하기로 한 작업
+
+- name: 취소
+  color: f28b25
+  description: 기획 변경, 중복 이슈, 불필요 판단 등으로 취소된 작업

@@ -1,0 +1,71 @@
+title: "📄 [문서] "
+labels:
+  - "문서"
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        <!--
+        📚 채록 백엔드 문서 작성 템플릿입니다.
+
+        사용 예시:
+        📄 [문서] Supabase PostgreSQL 연결 기준 정리
+        📄 [문서] 방문 인증 API 설계 정리
+        📄 [문서] TourAPI 장소 데이터 캐싱 기준 정리
+        📄 [문서] 백엔드 1·2 역할 분담 정리
+        -->
+
+  - type: textarea
+    id: background
+    attributes:
+      label: "📝 작성 배경"
+      description: "이 문서를 작성하게 된 이유를 작성해주세요."
+      placeholder: |
+        - 백엔드 1·2가 공통으로 참고할 기준이 필요함
+        - API 요청/응답 형식을 정리할 필요가 있음
+        - Supabase DB/Storage 사용 기준을 문서화할 필요가 있음
+    validations:
+      required: false
+
+  - type: dropdown
+    id: document_area
+    attributes:
+      label: "📂 문서 영역"
+      description: "문서와 관련된 영역을 선택해주세요."
+      options:
+        - 공통 설정 / 인프라
+        - Backend 1: 사용자·관광 데이터·코스/Odii
+        - Backend 2: 방문 인증·필름 롤·미디어 생성
+        - DB / Supabase
+        - 외부 API
+        - 배포
+        - 기타
+    validations:
+      required: true
+
+  - type: textarea
+    id: main
+    attributes:
+      label: "📌 핵심 내용"
+      description: "문서의 핵심 내용, 설계 기준, 구현 방향, 결정 사항을 작성해주세요."
+      placeholder: |
+        - 정리할 기준
+        - 결정된 내용
+        - 구현 방향
+        - 주의할 점
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: "🔗 관련 자료"
+      description: "관련 이슈, PR, 회의록, 참고 문서가 있다면 작성해주세요."
+      placeholder: |
+        - 관련 이슈:
+        - 관련 PR:
+        - 회의록:
+        - 참고 문서:
+    validations:
+      required: false
