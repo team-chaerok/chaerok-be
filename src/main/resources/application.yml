@@ -1,0 +1,37 @@
+spring:
+  config:
+    import: optional:file:.env[.properties]
+
+  application:
+    name: chaerok-be
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+
+server:
+  port: 8080
+
+supabase:
+  url: ${SUPABASE_URL}
+  storage:
+    bucket: ${SUPABASE_STORAGE_BUCKET}
+  service-role-key: ${SUPABASE_SERVICE_ROLE_KEY}
+
+external:
+  kakao:
+    api-key: ${KAKAO_API_KEY}
+  tour-api:
+    key: ${TOUR_API_KEY}
+  odii:
+    key: ${ODII_API_KEY}
