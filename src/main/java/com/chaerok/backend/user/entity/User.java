@@ -43,6 +43,10 @@ public class User {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private UserRole role;
+
     private User(
             OAuthProvider provider,
             String providerUserId,
@@ -53,6 +57,7 @@ public class User {
         this.providerUserId = providerUserId;
         this.nickname = nickname;
         this.email = email;
+        this.role = UserRole.USER;
     }
 
     public static User create(
