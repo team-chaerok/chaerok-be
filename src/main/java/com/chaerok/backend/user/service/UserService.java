@@ -37,7 +37,9 @@ public class UserService {
             OAuthProvider provider,
             String providerUserId,
             String nickname,
-            String email
+            String email,
+            String termsVersion,
+            String privacyVersion
     ) {
         if (userRepository.existsByProviderAndProviderUserId(
                 provider,
@@ -50,7 +52,9 @@ public class UserService {
                 provider,
                 providerUserId,
                 nickname,
-                email
+                email,
+                termsVersion,
+                privacyVersion
         );
 
         return userRepository.save(user);

@@ -11,6 +11,7 @@ import com.chaerok.backend.global.exception.DuplicateUserException;
 import com.chaerok.backend.global.exception.InvalidTokenException;
 import com.chaerok.backend.user.entity.User;
 import com.chaerok.backend.user.service.UserService;
+import com.chaerok.backend.auth.constant.TermsVersion;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -102,7 +103,9 @@ public class AuthService {
                 tokenInfo.provider(),
                 tokenInfo.providerUserId(),
                 request.nickname(),
-                tokenInfo.email()
+                tokenInfo.email(),
+                TermsVersion.SERVICE_TERMS,
+                TermsVersion.PRIVACY_POLICY
         );
 
         String accessToken =

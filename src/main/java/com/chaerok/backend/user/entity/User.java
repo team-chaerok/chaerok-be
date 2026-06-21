@@ -47,26 +47,55 @@ public class User {
     @Column(nullable = false, length = 20)
     private UserRole role;
 
+    @Column(name = "terms_agreed_at", nullable = false, updatable = false)
+    private LocalDateTime termsAgreedAt;
+
+    @Column(name = "privacy_agreed_at", nullable = false, updatable = false)
+    private LocalDateTime privacyAgreedAt;
+
+    @Column(name = "terms_version", nullable = false, length = 20, updatable = false)
+    private String termsVersion;
+
+    @Column(name = "privacy_version", nullable = false, length = 20, updatable = false)
+    private String privacyVersion;
+
     private User(
             OAuthProvider provider,
             String providerUserId,
             String nickname,
-            String email
+            String email,
+            String termsVersion,
+            String privacyVersion
     ) {
+        LocalDateTime agreedAt = LocalDateTime.now();
+
         this.provider = provider;
         this.providerUserId = providerUserId;
         this.nickname = nickname;
         this.email = email;
         this.role = UserRole.USER;
+        this.termsAgreedAt = agreedAt;
+        this.privacyAgreedAt = agreedAt;
+        this.termsVersion = termsVersion;
+        this.privacyVersion = privacyVersion;
     }
 
     public static User create(
             OAuthProvider provider,
             String providerUserId,
             String nickname,
-            String email
+            String email,
+            String termsVersion,
+            String privacyVersion
     ) {
-        return new User(provider, providerUserId, nickname, email);
+        return new User(
+                provider,
+                providerUserId,
+                nickname,
+                email,
+                termsVersion,
+                privacyVersion
+        );
     }
 
     public void updateNickname(String nickname) {
