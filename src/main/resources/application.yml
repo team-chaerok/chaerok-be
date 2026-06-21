@@ -1,3 +1,6 @@
+server:
+  port: ${PORT:8080}
+
 spring:
   config:
     import: optional:file:.env[.properties]
@@ -18,9 +21,6 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     show-sql: true
-
-server:
-  port: 8080
 
 supabase:
   url: ${SUPABASE_URL}
