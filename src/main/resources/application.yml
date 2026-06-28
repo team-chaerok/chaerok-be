@@ -39,6 +39,7 @@ external:
 oauth:
   kakao:
     client-id: ${KAKAO_CLIENT_ID}
+    admin-key: ${KAKAO_ADMIN_KEY}
     issuer: https://kauth.kakao.com
     jwk-set-uri: https://kauth.kakao.com/.well-known/jwks.json
 

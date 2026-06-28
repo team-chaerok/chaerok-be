@@ -11,4 +11,6 @@ public interface RefreshTokenRepository
     Optional<RefreshToken> findByTokenHash(String tokenHash);
 
     void deleteByTokenHash(String tokenHash);
+
+    void deleteAllByUserId(Long userId);
 }

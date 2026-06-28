@@ -5,6 +5,7 @@ import com.chaerok.backend.user.dto.UpdateNicknameRequest;
 import com.chaerok.backend.user.dto.UserResponse;
 import com.chaerok.backend.user.entity.User;
 import com.chaerok.backend.user.service.UserService;
+import com.chaerok.backend.user.service.UserWithdrawalService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final UserWithdrawalService userWithdrawalService;
 
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getMyInfo(
@@ -44,5 +46,16 @@ public class UserController {
         return ResponseEntity.ok(
                 UserResponse.from(user)
         );
+    }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> withdraw(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser
+    ) {
+        userWithdrawalService.withdraw(
+                authenticatedUser.userId()
+        );
+
+        return ResponseEntity.noContent().build();
     }
 }
