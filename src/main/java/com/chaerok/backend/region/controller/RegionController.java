@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Region", description = "지역 검증 API")
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/api/regions")
+@RequiredArgsConstructor
 public class RegionController {
 
     private final RegionService regionService;
@@ -27,6 +27,7 @@ public class RegionController {
             @Valid @RequestBody ResolveRegionRequest request
     ) {
         RegionResponse response = regionService.resolve(request);
+
         return ResponseEntity.ok(response);
     }
 }
