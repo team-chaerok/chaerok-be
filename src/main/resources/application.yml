@@ -35,7 +35,7 @@ supabase:
 
 external:
   kakao:
-    api-key: ${KAKAO_API_KEY}
+    api-key: ${KAKAO_REST_API_KEY}
   tour-api:
     key: ${TOUR_API_KEY}
   odii:
@@ -43,7 +43,7 @@ external:
 
 oauth:
   kakao:
-    client-id: ${KAKAO_CLIENT_ID}
+    client-id: ${KAKAO_NATIVE_APP_KEY}
     admin-key: ${KAKAO_ADMIN_KEY}
     issuer: https://kauth.kakao.com
     jwk-set-uri: https://kauth.kakao.com/.well-known/jwks.json
