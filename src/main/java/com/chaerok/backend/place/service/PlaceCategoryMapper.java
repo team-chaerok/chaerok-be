@@ -8,66 +8,99 @@ public final class PlaceCategoryMapper {
     private PlaceCategoryMapper() {
     }
 
-    public static PlaceCategoryGroup toGroup(String lclsSystm3) {
-        if (lclsSystm3 == null) {
+    public static PlaceCategoryGroup toGroup(String lclsSystm1, String lclsSystm3) {
+        String code = resolveCode(lclsSystm1, lclsSystm3);
+
+        if (code == null) {
             return PlaceCategoryGroup.TOURISM;
         }
 
-        if (isFood(lclsSystm3)) {
+        if (isCafe(code)) {
+            return PlaceCategoryGroup.CAFE_DESSERT;
+        }
+
+        if (isFood(code)) {
             return PlaceCategoryGroup.FOOD;
         }
 
-        if (isCafeDessert(lclsSystm3)) {
-            return PlaceCategoryGroup.CAFE_DESSERT;
+        if (isTourism(code)) {
+            return PlaceCategoryGroup.TOURISM;
         }
 
         return PlaceCategoryGroup.TOURISM;
     }
 
-    public static PlaceCategoryDetail toDetail(String lclsSystm3) {
-        if (lclsSystm3 == null) {
+    public static PlaceCategoryDetail toDetail(String lclsSystm1, String lclsSystm3) {
+        String code = resolveCode(lclsSystm1, lclsSystm3);
+
+        if (code == null) {
             return null;
         }
 
-        if (lclsSystm3.startsWith("FD05")) {
+        if (code.startsWith("FD05")) {
             return PlaceCategoryDetail.CAFE;
         }
 
-        if (lclsSystm3.startsWith("FD")) {
+        if (code.startsWith("FD")) {
             return PlaceCategoryDetail.RESTAURANT;
         }
 
-        if (lclsSystm3.startsWith("HS")) {
+        if (code.startsWith("HS")) {
             return PlaceCategoryDetail.HERITAGE;
         }
 
-        if (lclsSystm3.startsWith("EV")) {
-            return PlaceCategoryDetail.MUSEUM;
-        }
-
-        if (lclsSystm3.startsWith("NA")) {
-            return PlaceCategoryDetail.NATURE;
-        }
-
-        if (lclsSystm3.startsWith("VE")) {
+        if (code.startsWith("EV")) {
             return PlaceCategoryDetail.EXPERIENCE;
         }
 
-        if (lclsSystm3.startsWith("LS")) {
-            return PlaceCategoryDetail.WALK;
+        if (code.startsWith("NA")) {
+            return PlaceCategoryDetail.NATURE;
+        }
+
+        if (code.startsWith("VE")) {
+            return PlaceCategoryDetail.MUSEUM;
+        }
+
+        if (code.startsWith("LS")) {
+            return PlaceCategoryDetail.EXPERIENCE;
+        }
+
+        if (code.startsWith("EX")) {
+            return PlaceCategoryDetail.EXPERIENCE;
         }
 
         return PlaceCategoryDetail.EXPERIENCE;
     }
 
-    private static boolean isFood(String lclsSystm3) {
-        return lclsSystm3.startsWith("FD01")
-                || lclsSystm3.startsWith("FD02")
-                || lclsSystm3.startsWith("FD03")
-                || lclsSystm3.startsWith("FD04");
+    private static String resolveCode(String lclsSystm1, String lclsSystm3) {
+        if (lclsSystm3 != null && !lclsSystm3.isBlank()) {
+            return lclsSystm3;
+        }
+
+        if (lclsSystm1 != null && !lclsSystm1.isBlank()) {
+            return lclsSystm1;
+        }
+
+        return null;
     }
 
-    private static boolean isCafeDessert(String lclsSystm3) {
-        return lclsSystm3.startsWith("FD05");
+    private static boolean isTourism(String code) {
+        return code.startsWith("EX")
+                || code.startsWith("EV")
+                || code.startsWith("HS")
+                || code.startsWith("LS")
+                || code.startsWith("NA")
+                || code.startsWith("VE");
+    }
+
+    private static boolean isFood(String code) {
+        return code.startsWith("FD01")
+                || code.startsWith("FD02")
+                || code.startsWith("FD03")
+                || code.startsWith("FD04");
+    }
+
+    private static boolean isCafe(String code) {
+        return code.startsWith("FD05");
     }
 }
