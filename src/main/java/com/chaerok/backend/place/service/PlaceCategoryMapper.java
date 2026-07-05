@@ -69,6 +69,10 @@ public final class PlaceCategoryMapper {
             return PlaceCategoryDetail.EXPERIENCE;
         }
 
+        if (code.startsWith("SH06")) {
+            return PlaceCategoryDetail.MARKET;
+        }
+
         return PlaceCategoryDetail.EXPERIENCE;
     }
 
@@ -90,7 +94,8 @@ public final class PlaceCategoryMapper {
                 || code.startsWith("HS")
                 || code.startsWith("LS")
                 || code.startsWith("NA")
-                || code.startsWith("VE");
+                || code.startsWith("VE")
+                || code.startsWith("SH06");
     }
 
     private static boolean isFood(String code) {
