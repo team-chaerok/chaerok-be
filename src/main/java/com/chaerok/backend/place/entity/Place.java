@@ -90,4 +90,70 @@ public class Place {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    public static Place create(
+            Region region,
+            String tourContentId,
+            String title,
+            String address,
+            BigDecimal latitude,
+            BigDecimal longitude,
+            String firstImageUrl,
+            String lDongRegnCd,
+            String lDongSignguCd,
+            String lclsSystm1,
+            String lclsSystm2,
+            String lclsSystm3,
+            PlaceCategoryGroup categoryGroup,
+            PlaceCategoryDetail categoryDetail,
+            boolean representative,
+            PlaceSource source
+    ) {
+        Place place = new Place();
+        place.region = region;
+        place.tourContentId = tourContentId;
+        place.title = title;
+        place.address = address;
+        place.latitude = latitude;
+        place.longitude = longitude;
+        place.firstImageUrl = firstImageUrl;
+        place.lDongRegnCd = lDongRegnCd;
+        place.lDongSignguCd = lDongSignguCd;
+        place.lclsSystm1 = lclsSystm1;
+        place.lclsSystm2 = lclsSystm2;
+        place.lclsSystm3 = lclsSystm3;
+        place.categoryGroup = categoryGroup;
+        place.categoryDetail = categoryDetail;
+        place.representative = representative;
+        place.source = source;
+        return place;
+    }
+
+    public void updateFromTourApi(
+            String title,
+            String address,
+            BigDecimal latitude,
+            BigDecimal longitude,
+            String firstImageUrl,
+            String lDongRegnCd,
+            String lDongSignguCd,
+            String lclsSystm1,
+            String lclsSystm2,
+            String lclsSystm3,
+            PlaceCategoryGroup categoryGroup,
+            PlaceCategoryDetail categoryDetail
+    ) {
+        this.title = title;
+        this.address = address;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.firstImageUrl = firstImageUrl;
+        this.lDongRegnCd = lDongRegnCd;
+        this.lDongSignguCd = lDongSignguCd;
+        this.lclsSystm1 = lclsSystm1;
+        this.lclsSystm2 = lclsSystm2;
+        this.lclsSystm3 = lclsSystm3;
+        this.categoryGroup = categoryGroup;
+        this.categoryDetail = categoryDetail;
+    }
 }
