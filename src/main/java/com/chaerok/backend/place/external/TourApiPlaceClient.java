@@ -71,12 +71,16 @@ public class TourApiPlaceClient {
             log.warn("TourAPI areaBasedList2 request error. message={}", e.getMessage());
             return List.of();
         } catch (RuntimeException e) {
-            log.warn("TourAPI areaBasedList2 unexpected error. message={}", e.getMessage());
+            log.error("TourAPI areaBasedList2 unexpected error. message={}", e.getMessage(), e);
             return List.of();
         }
     }
 
     public TourApiPlaceItem getPlaceDetail(String contentId) {
+        if (contentId == null || contentId.isBlank()) {
+            return null;
+        }
+
         try {
             TourApiPlaceResponse response = webClientBuilder
                     .baseUrl(BASE_URL)
@@ -121,8 +125,8 @@ public class TourApiPlaceClient {
                     contentId, e.getMessage());
             return null;
         } catch (RuntimeException e) {
-            log.warn("TourAPI detailCommon2 unexpected error. contentId={}, message={}",
-                    contentId, e.getMessage());
+            log.error("TourAPI detailCommon2 unexpected error. contentId={}, message={}",
+                    contentId, e.getMessage(), e);
             return null;
         }
     }

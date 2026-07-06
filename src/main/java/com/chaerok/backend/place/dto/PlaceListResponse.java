@@ -8,6 +8,10 @@ import com.chaerok.backend.place.service.PlaceCategoryMapper;
 
 import java.math.BigDecimal;
 
+import static com.chaerok.backend.place.service.TourApiValueMapper.toBigDecimal;
+import static com.chaerok.backend.place.service.TourApiValueMapper.toBigDecimalOrFallback;
+import static com.chaerok.backend.place.service.TourApiValueMapper.valueOrFallback;
+
 public record PlaceListResponse(
         Long id,
         String tourContentId,
@@ -64,29 +68,5 @@ public record PlaceListResponse(
                 PlaceCategoryMapper.toDetail(item.lclsSystm1(), item.lclsSystm3()),
                 false
         );
-    }
-
-    private static String valueOrFallback(String value, String fallback) {
-        if (value == null || value.isBlank()) {
-            return fallback;
-        }
-
-        return value;
-    }
-
-    private static BigDecimal toBigDecimal(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-
-        return new BigDecimal(value);
-    }
-
-    private static BigDecimal toBigDecimalOrFallback(String value, BigDecimal fallback) {
-        if (value == null || value.isBlank()) {
-            return fallback;
-        }
-
-        return new BigDecimal(value);
     }
 }

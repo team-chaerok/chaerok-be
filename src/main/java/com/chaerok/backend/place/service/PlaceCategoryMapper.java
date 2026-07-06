@@ -60,10 +60,6 @@ public class PlaceCategoryMapper {
             return PlaceCategoryDetail.MUSEUM;
         }
 
-        if (code.startsWith("EX") || code.startsWith("EV") || code.startsWith("LS")) {
-            return PlaceCategoryDetail.EXPERIENCE;
-        }
-
         return PlaceCategoryDetail.EXPERIENCE;
     }
 
