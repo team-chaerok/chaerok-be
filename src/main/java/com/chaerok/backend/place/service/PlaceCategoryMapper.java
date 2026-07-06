@@ -3,7 +3,10 @@ package com.chaerok.backend.place.service;
 import com.chaerok.backend.place.entity.PlaceCategoryDetail;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
 
-public final class PlaceCategoryMapper {
+public class PlaceCategoryMapper {
+
+    private static final String CAFE_CODE = "FD05";
+    private static final String MARKET_CODE = "SH06";
 
     private PlaceCategoryMapper() {
     }
@@ -23,10 +26,6 @@ public final class PlaceCategoryMapper {
             return PlaceCategoryGroup.FOOD;
         }
 
-        if (isTourism(code)) {
-            return PlaceCategoryGroup.TOURISM;
-        }
-
         return PlaceCategoryGroup.TOURISM;
     }
 
@@ -37,11 +36,11 @@ public final class PlaceCategoryMapper {
             return null;
         }
 
-        if (code.startsWith("FD05")) {
+        if (isCafe(code)) {
             return PlaceCategoryDetail.CAFE;
         }
 
-        if (code.startsWith("FD")) {
+        if (isFood(code)) {
             return PlaceCategoryDetail.RESTAURANT;
         }
 
@@ -49,28 +48,16 @@ public final class PlaceCategoryMapper {
             return PlaceCategoryDetail.HERITAGE;
         }
 
-        if (code.startsWith("EV")) {
-            return PlaceCategoryDetail.EXPERIENCE;
-        }
-
         if (code.startsWith("NA")) {
             return PlaceCategoryDetail.NATURE;
         }
 
+        if (isMarket(code)) {
+            return PlaceCategoryDetail.MARKET;
+        }
+
         if (code.startsWith("VE")) {
             return PlaceCategoryDetail.MUSEUM;
-        }
-
-        if (code.startsWith("LS")) {
-            return PlaceCategoryDetail.EXPERIENCE;
-        }
-
-        if (code.startsWith("EX")) {
-            return PlaceCategoryDetail.EXPERIENCE;
-        }
-
-        if (code.startsWith("SH06")) {
-            return PlaceCategoryDetail.MARKET;
         }
 
         return PlaceCategoryDetail.EXPERIENCE;
@@ -88,24 +75,15 @@ public final class PlaceCategoryMapper {
         return null;
     }
 
-    private static boolean isTourism(String code) {
-        return code.startsWith("EX")
-                || code.startsWith("EV")
-                || code.startsWith("HS")
-                || code.startsWith("LS")
-                || code.startsWith("NA")
-                || code.startsWith("VE")
-                || code.startsWith("SH06");
+    private static boolean isCafe(String code) {
+        return code.startsWith(CAFE_CODE);
     }
 
     private static boolean isFood(String code) {
-        return code.startsWith("FD01")
-                || code.startsWith("FD02")
-                || code.startsWith("FD03")
-                || code.startsWith("FD04");
+        return code.startsWith("FD") && !isCafe(code);
     }
 
-    private static boolean isCafe(String code) {
-        return code.startsWith("FD05");
+    private static boolean isMarket(String code) {
+        return code.startsWith(MARKET_CODE);
     }
 }

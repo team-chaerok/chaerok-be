@@ -44,6 +44,7 @@ class PlaceControllerTest {
 
         PlaceListResponse response = new PlaceListResponse(
                 1L,
+                "1001",
                 "공산성",
                 "충청남도 공주시 웅진로 280",
                 new BigDecimal("36.4623000"),
@@ -62,6 +63,7 @@ class PlaceControllerTest {
                         .param("regionId", String.valueOf(regionId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].tourContentId").value("1001"))
                 .andExpect(jsonPath("$[0].title").value("공산성"))
                 .andExpect(jsonPath("$[0].address").value("충청남도 공주시 웅진로 280"))
                 .andExpect(jsonPath("$[0].latitude").value(36.4623000))
@@ -87,6 +89,7 @@ class PlaceControllerTest {
                 new BigDecimal("36.4623000"),
                 new BigDecimal("127.1248000"),
                 "https://example.com/image.jpg",
+                "공산성은 백제 시대의 대표적인 역사 유적지입니다.",
                 "44",
                 "150",
                 "HS",
@@ -112,6 +115,7 @@ class PlaceControllerTest {
                 .andExpect(jsonPath("$.latitude").value(36.4623000))
                 .andExpect(jsonPath("$.longitude").value(127.1248000))
                 .andExpect(jsonPath("$.firstImageUrl").value("https://example.com/image.jpg"))
+                .andExpect(jsonPath("$.overview").value("공산성은 백제 시대의 대표적인 역사 유적지입니다."))
                 .andExpect(jsonPath("$.lDongRegnCd").value("44"))
                 .andExpect(jsonPath("$.lDongSignguCd").value("150"))
                 .andExpect(jsonPath("$.lclsSystm1").value("HS"))

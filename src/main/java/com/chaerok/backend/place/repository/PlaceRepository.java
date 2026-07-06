@@ -10,6 +10,8 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
 
     List<Place> findByRegionId(Long regionId);
 
+    List<Place> findByRegionIdAndRepresentativeTrue(Long regionId);
+
     Optional<Place> findByTourContentId(String tourContentId);
 
     boolean existsByTourContentId(String tourContentId);
