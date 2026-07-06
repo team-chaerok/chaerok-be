@@ -5,7 +5,7 @@ CREATE TABLE places (
 
                         tour_content_id VARCHAR(50) NOT NULL,
 
-                        title VARCHAR(100) NOT NULL,
+                        title VARCHAR(255) NOT NULL,
                         address VARCHAR(255),
                         latitude DECIMAL(10, 7),
                         longitude DECIMAL(10, 7),
@@ -34,3 +34,5 @@ CREATE TABLE places (
                         CONSTRAINT uk_places_tour_content_id
                             UNIQUE (tour_content_id)
 );
+
+CREATE INDEX idx_places_region_id ON places (region_id);

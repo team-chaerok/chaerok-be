@@ -38,7 +38,7 @@ public class Place {
     @Column(name = "tour_content_id", nullable = false, unique = true, length = 50)
     private String tourContentId;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, length = 255)
     private String title;
 
     @Column(length = 255)
