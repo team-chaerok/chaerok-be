@@ -34,6 +34,9 @@ public record TourApiPlaceItem(
         String lclsSystm2,
 
         @JsonProperty("lclsSystm3")
-        String lclsSystm3
+        String lclsSystm3,
+
+        @JsonProperty("overview")
+        String overview
 ) {
 }

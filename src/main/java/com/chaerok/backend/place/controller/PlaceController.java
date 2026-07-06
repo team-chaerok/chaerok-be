@@ -31,6 +31,14 @@ public class PlaceController {
         return ResponseEntity.ok(placeService.getPlacesByRegion(regionId));
     }
 
+    @GetMapping("/external")
+    @Operation(summary = "TourAPI 기반 추가 추천 장소 조회", description = "regionId를 기준으로 TourAPI 추가 추천 장소를 조회한다. 조회 결과는 DB에 저장하지 않는다.")
+    public ResponseEntity<List<PlaceListResponse>> getExternalPlaces(
+            @RequestParam Long regionId
+    ) {
+        return ResponseEntity.ok(placeService.getExternalPlaces(regionId));
+    }
+
     @Operation(summary = "장소 상세 조회", description = "placeId를 기준으로 장소 상세 정보를 조회한다.")
     @GetMapping("/{placeId}")
     public ResponseEntity<PlaceDetailResponse> getPlace(

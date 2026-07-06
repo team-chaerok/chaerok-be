@@ -13,6 +13,7 @@ public class TourApiPlaceClient {
 
     private static final String BASE_URL = "https://apis.data.go.kr/B551011/KorService2";
     private static final String AREA_BASED_LIST_PATH = "/areaBasedList2";
+    private static final String DETAIL_COMMON_PATH = "/detailCommon2";
 
     private final WebClient.Builder webClientBuilder;
 
@@ -48,5 +49,36 @@ public class TourApiPlaceClient {
         }
 
         return response.getItems();
+    }
+
+    public TourApiPlaceItem getPlaceDetail(String contentId) {
+        TourApiPlaceResponse response = webClientBuilder
+                .baseUrl(BASE_URL)
+                .build()
+                .get()
+                .uri(uriBuilder -> uriBuilder
+                        .path(DETAIL_COMMON_PATH)
+                        .queryParam("serviceKey", serviceKey)
+                        .queryParam("MobileOS", "ETC")
+                        .queryParam("MobileApp", "Chaerok")
+                        .queryParam("_type", "json")
+                        .queryParam("contentId", contentId)
+                        .queryParam("defaultYN", "Y")
+                        .queryParam("firstImageYN", "Y")
+                        .queryParam("addrinfoYN", "Y")
+                        .queryParam("mapinfoYN", "Y")
+                        .queryParam("overviewYN", "Y")
+                        .build())
+                .retrieve()
+                .bodyToMono(TourApiPlaceResponse.class)
+                .block();
+
+        if (response == null) {
+            return null;
+        }
+
+        return response.getItems().stream()
+                .findFirst()
+                .orElse(null);
     }
 }

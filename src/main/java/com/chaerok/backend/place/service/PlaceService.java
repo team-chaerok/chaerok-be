@@ -22,28 +22,52 @@ public class PlaceService {
     private final PlaceRepository placeRepository;
     private final RegionRepository regionRepository;
     private final TourApiPlaceClient tourApiPlaceClient;
-    private final PlaceSyncService placeSyncService;
 
     public List<PlaceListResponse> getPlacesByRegion(Long regionId) {
+        if (!regionRepository.existsById(regionId)) {
+            throw new IllegalArgumentException("지역을 찾을 수 없습니다.");
+        }
+
+        List<Place> representativePlaces =
+                placeRepository.findByRegionIdAndRepresentativeTrue(regionId);
+
+        return representativePlaces.stream()
+                .map(this::toPlaceListResponseWithTourApi)
+                .toList();
+    }
+
+    public List<PlaceListResponse> getExternalPlaces(Long regionId) {
         Region region = regionRepository.findById(regionId)
                 .orElseThrow(() -> new IllegalArgumentException("지역을 찾을 수 없습니다."));
 
-        List<TourApiPlaceItem> tourApiItems = tourApiPlaceClient.getPlacesByRegion(
-                region.getLdongRegnCd(),
-                region.getLdongSignguCd()
-        );
-
-        placeSyncService.syncPlaces(region, tourApiItems);
-
-        return placeRepository.findByRegionId(regionId).stream()
-                .map(PlaceListResponse::from)
+        return tourApiPlaceClient.getPlacesByRegion(
+                        region.getLdongRegnCd(),
+                        region.getLdongSignguCd()
+                ).stream()
+                .map(PlaceListResponse::fromTourApi)
                 .toList();
+    }
+
+    private PlaceListResponse toPlaceListResponseWithTourApi(Place place) {
+        TourApiPlaceItem tourApiItem = tourApiPlaceClient.getPlaceDetail(place.getTourContentId());
+
+        if (tourApiItem == null) {
+            return PlaceListResponse.from(place);
+        }
+
+        return PlaceListResponse.from(place, tourApiItem);
     }
 
     public PlaceDetailResponse getPlace(Long placeId) {
         Place place = placeRepository.findById(placeId)
                 .orElseThrow(() -> new IllegalArgumentException("장소를 찾을 수 없습니다."));
 
-        return PlaceDetailResponse.from(place);
+        TourApiPlaceItem tourApiItem = tourApiPlaceClient.getPlaceDetail(place.getTourContentId());
+
+        if (tourApiItem == null) {
+            return PlaceDetailResponse.from(place);
+        }
+
+        return PlaceDetailResponse.from(place, tourApiItem);
     }
 }
