@@ -1,5 +1,7 @@
 package com.chaerok.backend.place.service;
 
+import com.chaerok.backend.global.exception.PlaceNotFoundException;
+import com.chaerok.backend.global.exception.RegionNotFoundException;
 import com.chaerok.backend.place.dto.PlaceDetailResponse;
 import com.chaerok.backend.place.dto.PlaceListResponse;
 import com.chaerok.backend.place.entity.Place;
@@ -25,7 +27,7 @@ public class PlaceService {
 
     public List<PlaceListResponse> getPlacesByRegion(Long regionId) {
         if (!regionRepository.existsById(regionId)) {
-            throw new IllegalArgumentException("지역을 찾을 수 없습니다.");
+            throw new RegionNotFoundException();
         }
 
         List<Place> representativePlaces =
@@ -38,7 +40,7 @@ public class PlaceService {
 
     public List<PlaceListResponse> getExternalPlaces(Long regionId) {
         Region region = regionRepository.findById(regionId)
-                .orElseThrow(() -> new IllegalArgumentException("지역을 찾을 수 없습니다."));
+                .orElseThrow(RegionNotFoundException::new);
 
         return tourApiPlaceClient.getPlacesByRegion(
                         region.getLdongRegnCd(),
@@ -60,7 +62,7 @@ public class PlaceService {
 
     public PlaceDetailResponse getPlace(Long placeId) {
         Place place = placeRepository.findById(placeId)
-                .orElseThrow(() -> new IllegalArgumentException("장소를 찾을 수 없습니다."));
+                .orElseThrow(PlaceNotFoundException::new);
 
         TourApiPlaceItem tourApiItem = tourApiPlaceClient.getPlaceDetail(place.getTourContentId());
 

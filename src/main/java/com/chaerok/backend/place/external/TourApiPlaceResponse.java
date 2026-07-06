@@ -6,27 +6,39 @@ import java.util.List;
 
 public record TourApiPlaceResponse(
         @JsonProperty("response")
-        TourApiResponse response
+        Response response
 ) {
 
     public List<TourApiPlaceItem> getItems() {
-        if (response == null || response.body == null || response.body.items == null || response.body.items.item == null) {
+        if (!isSuccess()) {
             return List.of();
         }
 
-        return response.body.items.item;
+        if (response.body() == null
+                || response.body().items() == null
+                || response.body().items().item() == null) {
+            return List.of();
+        }
+
+        return response.body().items().item();
     }
 
-    public record TourApiResponse(
+    public boolean isSuccess() {
+        return response != null
+                && response.header() != null
+                && "0000".equals(response.header().resultCode());
+    }
+
+    public record Response(
             @JsonProperty("header")
-            TourApiHeader header,
+            Header header,
 
             @JsonProperty("body")
-            TourApiBody body
+            Body body
     ) {
     }
 
-    public record TourApiHeader(
+    public record Header(
             @JsonProperty("resultCode")
             String resultCode,
 
@@ -35,9 +47,9 @@ public record TourApiPlaceResponse(
     ) {
     }
 
-    public record TourApiBody(
+    public record Body(
             @JsonProperty("items")
-            TourApiItems items,
+            Items items,
 
             @JsonProperty("numOfRows")
             Integer numOfRows,
@@ -50,7 +62,7 @@ public record TourApiPlaceResponse(
     ) {
     }
 
-    public record TourApiItems(
+    public record Items(
             @JsonProperty("item")
             List<TourApiPlaceItem> item
     ) {

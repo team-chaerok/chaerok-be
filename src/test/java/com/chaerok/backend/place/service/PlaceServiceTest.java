@@ -1,5 +1,7 @@
 package com.chaerok.backend.place.service;
 
+import com.chaerok.backend.global.exception.PlaceNotFoundException;
+import com.chaerok.backend.global.exception.RegionNotFoundException;
 import com.chaerok.backend.place.dto.PlaceDetailResponse;
 import com.chaerok.backend.place.dto.PlaceListResponse;
 import com.chaerok.backend.place.entity.Place;
@@ -129,7 +131,7 @@ class PlaceServiceTest {
 
         // when & then
         assertThatThrownBy(() -> placeService.getPlacesByRegion(regionId))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(RegionNotFoundException.class)
                 .hasMessage("지역을 찾을 수 없습니다.");
 
         verify(regionRepository).existsById(regionId);
@@ -208,7 +210,7 @@ class PlaceServiceTest {
 
         // when & then
         assertThatThrownBy(() -> placeService.getPlace(placeId))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(PlaceNotFoundException.class)
                 .hasMessage("장소를 찾을 수 없습니다.");
 
         verify(placeRepository).findById(placeId);
@@ -257,5 +259,22 @@ class PlaceServiceTest {
                 "HS010100",
                 "TourAPI 공산성 소개 문구입니다."
         );
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 regionId로 추가 추천 장소를 조회하면 예외가 발생한다")
+    void getExternalPlacesWithInvalidRegion() {
+        // given
+        Long regionId = 999L;
+
+        when(regionRepository.findById(regionId)).thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> placeService.getExternalPlaces(regionId))
+                .isInstanceOf(RegionNotFoundException.class)
+                .hasMessage("지역을 찾을 수 없습니다.");
+
+        verify(regionRepository).findById(regionId);
+        verifyNoInteractions(tourApiPlaceClient);
     }
 }
