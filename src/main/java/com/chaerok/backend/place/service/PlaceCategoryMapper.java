@@ -101,7 +101,7 @@ public class PlaceCategoryMapper {
             return PlaceCategoryDetail.SNACK;
         }
 
-        if (containsAny(name, "전통찻집", "찻집", "차")) {
+        if (containsAny(name, "전통찻집", "찻집", "다방")) {
             return PlaceCategoryDetail.TEA_HOUSE;
         }
 

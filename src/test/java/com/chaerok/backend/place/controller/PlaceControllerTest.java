@@ -3,6 +3,7 @@ package com.chaerok.backend.place.controller;
 import com.chaerok.backend.auth.jwt.JwtTokenProvider;
 import com.chaerok.backend.place.dto.PlaceDetailResponse;
 import com.chaerok.backend.place.dto.PlaceListResponse;
+import com.chaerok.backend.place.dto.PlaceSearchResponse;
 import com.chaerok.backend.place.entity.PlaceCategoryDetail;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
 import com.chaerok.backend.place.entity.PlaceSource;
@@ -135,5 +136,47 @@ class PlaceControllerTest {
                 .andExpect(jsonPath("$.categoryDetail").value("HERITAGE"))
                 .andExpect(jsonPath("$.isRepresentative").value(false))
                 .andExpect(jsonPath("$.source").value("TOUR_API"));
+    }
+
+    @Test
+    @DisplayName("regionId와 keyword 기준 장소 검색에 성공한다")
+    void searchPlaces() throws Exception {
+        // given
+        Long regionId = 1L;
+        String keyword = "공산성";
+
+        PlaceSearchResponse response = new PlaceSearchResponse(
+                null,
+                "1001",
+                null,
+                "공산성",
+                "충청남도 공주시 웅진로 280",
+                new BigDecimal("36.4623000"),
+                new BigDecimal("127.1248000"),
+                "https://example.com/image.jpg",
+                PlaceCategoryGroup.TOURISM,
+                PlaceCategoryDetail.HERITAGE,
+                PlaceSource.TOUR_API
+        );
+
+        when(placeSearchService.searchPlaces(regionId, keyword))
+                .thenReturn(List.of(response));
+
+        // when & then
+        mockMvc.perform(get("/api/places/search")
+                        .param("regionId", String.valueOf(regionId))
+                        .param("keyword", keyword))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").doesNotExist())
+                .andExpect(jsonPath("$[0].tourContentId").value("1001"))
+                .andExpect(jsonPath("$[0].kakaoPlaceId").doesNotExist())
+                .andExpect(jsonPath("$[0].title").value("공산성"))
+                .andExpect(jsonPath("$[0].address").value("충청남도 공주시 웅진로 280"))
+                .andExpect(jsonPath("$[0].latitude").value(36.4623000))
+                .andExpect(jsonPath("$[0].longitude").value(127.1248000))
+                .andExpect(jsonPath("$[0].firstImageUrl").value("https://example.com/image.jpg"))
+                .andExpect(jsonPath("$[0].categoryGroup").value("TOURISM"))
+                .andExpect(jsonPath("$[0].categoryDetail").value("HERITAGE"))
+                .andExpect(jsonPath("$[0].source").value("TOUR_API"));
     }
 }

@@ -10,7 +10,6 @@ import com.chaerok.backend.region.entity.Region;
 import com.chaerok.backend.region.repository.RegionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
@@ -19,7 +18,6 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class PlaceSearchService {
 
     private static final int TOUR_API_MIN_RESULT_COUNT = 5;
@@ -34,8 +32,7 @@ public class PlaceSearchService {
     private final KakaoLocalClient kakaoLocalClient;
 
     public List<PlaceSearchResponse> searchPlaces(Long regionId, String keyword) {
-        Region region = regionRepository.findById(regionId)
-                .orElseThrow(RegionNotFoundException::new);
+        Region region = findRegion(regionId);
 
         List<PlaceSearchResponse> tourApiResults = searchTourApi(region, keyword);
 
@@ -46,6 +43,11 @@ public class PlaceSearchService {
         List<PlaceSearchResponse> kakaoResults = searchKakao(region, keyword);
 
         return mergeResults(tourApiResults, kakaoResults);
+    }
+
+    private Region findRegion(Long regionId) {
+        return regionRepository.findById(regionId)
+                .orElseThrow(RegionNotFoundException::new);
     }
 
     private List<PlaceSearchResponse> searchTourApi(Region region, String keyword) {
