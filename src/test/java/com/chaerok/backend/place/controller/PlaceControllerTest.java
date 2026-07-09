@@ -6,6 +6,7 @@ import com.chaerok.backend.place.dto.PlaceListResponse;
 import com.chaerok.backend.place.entity.PlaceCategoryDetail;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
 import com.chaerok.backend.place.entity.PlaceSource;
+import com.chaerok.backend.place.service.PlaceSearchService;
 import com.chaerok.backend.place.service.PlaceService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,9 @@ class PlaceControllerTest {
     private PlaceService placeService;
 
     @MockitoBean
+    private PlaceSearchService placeSearchService;
+
+    @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
 
     @Test
@@ -45,6 +49,7 @@ class PlaceControllerTest {
         PlaceListResponse response = new PlaceListResponse(
                 1L,
                 "1001",
+                null,
                 "공산성",
                 "충청남도 공주시 웅진로 280",
                 new BigDecimal("36.4623000"),
@@ -52,7 +57,8 @@ class PlaceControllerTest {
                 "https://example.com/image.jpg",
                 PlaceCategoryGroup.TOURISM,
                 PlaceCategoryDetail.HERITAGE,
-                false
+                false,
+                PlaceSource.TOUR_API
         );
 
         when(placeService.getPlacesByRegion(regionId))
@@ -64,6 +70,7 @@ class PlaceControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].tourContentId").value("1001"))
+                .andExpect(jsonPath("$[0].kakaoPlaceId").doesNotExist())
                 .andExpect(jsonPath("$[0].title").value("공산성"))
                 .andExpect(jsonPath("$[0].address").value("충청남도 공주시 웅진로 280"))
                 .andExpect(jsonPath("$[0].latitude").value(36.4623000))
@@ -71,7 +78,8 @@ class PlaceControllerTest {
                 .andExpect(jsonPath("$[0].firstImageUrl").value("https://example.com/image.jpg"))
                 .andExpect(jsonPath("$[0].categoryGroup").value("TOURISM"))
                 .andExpect(jsonPath("$[0].categoryDetail").value("HERITAGE"))
-                .andExpect(jsonPath("$[0].isRepresentative").value(false));
+                .andExpect(jsonPath("$[0].isRepresentative").value(false))
+                .andExpect(jsonPath("$[0].source").value("TOUR_API"));
     }
 
     @Test
@@ -84,6 +92,7 @@ class PlaceControllerTest {
                 1L,
                 1L,
                 "1001",
+                null,
                 "공산성",
                 "충청남도 공주시 웅진로 280",
                 new BigDecimal("36.4623000"),
@@ -110,6 +119,7 @@ class PlaceControllerTest {
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.regionId").value(1))
                 .andExpect(jsonPath("$.tourContentId").value("1001"))
+                .andExpect(jsonPath("$.kakaoPlaceId").doesNotExist())
                 .andExpect(jsonPath("$.title").value("공산성"))
                 .andExpect(jsonPath("$.address").value("충청남도 공주시 웅진로 280"))
                 .andExpect(jsonPath("$.latitude").value(36.4623000))

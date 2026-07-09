@@ -86,4 +86,54 @@ class PlaceCategoryMapperTest {
         assertThat(PlaceCategoryMapper.toGroup(null, null)).isEqualTo(PlaceCategoryGroup.TOURISM);
         assertThat(PlaceCategoryMapper.toDetail(null, null)).isNull();
     }
+
+    @Test
+    @DisplayName("Kakao 카페 카테고리를 CAFE_DESSERT/CAFE로 매핑한다")
+    void mapKakaoCafe() {
+        PlaceCategoryGroup group = PlaceCategoryMapper.toGroupFromKakao("CE7", "음식점 > 카페");
+        PlaceCategoryDetail detail = PlaceCategoryMapper.toDetailFromKakao("CE7", "음식점 > 카페");
+
+        assertThat(group).isEqualTo(PlaceCategoryGroup.CAFE_DESSERT);
+        assertThat(detail).isEqualTo(PlaceCategoryDetail.CAFE);
+    }
+
+    @Test
+    @DisplayName("Kakao 음식점 카테고리를 FOOD/RESTAURANT로 매핑한다")
+    void mapKakaoRestaurant() {
+        PlaceCategoryGroup group = PlaceCategoryMapper.toGroupFromKakao("FD6", "음식점 > 한식");
+        PlaceCategoryDetail detail = PlaceCategoryMapper.toDetailFromKakao("FD6", "음식점 > 한식");
+
+        assertThat(group).isEqualTo(PlaceCategoryGroup.FOOD);
+        assertThat(detail).isEqualTo(PlaceCategoryDetail.LOCAL_FOOD);
+    }
+
+    @Test
+    @DisplayName("Kakao 베이커리 카테고리를 CAFE_DESSERT/BAKERY로 매핑한다")
+    void mapKakaoBakery() {
+        PlaceCategoryGroup group = PlaceCategoryMapper.toGroupFromKakao("CE7", "음식점 > 카페 > 베이커리");
+        PlaceCategoryDetail detail = PlaceCategoryMapper.toDetailFromKakao("CE7", "음식점 > 카페 > 베이커리");
+
+        assertThat(group).isEqualTo(PlaceCategoryGroup.CAFE_DESSERT);
+        assertThat(detail).isEqualTo(PlaceCategoryDetail.BAKERY);
+    }
+
+    @Test
+    @DisplayName("Kakao 분식 카테고리를 FOOD/SNACK_MEAL로 매핑한다")
+    void mapKakaoSnackMeal() {
+        PlaceCategoryGroup group = PlaceCategoryMapper.toGroupFromKakao("FD6", "음식점 > 분식");
+        PlaceCategoryDetail detail = PlaceCategoryMapper.toDetailFromKakao("FD6", "음식점 > 분식");
+
+        assertThat(group).isEqualTo(PlaceCategoryGroup.FOOD);
+        assertThat(detail).isEqualTo(PlaceCategoryDetail.SNACK_MEAL);
+    }
+
+    @Test
+    @DisplayName("Kakao 소품 관련 카테고리를 TOURISM/SOUVENIR_SHOP으로 매핑한다")
+    void mapKakaoSouvenirShop() {
+        PlaceCategoryGroup group = PlaceCategoryMapper.toGroupFromKakao("", "쇼핑 > 생활용품 > 소품");
+        PlaceCategoryDetail detail = PlaceCategoryMapper.toDetailFromKakao("", "쇼핑 > 생활용품 > 소품");
+
+        assertThat(group).isEqualTo(PlaceCategoryGroup.TOURISM);
+        assertThat(detail).isEqualTo(PlaceCategoryDetail.SOUVENIR_SHOP);
+    }
 }

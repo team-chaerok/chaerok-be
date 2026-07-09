@@ -3,6 +3,7 @@ package com.chaerok.backend.place.dto;
 import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryDetail;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
+import com.chaerok.backend.place.entity.PlaceSource;
 import com.chaerok.backend.place.external.TourApiPlaceItem;
 import com.chaerok.backend.place.service.PlaceCategoryMapper;
 
@@ -15,6 +16,7 @@ import static com.chaerok.backend.place.service.TourApiValueMapper.valueOrFallba
 public record PlaceListResponse(
         Long id,
         String tourContentId,
+        String kakaoPlaceId,
         String title,
         String address,
         BigDecimal latitude,
@@ -22,13 +24,15 @@ public record PlaceListResponse(
         String firstImageUrl,
         PlaceCategoryGroup categoryGroup,
         PlaceCategoryDetail categoryDetail,
-        boolean isRepresentative
+        boolean isRepresentative,
+        PlaceSource source
 ) {
 
     public static PlaceListResponse from(Place place) {
         return new PlaceListResponse(
                 place.getId(),
                 place.getTourContentId(),
+                place.getKakaoPlaceId(),
                 place.getTitle(),
                 place.getAddress(),
                 place.getLatitude(),
@@ -36,7 +40,8 @@ public record PlaceListResponse(
                 place.getFirstImageUrl(),
                 place.getCategoryGroup(),
                 place.getCategoryDetail(),
-                place.isRepresentative()
+                place.isRepresentative(),
+                place.getSource()
         );
     }
 
@@ -44,6 +49,7 @@ public record PlaceListResponse(
         return new PlaceListResponse(
                 place.getId(),
                 place.getTourContentId(),
+                place.getKakaoPlaceId(),
                 valueOrFallback(item.title(), place.getTitle()),
                 valueOrFallback(item.address(), place.getAddress()),
                 toBigDecimalOrFallback(item.latitude(), place.getLatitude()),
@@ -51,7 +57,8 @@ public record PlaceListResponse(
                 valueOrFallback(item.firstImageUrl(), place.getFirstImageUrl()),
                 place.getCategoryGroup(),
                 place.getCategoryDetail(),
-                place.isRepresentative()
+                place.isRepresentative(),
+                place.getSource()
         );
     }
 
@@ -59,6 +66,7 @@ public record PlaceListResponse(
         return new PlaceListResponse(
                 null,
                 item.contentId(),
+                null,
                 item.title(),
                 item.address(),
                 toBigDecimal(item.latitude()),
@@ -66,7 +74,8 @@ public record PlaceListResponse(
                 item.firstImageUrl(),
                 PlaceCategoryMapper.toGroup(item.lclsSystm1(), item.lclsSystm3()),
                 PlaceCategoryMapper.toDetail(item.lclsSystm1(), item.lclsSystm3()),
-                false
+                false,
+                PlaceSource.TOUR_API
         );
     }
 }
