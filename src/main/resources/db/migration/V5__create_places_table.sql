@@ -3,12 +3,15 @@ CREATE TABLE places (
 
                         region_id BIGINT NOT NULL,
 
-                        tour_content_id VARCHAR(50) NOT NULL,
+                        tour_content_id VARCHAR(50),
+                        kakao_place_id VARCHAR(50),
 
                         title VARCHAR(255) NOT NULL,
                         address VARCHAR(255),
+
                         latitude DECIMAL(10, 7),
                         longitude DECIMAL(10, 7),
+
                         first_image_url VARCHAR(500),
 
                         ldong_regn_cd VARCHAR(10),
@@ -32,7 +35,12 @@ CREATE TABLE places (
                                 REFERENCES regions (id),
 
                         CONSTRAINT uk_places_tour_content_id
-                            UNIQUE (tour_content_id)
+                            UNIQUE (tour_content_id),
+
+                        CONSTRAINT uk_places_kakao_place_id
+                            UNIQUE (kakao_place_id)
 );
 
 CREATE INDEX idx_places_region_id ON places (region_id);
+CREATE INDEX idx_places_region_category ON places (region_id, category_group);
+CREATE INDEX idx_places_source ON places (source);
