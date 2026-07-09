@@ -1,5 +1,6 @@
 package com.chaerok.backend.auth.security;
 
+import com.chaerok.backend.global.exception.ErrorResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,12 +12,10 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
-public class JwtAuthenticationEntryPoint
-        implements AuthenticationEntryPoint {
+public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
     private final ObjectMapper objectMapper;
 
@@ -26,17 +25,19 @@ public class JwtAuthenticationEntryPoint
             HttpServletResponse response,
             AuthenticationException authException
     ) throws IOException, ServletException {
-
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
 
+        ErrorResponse errorResponse = ErrorResponse.of(
+                "UNAUTHORIZED",
+                "인증이 필요합니다.",
+                request.getRequestURI()
+        );
+
         objectMapper.writeValue(
                 response.getWriter(),
-                Map.of(
-                        "code", "UNAUTHORIZED",
-                        "message", "인증이 필요합니다."
-                )
+                errorResponse
         );
     }
 }
