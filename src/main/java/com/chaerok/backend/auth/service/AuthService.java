@@ -28,6 +28,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
 
+    @Transactional
     public OAuthLoginResponse login(OAuthLoginRequest request) {
         OAuthTokenVerifier verifier =
                 verifierResolver.resolve(request.provider());
