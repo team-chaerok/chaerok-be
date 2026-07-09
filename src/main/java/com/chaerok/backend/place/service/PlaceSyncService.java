@@ -62,6 +62,7 @@ public class PlaceSyncService {
                         () -> placeRepository.save(Place.create(
                                 region,
                                 item.contentId(),
+                                null,
                                 item.title(),
                                 item.address(),
                                 latitude,

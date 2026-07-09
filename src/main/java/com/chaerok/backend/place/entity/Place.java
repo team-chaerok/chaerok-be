@@ -35,8 +35,11 @@ public class Place {
     @JoinColumn(name = "region_id", nullable = false)
     private Region region;
 
-    @Column(name = "tour_content_id", nullable = false, unique = true, length = 50)
+    @Column(name = "tour_content_id", unique = true, length = 50)
     private String tourContentId;
+
+    @Column(name = "kakao_place_id", unique = true, length = 50)
+    private String kakaoPlaceId;
 
     @Column(nullable = false, length = 255)
     private String title;
@@ -94,6 +97,7 @@ public class Place {
     public static Place create(
             Region region,
             String tourContentId,
+            String kakaoPlaceId,
             String title,
             String address,
             BigDecimal latitude,
@@ -112,6 +116,7 @@ public class Place {
         Place place = new Place();
         place.region = region;
         place.tourContentId = tourContentId;
+        place.kakaoPlaceId = kakaoPlaceId;
         place.title = title;
         place.address = address;
         place.latitude = latitude;
