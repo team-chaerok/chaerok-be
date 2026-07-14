@@ -14,5 +14,7 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
 
     Optional<Place> findByTourContentId(String tourContentId);
 
+    Optional<Place> findByKakaoPlaceId(String kakaoPlaceId);
+
     boolean existsByTourContentId(String tourContentId);
 }

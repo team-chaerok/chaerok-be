@@ -6,6 +6,8 @@ import com.chaerok.backend.place.entity.PlaceCategoryGroup;
 import com.chaerok.backend.place.entity.PlaceSource;
 import com.chaerok.backend.place.external.KakaoPlaceItem;
 
+import java.math.BigDecimal;
+
 public record CoursePlaceResponse(
         Long placeId,
         String externalPlaceId,
@@ -14,18 +16,24 @@ public record CoursePlaceResponse(
         String categoryGroup,
         String categoryDetail,
         String address,
+        BigDecimal latitude,
+        BigDecimal longitude,
         String placeUrl
 ) {
 
     public static CoursePlaceResponse fromPlace(Place place) {
         return new CoursePlaceResponse(
                 place.getId(),
-                place.getKakaoPlaceId(),
+                getExternalPlaceId(place),
                 place.getSource().name(),
                 place.getTitle(),
                 place.getCategoryGroup().name(),
-                place.getCategoryDetail() == null ? null : place.getCategoryDetail().name(),
+                place.getCategoryDetail() == null
+                        ? null
+                        : place.getCategoryDetail().name(),
                 place.getAddress(),
+                place.getLatitude(),
+                place.getLongitude(),
                 null
         );
     }
@@ -59,15 +67,38 @@ public record CoursePlaceResponse(
                 categoryGroup.name(),
                 categoryDetail.name(),
                 getAddress(item),
+                toBigDecimal(item.y()),
+                toBigDecimal(item.x()),
                 item.placeUrl()
         );
     }
 
     private static String getAddress(KakaoPlaceItem item) {
-        if (item.roadAddressName() != null && !item.roadAddressName().isBlank()) {
+        if (item.roadAddressName() != null
+                && !item.roadAddressName().isBlank()) {
             return item.roadAddressName();
         }
 
         return item.addressName();
+    }
+
+    private static BigDecimal toBigDecimal(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        try {
+            return new BigDecimal(value);
+        } catch (NumberFormatException exception) {
+            return null;
+        }
+    }
+
+    private static String getExternalPlaceId(Place place) {
+        if (PlaceSource.TOUR_API.equals(place.getSource())) {
+            return place.getTourContentId();
+        }
+
+        return place.getKakaoPlaceId();
     }
 }
