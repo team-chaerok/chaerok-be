@@ -24,7 +24,7 @@ public record CoursePlaceResponse(
     public static CoursePlaceResponse fromPlace(Place place) {
         return new CoursePlaceResponse(
                 place.getId(),
-                place.getKakaoPlaceId(),
+                getExternalPlaceId(place),
                 place.getSource().name(),
                 place.getTitle(),
                 place.getCategoryGroup().name(),
@@ -92,5 +92,13 @@ public record CoursePlaceResponse(
         } catch (NumberFormatException exception) {
             return null;
         }
+    }
+
+    private static String getExternalPlaceId(Place place) {
+        if (PlaceSource.TOUR_API.equals(place.getSource())) {
+            return place.getTourContentId();
+        }
+
+        return place.getKakaoPlaceId();
     }
 }

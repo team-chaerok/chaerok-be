@@ -153,10 +153,14 @@ public class CourseCommandService {
         Place tourApiPlace = findOrCreateTourApiPlace(region, request);
 
         if (tourApiPlace != null) {
+            validatePlaceRegion(region, tourApiPlace);
             return tourApiPlace;
         }
 
-        return findOrCreateKakaoPlace(region, request);
+        Place kakaoPlace = findOrCreateKakaoPlace(region, request);
+        validatePlaceRegion(region, kakaoPlace);
+
+        return kakaoPlace;
     }
 
     private Place findOrCreateTourApiPlace(
@@ -168,7 +172,7 @@ public class CourseCommandService {
             return placeRepository.findByTourContentId(
                             request.externalPlaceId()
                     )
-                    .orElseGet(() -> createTourApiPlaceByContentId(
+                    .orElseGet(() -> createTourApiPlaceByContentIdOrThrow(
                             region,
                             request.externalPlaceId()
                     ));
@@ -191,15 +195,19 @@ public class CourseCommandService {
                 .orElse(null);
     }
 
-    private Place createTourApiPlaceByContentId(
+    private Place createTourApiPlaceByContentIdOrThrow(
             Region region,
             String contentId
     ) {
         TourApiPlaceItem item = tourApiPlaceClient.getPlaceDetail(contentId);
 
         if (item == null) {
-            return null;
+            throw new IllegalArgumentException(
+                    "TourAPI 장소 정보를 찾을 수 없습니다."
+            );
         }
+
+        validateTourApiItemRegion(region, item);
 
         return createTourApiPlace(region, item);
     }
@@ -208,6 +216,8 @@ public class CourseCommandService {
             Region region,
             TourApiPlaceItem item
     ) {
+        validateTourApiItemRegion(region, item);
+
         PlaceCategoryGroup categoryGroup = PlaceCategoryMapper.toGroup(
                 item.lclsSystm1(),
                 item.lclsSystm3()
@@ -239,6 +249,18 @@ public class CourseCommandService {
         );
 
         return placeRepository.save(place);
+    }
+
+    private void validateTourApiItemRegion(
+            Region region,
+            TourApiPlaceItem item
+    ) {
+        if (!region.getLdongRegnCd().equals(item.lDongRegnCd())
+                || !region.getLdongSignguCd().equals(item.lDongSignguCd())) {
+            throw new IllegalArgumentException(
+                    "TourAPI 장소가 코스 지역과 일치하지 않습니다."
+            );
+        }
     }
 
     private Place findOrCreateKakaoPlace(

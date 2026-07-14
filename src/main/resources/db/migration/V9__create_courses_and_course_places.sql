@@ -47,5 +47,9 @@ create table course_places (
 create index idx_courses_user_status
     on courses(user_id, status);
 
+create unique index uk_courses_user_active
+    on courses(user_id)
+    where status = 'ACTIVE';
+
 create index idx_course_places_course_id
     on course_places(course_id);
