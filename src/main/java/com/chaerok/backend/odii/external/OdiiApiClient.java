@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -18,6 +19,12 @@ public class OdiiApiClient {
     private static final int DEFAULT_NUM_OF_ROWS = 20;
     private static final String RESPONSE_TYPE = "json";
     private static final String SUCCESS_CODE = "0000";
+
+    /*
+     * 공공데이터 API 응답 지연을 고려해 15초로 설정한다.
+     * 제한 시간을 초과하면 예외를 처리하고 빈 목록을 반환한다.
+     */
+    private static final Duration API_TIMEOUT = Duration.ofSeconds(15);
 
     private final WebClient webClient;
     private final OdiiProperties properties;
@@ -55,16 +62,25 @@ public class OdiiApiClient {
                             .build())
                     .retrieve()
                     .bodyToMono(JsonNode.class)
+                    .timeout(API_TIMEOUT)
                     .block();
 
             if (!isSuccess(root)) {
-                log.warn("Odii themeSearchList 호출 실패. keyword={}", keyword);
+                logApiFailure(
+                        "themeSearchList",
+                        root,
+                        "keyword=" + keyword
+                );
+
                 return Collections.emptyList();
             }
 
             JsonNode itemNode = getItemNode(root);
 
-            if (itemNode == null || itemNode.isMissingNode() || itemNode.isNull()) {
+            if (itemNode == null
+                    || itemNode.isMissingNode()
+                    || itemNode.isNull()) {
+
                 return Collections.emptyList();
             }
 
@@ -83,8 +99,9 @@ public class OdiiApiClient {
             return items;
         } catch (Exception e) {
             log.warn(
-                    "Odii themeSearchList 호출 중 예외 발생. keyword={}, message={}",
+                    "Odii themeSearchList 호출 중 예외 발생. keyword={}, exception={}, message={}",
                     keyword,
+                    e.getClass().getSimpleName(),
                     e.getMessage()
             );
 
@@ -100,7 +117,11 @@ public class OdiiApiClient {
      * @return 관광지 이야기 목록
      */
     public List<OdiiStoryItem> getStories(String tid, String tlid) {
-        if (tid == null || tid.isBlank() || tlid == null || tlid.isBlank()) {
+        if (tid == null
+                || tid.isBlank()
+                || tlid == null
+                || tlid.isBlank()) {
+
             return Collections.emptyList();
         }
 
@@ -120,13 +141,14 @@ public class OdiiApiClient {
                             .build())
                     .retrieve()
                     .bodyToMono(JsonNode.class)
+                    .timeout(API_TIMEOUT)
                     .block();
 
             if (!isSuccess(root)) {
-                log.warn(
-                        "Odii storyBasedList 호출 실패. tid={}, tlid={}",
-                        tid,
-                        tlid
+                logApiFailure(
+                        "storyBasedList",
+                        root,
+                        "tid=" + tid + ", tlid=" + tlid
                 );
 
                 return Collections.emptyList();
@@ -134,7 +156,10 @@ public class OdiiApiClient {
 
             JsonNode itemNode = getItemNode(root);
 
-            if (itemNode == null || itemNode.isMissingNode() || itemNode.isNull()) {
+            if (itemNode == null
+                    || itemNode.isMissingNode()
+                    || itemNode.isNull()) {
+
                 return Collections.emptyList();
             }
 
@@ -161,9 +186,10 @@ public class OdiiApiClient {
             return stories;
         } catch (Exception e) {
             log.warn(
-                    "Odii storyBasedList 호출 중 예외 발생. tid={}, tlid={}, message={}",
+                    "Odii storyBasedList 호출 중 예외 발생. tid={}, tlid={}, exception={}, message={}",
                     tid,
                     tlid,
+                    e.getClass().getSimpleName(),
                     e.getMessage()
             );
 
@@ -239,5 +265,39 @@ public class OdiiApiClient {
 
             return null;
         }
+    }
+
+    private void logApiFailure(
+            String operation,
+            JsonNode root,
+            String requestContext
+    ) {
+        if (root == null) {
+            log.warn(
+                    "Odii API 응답이 없습니다. operation={}, request={}",
+                    operation,
+                    requestContext
+            );
+
+            return;
+        }
+
+        String resultCode = root.path("response")
+                .path("header")
+                .path("resultCode")
+                .asText();
+
+        String resultMessage = root.path("response")
+                .path("header")
+                .path("resultMsg")
+                .asText();
+
+        log.warn(
+                "Odii API 호출 실패. operation={}, request={}, resultCode={}, resultMessage={}",
+                operation,
+                requestContext,
+                resultCode,
+                resultMessage
+        );
     }
 }
