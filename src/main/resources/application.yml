@@ -39,7 +39,11 @@ external:
   tour-api:
     key: ${TOUR_API_KEY}
   odii:
-    key: ${ODII_API_KEY}
+    base-url: https://apis.data.go.kr/B551011/Odii
+    service-key: ${ODII_SERVICE_KEY}
+    mobile-os: AND
+    mobile-app: Chaerok
+    language-code: ko
 
 oauth:
   kakao:
