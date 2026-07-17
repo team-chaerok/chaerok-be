@@ -152,11 +152,8 @@ public class TourApiPlaceClient {
                             .queryParam("MobileApp", "Chaerok")
                             .queryParam("_type", "json")
                             .queryParam("contentId", contentId)
-                            .queryParam("defaultYN", "Y")
-                            .queryParam("firstImageYN", "Y")
-                            .queryParam("addrinfoYN", "Y")
-                            .queryParam("mapinfoYN", "Y")
-                            .queryParam("overviewYN", "Y")
+                            .queryParam("numOfRows", 10)
+                            .queryParam("pageNo", 1)
                             .build())
                     .retrieve()
                     .bodyToMono(TourApiPlaceResponse.class)
@@ -168,24 +165,41 @@ public class TourApiPlaceClient {
             }
 
             if (!response.isSuccess()) {
-                log.warn("TourAPI detailCommon2 failed. contentId={}", contentId);
+                log.warn(
+                        "TourAPI detailCommon2 failed. contentId={}, resultCode={}, resultMsg={}",
+                        contentId
+                );
                 return null;
             }
 
             return response.getItems().stream()
                     .findFirst()
                     .orElse(null);
+
         } catch (WebClientResponseException e) {
-            log.warn("TourAPI detailCommon2 response error. contentId={}, status={}, body={}",
-                    contentId, e.getStatusCode(), e.getResponseBodyAsString());
+            log.warn(
+                    "TourAPI detailCommon2 response error. contentId={}, status={}, body={}",
+                    contentId,
+                    e.getStatusCode(),
+                    e.getResponseBodyAsString()
+            );
             return null;
+
         } catch (WebClientRequestException e) {
-            log.warn("TourAPI detailCommon2 request error. contentId={}, message={}",
-                    contentId, e.getMessage());
+            log.warn(
+                    "TourAPI detailCommon2 request error. contentId={}, message={}",
+                    contentId,
+                    e.getMessage()
+            );
             return null;
+
         } catch (RuntimeException e) {
-            log.error("TourAPI detailCommon2 unexpected error. contentId={}, message={}",
-                    contentId, e.getMessage(), e);
+            log.error(
+                    "TourAPI detailCommon2 unexpected error. contentId={}, message={}",
+                    contentId,
+                    e.getMessage(),
+                    e
+            );
             return null;
         }
     }
