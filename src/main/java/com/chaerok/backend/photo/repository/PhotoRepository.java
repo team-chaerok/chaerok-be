@@ -15,6 +15,11 @@ public interface PhotoRepository
             Long filmRollId
     );
 
+    Optional<Photo> findByFilmRollIdAndSequence(
+            Long filmRollId,
+            Integer sequence
+    );
+
     List<Photo> findAllByFilmRollIdOrderBySequenceAsc(
             Long filmRollId
     );

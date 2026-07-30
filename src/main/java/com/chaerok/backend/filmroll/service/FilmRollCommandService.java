@@ -1,0 +1,158 @@
+package com.chaerok.backend.filmroll.service;
+
+import com.chaerok.backend.filmroll.dto.FilmRollCreateRequest;
+import com.chaerok.backend.filmroll.dto.FilmRollResponse;
+import com.chaerok.backend.filmroll.entity.FilmRoll;
+import com.chaerok.backend.filmroll.entity.FilmRollStatus;
+import com.chaerok.backend.filmroll.exception.FilmRollConflictException;
+import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
+import com.chaerok.backend.filmroll.repository.FilmRollRepository;
+import com.chaerok.backend.filter.preset.FilmFilterPresetProvider;
+import com.chaerok.backend.global.exception.RegionNotFoundException;
+import com.chaerok.backend.photo.entity.PhotoStatus;
+import com.chaerok.backend.photo.repository.PhotoRepository;
+import com.chaerok.backend.region.entity.Region;
+import com.chaerok.backend.region.repository.RegionRepository;
+import com.chaerok.backend.user.entity.User;
+import com.chaerok.backend.user.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class FilmRollCommandService {
+
+    private static final int CURRENT_FILTER_VERSION = 1;
+
+    private static final List<FilmRollStatus> ACTIVE_STATUSES =
+            List.of(
+                    FilmRollStatus.CAPTURING,
+                    FilmRollStatus.READY,
+                    FilmRollStatus.QUEUED,
+                    FilmRollStatus.PROCESSING
+            );
+
+    private final FilmRollRepository filmRollRepository;
+    private final PhotoRepository photoRepository;
+    private final UserRepository userRepository;
+    private final RegionRepository regionRepository;
+    private final FilmFilterPresetProvider filterPresetProvider;
+
+    @Transactional
+    public FilmRollResponse createFilmRoll(
+            Long userId,
+            FilmRollCreateRequest request
+    ) {
+        if (filmRollRepository.existsByUserIdAndStatusIn(
+                userId,
+                ACTIVE_STATUSES
+        )) {
+            throw new FilmRollConflictException(
+                    "이미 촬영 또는 현상 중인 필름 롤이 있습니다."
+            );
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "사용자를 찾을 수 없습니다."
+                        )
+                );
+
+        Region region = regionRepository.findById(request.regionId())
+                .orElseThrow(RegionNotFoundException::new);
+
+        if (!region.isServiceEnabled()) {
+            throw new RegionNotFoundException();
+        }
+
+        filterPresetProvider.getByFilterId(
+                request.filterId().trim()
+        );
+
+        FilmRoll filmRoll = FilmRoll.create(
+                user,
+                region,
+                request.filterId(),
+                request.filterStrength(),
+                CURRENT_FILTER_VERSION
+        );
+
+        try {
+            FilmRoll savedFilmRoll =
+                    filmRollRepository.saveAndFlush(filmRoll);
+
+            return FilmRollResponse.from(savedFilmRoll);
+        } catch (DataIntegrityViolationException exception) {
+            throw new FilmRollConflictException(
+                    "이미 촬영 또는 현상 중인 필름 롤이 있습니다."
+            );
+        }
+    }
+
+    @Transactional
+    public FilmRollResponse markReady(
+            Long userId,
+            Long filmRollId
+    ) {
+        FilmRoll filmRoll =
+                findOwnedFilmRollForUpdate(
+                        userId,
+                        filmRollId
+                );
+
+        if (filmRoll.getStatus() != FilmRollStatus.CAPTURING) {
+            throw new FilmRollConflictException(
+                    "촬영 중인 필름 롤만 현상 준비 상태로 전환할 수 있습니다."
+            );
+        }
+
+        long savedPhotoCount =
+                photoRepository.countByFilmRollId(filmRollId);
+
+        if (savedPhotoCount == 0) {
+            throw new FilmRollConflictException(
+                    "사진이 없는 필름 롤은 현상할 수 없습니다."
+            );
+        }
+
+        if (savedPhotoCount != filmRoll.getTotalPhotoCount()) {
+            throw new FilmRollConflictException(
+                    "아직 업로드가 완료되지 않은 사진이 있습니다."
+            );
+        }
+
+        boolean hasIncompletePhoto =
+                photoRepository.existsByFilmRollIdAndStatusNot(
+                        filmRollId,
+                        PhotoStatus.UPLOADED
+                );
+
+        if (hasIncompletePhoto) {
+            throw new FilmRollConflictException(
+                    "모든 사진의 업로드가 완료되어야 현상을 시작할 수 있습니다."
+            );
+        }
+
+        filmRoll.markReady();
+
+        return FilmRollResponse.from(filmRoll);
+    }
+
+    private FilmRoll findOwnedFilmRollForUpdate(
+            Long userId,
+            Long filmRollId
+    ) {
+        return filmRollRepository
+                .findByIdAndUserIdForUpdate(
+                        filmRollId,
+                        userId
+                )
+                .orElseThrow(FilmRollNotFoundException::new);
+    }
+}
