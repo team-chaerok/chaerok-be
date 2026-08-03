@@ -30,6 +30,7 @@ dependencies {
 	// AWS SDK for Java 2.x
 	implementation platform('software.amazon.awssdk:bom:2.49.3')
 	implementation 'software.amazon.awssdk:s3'
+	implementation 'software.amazon.awssdk:sqs'
 
 	// Swagger
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
