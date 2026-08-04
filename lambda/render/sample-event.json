@@ -1,0 +1,20 @@
+{
+  "Records": [
+    {
+      "messageId": "local-message-1",
+      "receiptHandle": "local",
+      "body": "{\"schemaVersion\": 1, \"renderJobId\": \"133d6ee3-a120-4df3-8ba3-f60adbdd64d6\", \"filmRollId\": 2, \"userId\": 6, \"regionId\": 1, \"bucket\": \"chaerok-media-dev-7f3k2m\", \"filterId\": \"gongju_baekje_love\", \"filterStrength\": 0.8, \"filterVersion\": 1, \"totalPhotoCount\": 1, \"requestedAt\": \"2026-07-30T22:59:17.022325\", \"photos\": [{\"photoId\": 1, \"sequence\": 1, \"originalObjectKey\": \"users/6/rolls/2/original/sample.jpg\", \"hasFace\": false, \"sceneType\": null, \"takenAt\": \"2026-07-30T22:40:00\"}]}",
+      "attributes": {
+        "ApproximateReceiveCount": "1",
+        "SentTimestamp": "0",
+        "SenderId": "local",
+        "ApproximateFirstReceiveTimestamp": "0"
+      },
+      "messageAttributes": {},
+      "md5OfBody": "local",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:ap-northeast-2:921972553505:chaerok-render-dev",
+      "awsRegion": "ap-northeast-2"
+    }
+  ]
+}
