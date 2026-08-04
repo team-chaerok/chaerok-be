@@ -5,9 +5,10 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.SQSBatchResponse;
 import com.amazonaws.services.lambda.runtime.events.SQSEvent;
 import com.chaerok.render.message.RenderQueueMessage;
-import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.chaerok.render.output.RenderOutput;
+import com.chaerok.render.pipeline.RenderPipeline;
+import com.chaerok.render.validation.RenderMessageValidator;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,16 +16,26 @@ import java.util.List;
 public class RenderHandler
         implements RequestHandler<SQSEvent, SQSBatchResponse> {
 
-    private static final int SUPPORTED_SCHEMA_VERSION = 1;
-
     private final ObjectMapper objectMapper;
+    private final RenderMessageValidator validator;
+    private final RenderPipeline renderPipeline;
 
     public RenderHandler() {
-        this.objectMapper = new ObjectMapper()
-                .registerModule(new JavaTimeModule())
-                .disable(
-                        DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES
-                );
+        this.objectMapper = RenderRuntimeFactory.objectMapper();
+        this.validator = new RenderMessageValidator();
+        this.renderPipeline = RenderRuntimeFactory.renderPipeline(
+                objectMapper
+        );
+    }
+
+    RenderHandler(
+            ObjectMapper objectMapper,
+            RenderMessageValidator validator,
+            RenderPipeline renderPipeline
+    ) {
+        this.objectMapper = objectMapper;
+        this.validator = validator;
+        this.renderPipeline = renderPipeline;
     }
 
     @Override
@@ -36,29 +47,35 @@ public class RenderHandler
                 new ArrayList<>();
 
         if (event == null || event.getRecords() == null) {
-            context.getLogger().log(
-                    "SQS event has no records.\n"
-            );
+            log(context, "SQS event has no records.");
             return response(failures);
         }
 
         for (SQSEvent.SQSMessage record : event.getRecords()) {
+            String messageId = record == null
+                    ? null
+                    : record.getMessageId();
+
             try {
                 process(record, context);
             } catch (Exception exception) {
-                context.getLogger().log(
+                log(
+                        context,
                         "Render message failed: messageId="
-                                + record.getMessageId()
+                                + messageId
+                                + ", errorType="
+                                + exception.getClass().getSimpleName()
                                 + ", error="
-                                + exception.getMessage()
-                                + "\n"
+                                + safeMessage(exception)
                 );
 
-                failures.add(
-                        new SQSBatchResponse.BatchItemFailure(
-                                record.getMessageId()
-                        )
-                );
+                if (messageId != null && !messageId.isBlank()) {
+                    failures.add(
+                            new SQSBatchResponse.BatchItemFailure(
+                                    messageId
+                            )
+                    );
+                }
             }
         }
 
@@ -69,48 +86,30 @@ public class RenderHandler
             SQSEvent.SQSMessage record,
             Context context
     ) throws Exception {
-        RenderQueueMessage message =
-                objectMapper.readValue(
-                        record.getBody(),
-                        RenderQueueMessage.class
-                );
-
-        if (message.schemaVersion()
-                != SUPPORTED_SCHEMA_VERSION) {
+        if (record == null) {
             throw new IllegalArgumentException(
-                    "Unsupported schemaVersion: "
-                            + message.schemaVersion()
+                    "SQS record is required."
             );
         }
 
-        if (message.renderJobId() == null) {
+        if (record.getBody() == null
+                || record.getBody().isBlank()) {
             throw new IllegalArgumentException(
-                    "renderJobId is required."
+                    "SQS message body is required."
             );
         }
 
-        if (message.filmRollId() == null) {
-            throw new IllegalArgumentException(
-                    "filmRollId is required."
-            );
-        }
+        RenderQueueMessage message = objectMapper.readValue(
+                record.getBody(),
+                RenderQueueMessage.class
+        );
 
-        if (message.bucket() == null
-                || message.bucket().isBlank()) {
-            throw new IllegalArgumentException(
-                    "bucket is required."
-            );
-        }
+        validator.validate(message);
 
-        if (message.photos().isEmpty()) {
-            throw new IllegalArgumentException(
-                    "At least one photo is required."
-            );
-        }
-
-        context.getLogger().log(
-                "Render message accepted: "
-                        + "messageId=" + record.getMessageId()
+        log(
+                context,
+                "Render started: messageId="
+                        + record.getMessageId()
                         + ", renderJobId="
                         + message.renderJobId()
                         + ", filmRollId="
@@ -119,17 +118,55 @@ public class RenderHandler
                         + message.photos().size()
                         + ", filterId="
                         + message.filterId()
-                        + "\n"
+        );
+
+        RenderOutput output = renderPipeline.execute(
+                message,
+                detail -> log(
+                        context,
+                        "renderJobId="
+                                + message.renderJobId()
+                                + ", "
+                                + detail
+                )
+        );
+
+        log(
+                context,
+                "Render completed: renderJobId="
+                        + output.renderJobId()
+                        + ", zipObjectKey="
+                        + output.zipObjectKey()
+                        + ", reelObjectKey="
+                        + output.reelObjectKey()
+                        + ", manifestObjectKey="
+                        + output.manifestObjectKey()
         );
     }
 
     private SQSBatchResponse response(
             List<SQSBatchResponse.BatchItemFailure> failures
     ) {
-        SQSBatchResponse response =
-                new SQSBatchResponse();
-
+        SQSBatchResponse response = new SQSBatchResponse();
         response.setBatchItemFailures(failures);
         return response;
+    }
+
+    private void log(Context context, String message) {
+        if (context == null || context.getLogger() == null) {
+            System.out.println(message);
+            return;
+        }
+        context.getLogger().log(message + "\n");
+    }
+
+    private String safeMessage(Exception exception) {
+        String message = exception.getMessage();
+        if (message == null || message.isBlank()) {
+            return exception.getClass().getName();
+        }
+        return message.length() <= 1000
+                ? message
+                : message.substring(0, 1000);
     }
 }

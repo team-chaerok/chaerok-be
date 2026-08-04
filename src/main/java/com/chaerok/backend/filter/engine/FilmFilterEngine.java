@@ -17,13 +17,9 @@ import com.chaerok.backend.filter.processor.OverlayImageCache;
 import com.chaerok.backend.filter.processor.OverlayProcessor;
 import com.chaerok.backend.filter.processor.TemperatureProcessor;
 import com.chaerok.backend.filter.processor.VignetteProcessor;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 
 import java.awt.image.BufferedImage;
 
-@Component
-@RequiredArgsConstructor
 public class FilmFilterEngine {
 
     private static final double MAX_ADAPTIVE_STRENGTH = 1.25;
@@ -33,6 +29,20 @@ public class FilmFilterEngine {
     private final ImageSceneAnalyzer imageSceneAnalyzer;
     private final AdaptiveFilterPolicy adaptiveFilterPolicy;
     private final FilterOverlayTuningPolicy filterOverlayTuningPolicy;
+
+    public FilmFilterEngine(
+            FilmFilterPresetProvider presetProvider,
+            OverlayImageCache overlayImageCache,
+            ImageSceneAnalyzer imageSceneAnalyzer,
+            AdaptiveFilterPolicy adaptiveFilterPolicy,
+            FilterOverlayTuningPolicy filterOverlayTuningPolicy
+    ) {
+        this.presetProvider = presetProvider;
+        this.overlayImageCache = overlayImageCache;
+        this.imageSceneAnalyzer = imageSceneAnalyzer;
+        this.adaptiveFilterPolicy = adaptiveFilterPolicy;
+        this.filterOverlayTuningPolicy = filterOverlayTuningPolicy;
+    }
 
     public BufferedImage apply(
             BufferedImage original,

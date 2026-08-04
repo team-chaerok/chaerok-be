@@ -1,10 +1,8 @@
 package com.chaerok.backend.filter.analysis;
 
-import org.springframework.stereotype.Component;
 
 import java.awt.image.BufferedImage;
 
-@Component
 public class ImageSceneAnalyzer {
 
     private static final int MAX_SAMPLE_COUNT = 15_000;

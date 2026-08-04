@@ -1,8 +1,6 @@
 package com.chaerok.backend.filter.analysis;
 
-import org.springframework.stereotype.Component;
 
-@Component
 public class AdaptiveFilterPolicy {
 
     /**

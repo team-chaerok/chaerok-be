@@ -1,17 +1,19 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 
-$projectRoot = Split-Path -Parent (
-    Split-Path -Parent $MyInvocation.MyCommand.Path
+$scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+$repositoryRoot = Resolve-Path (
+    Join-Path $scriptDirectory "..\..\.."
 )
 
-Push-Location $projectRoot
+Push-Location $repositoryRoot
 
 try {
     docker buildx build `
         --platform linux/amd64 `
         --provenance=false `
         --load `
-        --tag chaerok-render-lambda:smoke-v1 `
+        --file lambda/render/Dockerfile `
+        --tag chaerok-render-lambda:render-v2-stage1 `
         .
 } finally {
     Pop-Location

@@ -1,10 +1,8 @@
 package com.chaerok.backend.filter.preset;
 
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-@Component
 public class FilmFilterPresetProvider {
 
     private final List<FilmFilterPreset> presets = List.of(

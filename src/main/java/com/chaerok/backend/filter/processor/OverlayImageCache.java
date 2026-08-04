@@ -1,15 +1,12 @@
 package com.chaerok.backend.filter.processor;
 
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.stereotype.Component;
-
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-@Component
 public class OverlayImageCache {
 
     private final Map<String, BufferedImage> cache = new ConcurrentHashMap<>();
@@ -23,17 +20,27 @@ public class OverlayImageCache {
     }
 
     private BufferedImage loadOverlay(String overlayPath) {
-        try {
-            ClassPathResource resource = new ClassPathResource(overlayPath);
+        ClassLoader classLoader = Thread.currentThread()
+                .getContextClassLoader();
 
-            if (!resource.exists()) {
-                throw new IllegalArgumentException("오버레이 파일을 찾을 수 없습니다: " + overlayPath);
+        if (classLoader == null) {
+            classLoader = OverlayImageCache.class.getClassLoader();
+        }
+
+        try (InputStream inputStream =
+                     classLoader.getResourceAsStream(overlayPath)) {
+            if (inputStream == null) {
+                throw new IllegalArgumentException(
+                        "오버레이 파일을 찾을 수 없습니다: " + overlayPath
+                );
             }
 
-            BufferedImage image = ImageIO.read(resource.getInputStream());
+            BufferedImage image = ImageIO.read(inputStream);
 
             if (image == null) {
-                throw new IllegalArgumentException("오버레이 이미지를 읽을 수 없습니다: " + overlayPath);
+                throw new IllegalArgumentException(
+                        "오버레이 이미지를 읽을 수 없습니다: " + overlayPath
+                );
             }
 
             return image;
