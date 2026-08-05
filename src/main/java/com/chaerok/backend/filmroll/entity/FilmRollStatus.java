@@ -1,5 +1,7 @@
 package com.chaerok.backend.filmroll.entity;
 
+import java.util.List;
+
 public enum FilmRollStatus {
     CAPTURING,
     READY,
@@ -7,5 +9,18 @@ public enum FilmRollStatus {
     PROCESSING,
     COMPLETED,
     FAILED,
-    EXPIRED
+    EXPIRED;
+
+    private static final List<FilmRollStatus> INCOMPLETE_STATUSES =
+            List.of(
+                    CAPTURING,
+                    READY,
+                    QUEUED,
+                    PROCESSING,
+                    FAILED
+            );
+
+    public static List<FilmRollStatus> incompleteStatuses() {
+        return INCOMPLETE_STATUSES;
+    }
 }

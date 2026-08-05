@@ -42,6 +42,21 @@ public class FilmRollApiExceptionHandler {
                 ));
     }
 
+
+    @ExceptionHandler(ActiveFilmRollExistsException.class)
+    public ResponseEntity<ErrorResponse> handleActiveFilmRollExists(
+            ActiveFilmRollExistsException exception,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of(
+                        "ACTIVE_FILM_ROLL_EXISTS",
+                        exception.getMessage(),
+                        request.getRequestURI()
+                ));
+    }
+
     @ExceptionHandler(FilmRollConflictException.class)
     public ResponseEntity<ErrorResponse> handleFilmRollConflict(
             FilmRollConflictException exception,

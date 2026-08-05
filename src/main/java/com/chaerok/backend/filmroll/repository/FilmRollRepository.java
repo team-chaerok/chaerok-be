@@ -19,6 +19,11 @@ public interface FilmRollRepository
             Long userId
     );
 
+    Optional<FilmRoll> findFirstByUserIdAndStatusInOrderByCreatedAtDesc(
+            Long userId,
+            List<FilmRollStatus> statuses
+    );
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select filmRoll

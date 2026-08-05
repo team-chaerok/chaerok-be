@@ -4,6 +4,7 @@ import com.chaerok.backend.filmroll.dto.FilmRollCreateRequest;
 import com.chaerok.backend.filmroll.dto.FilmRollResponse;
 import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.entity.FilmRollStatus;
+import com.chaerok.backend.filmroll.exception.ActiveFilmRollExistsException;
 import com.chaerok.backend.filmroll.exception.FilmRollConflictException;
 import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
@@ -20,22 +21,12 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class FilmRollCommandService {
 
     private static final int CURRENT_FILTER_VERSION = 1;
-
-    private static final List<FilmRollStatus> ACTIVE_STATUSES =
-            List.of(
-                    FilmRollStatus.CAPTURING,
-                    FilmRollStatus.READY,
-                    FilmRollStatus.QUEUED,
-                    FilmRollStatus.PROCESSING
-            );
 
     private final FilmRollRepository filmRollRepository;
     private final PhotoRepository photoRepository;
@@ -50,11 +41,9 @@ public class FilmRollCommandService {
     ) {
         if (filmRollRepository.existsByUserIdAndStatusIn(
                 userId,
-                ACTIVE_STATUSES
+                FilmRollStatus.incompleteStatuses()
         )) {
-            throw new FilmRollConflictException(
-                    "이미 촬영 또는 현상 중인 필름 롤이 있습니다."
-            );
+            throw new ActiveFilmRollExistsException();
         }
 
         User user = userRepository.findById(userId)
@@ -89,9 +78,7 @@ public class FilmRollCommandService {
 
             return FilmRollResponse.from(savedFilmRoll);
         } catch (DataIntegrityViolationException exception) {
-            throw new FilmRollConflictException(
-                    "이미 촬영 또는 현상 중인 필름 롤이 있습니다."
-            );
+            throw new ActiveFilmRollExistsException();
         }
     }
 

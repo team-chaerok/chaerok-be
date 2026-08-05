@@ -4,7 +4,7 @@ import com.chaerok.backend.filmroll.dto.FilmRollCreateRequest;
 import com.chaerok.backend.filmroll.dto.FilmRollResponse;
 import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.entity.FilmRollStatus;
-import com.chaerok.backend.filmroll.exception.FilmRollConflictException;
+import com.chaerok.backend.filmroll.exception.ActiveFilmRollExistsException;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.filter.preset.FilmFilterPreset;
 import com.chaerok.backend.filter.preset.FilmFilterPresetProvider;
@@ -22,14 +22,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -89,8 +90,8 @@ class FilmRollCommandServiceTest {
                 );
 
         when(filmRollRepository.existsByUserIdAndStatusIn(
-                any(),
-                anyList()
+                1L,
+                FilmRollStatus.incompleteStatuses()
         )).thenReturn(false);
 
         when(userRepository.findById(1L))
@@ -135,8 +136,8 @@ class FilmRollCommandServiceTest {
     @DisplayName("활성 필름 롤이 있으면 새 필름 롤을 생성하지 않는다")
     void rejectDuplicateActiveFilmRoll() {
         when(filmRollRepository.existsByUserIdAndStatusIn(
-                any(),
-                anyList()
+                1L,
+                FilmRollStatus.incompleteStatuses()
         )).thenReturn(true);
 
         FilmRollCreateRequest request =
@@ -151,7 +152,23 @@ class FilmRollCommandServiceTest {
                         1L,
                         request
                 )
-        ).isInstanceOf(FilmRollConflictException.class);
+        ).isInstanceOf(ActiveFilmRollExistsException.class);
+
+        verify(filmRollRepository).existsByUserIdAndStatusIn(
+                1L,
+                List.of(
+                        FilmRollStatus.CAPTURING,
+                        FilmRollStatus.READY,
+                        FilmRollStatus.QUEUED,
+                        FilmRollStatus.PROCESSING,
+                        FilmRollStatus.FAILED
+                )
+        );
+        verifyNoInteractions(
+                userRepository,
+                regionRepository,
+                filterPresetProvider
+        );
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.chaerok.backend.auth.security.AuthenticatedUser;
 import com.chaerok.backend.filmroll.dto.FilmRollCreateRequest;
 import com.chaerok.backend.filmroll.dto.FilmRollResponse;
 import com.chaerok.backend.filmroll.service.FilmRollCommandService;
+import com.chaerok.backend.filmroll.service.FilmRollQueryService;
 import com.chaerok.backend.photo.dto.PhotoUploadCompleteResponse;
 import com.chaerok.backend.photo.dto.PhotoUploadUrlRequest;
 import com.chaerok.backend.photo.dto.PhotoUploadUrlResponse;
@@ -32,14 +33,16 @@ import org.springframework.web.bind.annotation.*;
 public class FilmRollController {
 
     private final FilmRollCommandService filmRollCommandService;
+    private final FilmRollQueryService filmRollQueryService;
     private final PhotoUploadService photoUploadService;
 
     @Operation(
             summary = "필름 롤 생성",
             description = """
                     로그인 사용자의 촬영용 필름 롤을 생성합니다.
-                    사용자에게 이미 촬영 또는 현상 중인 필름 롤이 있으면
+                    사용자에게 이미 미완료 필름 롤이 있으면
                     새 필름 롤을 생성할 수 없습니다.
+                    FAILED 상태도 재시도 가능한 미완료 상태에 포함됩니다.
                     """
     )
     @PostMapping
@@ -60,6 +63,47 @@ public class FilmRollController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
+    }
+
+
+    @Operation(
+            summary = "현재 진행 중인 필름 롤 조회",
+            description = """
+                    로그인 사용자의 미완료 필름 롤을 조회합니다.
+                    미완료 상태는 CAPTURING, READY, QUEUED,
+                    PROCESSING, FAILED입니다.
+                    진행 중인 필름 롤이 없으면 204 No Content를 반환합니다.
+                    """
+    )
+    @GetMapping("/current")
+    public ResponseEntity<FilmRollResponse> getCurrentFilmRoll(
+            @AuthenticationPrincipal
+            AuthenticatedUser authenticatedUser
+    ) {
+        return filmRollQueryService
+                .findCurrentFilmRoll(authenticatedUser.userId())
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    @Operation(
+            summary = "필름 롤 상세 조회",
+            description = "로그인 사용자가 소유한 필름 롤의 현재 상태를 조회합니다."
+    )
+    @GetMapping("/{filmRollId}")
+    public ResponseEntity<FilmRollResponse> getFilmRoll(
+            @AuthenticationPrincipal
+            AuthenticatedUser authenticatedUser,
+
+            @PathVariable
+            Long filmRollId
+    ) {
+        return ResponseEntity.ok(
+                filmRollQueryService.getFilmRoll(
+                        authenticatedUser.userId(),
+                        filmRollId
+                )
+        );
     }
 
     @Operation(
