@@ -169,9 +169,11 @@ public class FilmRollResultService {
             FilmRollStatus responseStatus
     ) {
         FilmRollResultResponse.FailureResponse failure =
-                responseStatus == FilmRollStatus.FAILED
-                        ? failureResponse(filmRoll)
-                        : null;
+                switch (responseStatus) {
+                    case FAILED, EXPIRED ->
+                            failureResponseOrNull(filmRoll);
+                    default -> null;
+                };
 
         return new FilmRollResultResponse(
                 filmRoll.getId(),
@@ -221,15 +223,21 @@ public class FilmRollResultService {
         );
     }
 
-    private FilmRollResultResponse.FailureResponse failureResponse(
-            FilmRoll filmRoll
-    ) {
-        requireText(filmRoll.getErrorCode(), "현상 실패 코드");
-        requireText(filmRoll.getErrorMessage(), "현상 실패 메시지");
+    private FilmRollResultResponse.FailureResponse
+    failureResponseOrNull(FilmRoll filmRoll) {
+        String errorCode = filmRoll.getErrorCode();
+        String errorMessage = filmRoll.getErrorMessage();
+
+        if (isBlank(errorCode) && isBlank(errorMessage)) {
+            return null;
+        }
+
+        requireText(errorCode, "현상 실패 코드");
+        requireText(errorMessage, "현상 실패 메시지");
 
         return new FilmRollResultResponse.FailureResponse(
-                filmRoll.getErrorCode(),
-                filmRoll.getErrorMessage()
+                errorCode,
+                errorMessage
         );
     }
 
@@ -273,6 +281,10 @@ public class FilmRollResultService {
             String message
     ) {
         return new FilmRollConflictException(message);
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private static void requireText(

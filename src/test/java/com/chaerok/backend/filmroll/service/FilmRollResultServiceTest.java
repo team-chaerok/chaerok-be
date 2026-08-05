@@ -225,6 +225,52 @@ class FilmRollResultServiceTest {
     }
 
     @Test
+    @DisplayName("오류 사유가 있는 EXPIRED 결과에는 만료 사유를 반환한다")
+    void returnsExpiredFailureWhenStored() {
+        FilmRoll filmRoll = queuedFilmRoll();
+        ReflectionTestUtils.setField(
+                filmRoll,
+                "status",
+                FilmRollStatus.EXPIRED
+        );
+        ReflectionTestUtils.setField(
+                filmRoll,
+                "errorCode",
+                "SOURCE_OBJECT_EXPIRED"
+        );
+        ReflectionTestUtils.setField(
+                filmRoll,
+                "errorMessage",
+                "S3 입력 사진이 만료되었습니다."
+        );
+        ReflectionTestUtils.setField(
+                filmRoll,
+                "expiresAt",
+                LocalDateTime.of(2026, 8, 5, 9, 20)
+        );
+
+        when(filmRollRepository.findByIdAndUserId(100L, 1L))
+                .thenReturn(Optional.of(filmRoll));
+
+        FilmRollResultResponse result =
+                service.getResult(1L, 100L);
+
+        assertThat(result.status()).isEqualTo("EXPIRED");
+        assertThat(result.failure())
+                .isEqualTo(
+                        new FilmRollResultResponse.FailureResponse(
+                                "SOURCE_OBJECT_EXPIRED",
+                                "S3 입력 사진이 만료되었습니다."
+                        )
+                );
+        verifyNoInteractions(
+                photoRepository,
+                renderJobRepository,
+                objectStorage
+        );
+    }
+
+    @Test
     @DisplayName("다른 사용자의 필름 롤 결과는 조회할 수 없다")
     void rejectsNotOwnedFilmRoll() {
         when(filmRollRepository.findByIdAndUserId(100L, 1L))
