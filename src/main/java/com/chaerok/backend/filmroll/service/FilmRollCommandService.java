@@ -99,6 +99,60 @@ public class FilmRollCommandService {
             );
         }
 
+        validateUploadedPhotos(filmRoll);
+        filmRoll.markReady();
+
+        return FilmRollResponse.from(filmRoll);
+    }
+
+    @Transactional
+    public PreparedFilmRollDevelopment prepareDevelopment(
+            Long userId,
+            Long filmRollId
+    ) {
+        FilmRoll filmRoll =
+                findOwnedFilmRollForUpdate(
+                        userId,
+                        filmRollId
+                );
+
+        return switch (filmRoll.getStatus()) {
+            case CAPTURING -> {
+                validateUploadedPhotos(filmRoll);
+                filmRoll.markReady();
+                yield PreparedFilmRollDevelopment.requestRequired(
+                        filmRoll
+                );
+            }
+            case READY -> {
+                validateUploadedPhotos(filmRoll);
+                yield PreparedFilmRollDevelopment.requestRequired(
+                        filmRoll
+                );
+            }
+            case FAILED -> {
+                validateUploadedPhotos(filmRoll);
+                filmRoll.prepareRetry();
+                yield PreparedFilmRollDevelopment.requestRequired(
+                        filmRoll
+                );
+            }
+            case QUEUED, PROCESSING ->
+                    PreparedFilmRollDevelopment.alreadyRequested(
+                            filmRoll
+                    );
+            case COMPLETED -> throw new FilmRollConflictException(
+                    "이미 현상이 완료된 필름 롤입니다."
+            );
+            case EXPIRED -> throw new FilmRollConflictException(
+                    "현상 결과가 만료된 필름 롤은 다시 현상할 수 없습니다."
+            );
+        };
+    }
+
+    private void validateUploadedPhotos(FilmRoll filmRoll) {
+        Long filmRollId = filmRoll.getId();
+
         long savedPhotoCount =
                 photoRepository.countByFilmRollId(filmRollId);
 
@@ -125,10 +179,6 @@ public class FilmRollCommandService {
                     "모든 사진의 업로드가 완료되어야 현상을 시작할 수 있습니다."
             );
         }
-
-        filmRoll.markReady();
-
-        return FilmRollResponse.from(filmRoll);
     }
 
     private FilmRoll findOwnedFilmRollForUpdate(

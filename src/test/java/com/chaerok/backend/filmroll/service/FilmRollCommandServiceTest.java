@@ -5,6 +5,7 @@ import com.chaerok.backend.filmroll.dto.FilmRollResponse;
 import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.entity.FilmRollStatus;
 import com.chaerok.backend.filmroll.exception.ActiveFilmRollExistsException;
+import com.chaerok.backend.filmroll.exception.FilmRollConflictException;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.filter.preset.FilmFilterPreset;
 import com.chaerok.backend.filter.preset.FilmFilterPresetProvider;
@@ -22,6 +23,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -212,4 +214,136 @@ class FilmRollCommandServiceTest {
         assertThat(response.status())
                 .isEqualTo(FilmRollStatus.READY.name());
     }
+
+    @Test
+    @DisplayName("CAPTURING 필름 롤은 업로드를 검증하고 현상 요청 준비 상태로 전환한다")
+    void prepareDevelopmentFromCapturing() {
+        FilmRoll filmRoll = createFilmRollWithOnePhoto();
+
+        when(filmRollRepository.findByIdAndUserIdForUpdate(
+                100L,
+                1L
+        )).thenReturn(Optional.of(filmRoll));
+        stubCompletedPhotoUpload();
+
+        PreparedFilmRollDevelopment preparation =
+                service.prepareDevelopment(1L, 100L);
+
+        assertThat(preparation.renderRequestRequired()).isTrue();
+        assertThat(preparation.status())
+                .isEqualTo(FilmRollStatus.READY.name());
+        assertThat(filmRoll.getStatus())
+                .isEqualTo(FilmRollStatus.READY);
+    }
+
+    @Test
+    @DisplayName("FAILED 필름 롤은 같은 사진으로 재시도할 수 있도록 READY로 복구한다")
+    void prepareDevelopmentFromFailed() {
+        FilmRoll filmRoll = createFilmRollWithOnePhoto();
+        LocalDateTime requestedAt =
+                LocalDateTime.of(2026, 8, 5, 18, 0);
+        filmRoll.markReady();
+        filmRoll.markQueued(requestedAt);
+        filmRoll.failFromResult(
+                "MEDIA_GENERATION_FAILED",
+                "릴스 생성 실패"
+        );
+
+        when(filmRollRepository.findByIdAndUserIdForUpdate(
+                100L,
+                1L
+        )).thenReturn(Optional.of(filmRoll));
+        stubCompletedPhotoUpload();
+
+        PreparedFilmRollDevelopment preparation =
+                service.prepareDevelopment(1L, 100L);
+
+        assertThat(preparation.renderRequestRequired()).isTrue();
+        assertThat(preparation.status())
+                .isEqualTo(FilmRollStatus.READY.name());
+        assertThat(filmRoll.getStatus())
+                .isEqualTo(FilmRollStatus.READY);
+        assertThat(filmRoll.getErrorCode()).isNull();
+        assertThat(filmRoll.getErrorMessage()).isNull();
+    }
+
+    @Test
+    @DisplayName("이미 QUEUED 상태이면 새 현상 작업 준비를 하지 않는다")
+    void prepareDevelopmentReturnsExistingQueuedState() {
+        FilmRoll filmRoll = createFilmRollWithOnePhoto();
+        LocalDateTime requestedAt =
+                LocalDateTime.of(2026, 8, 5, 18, 0);
+        filmRoll.markReady();
+        filmRoll.markQueued(requestedAt);
+
+        when(filmRollRepository.findByIdAndUserIdForUpdate(
+                100L,
+                1L
+        )).thenReturn(Optional.of(filmRoll));
+
+        PreparedFilmRollDevelopment preparation =
+                service.prepareDevelopment(1L, 100L);
+
+        assertThat(preparation.renderRequestRequired()).isFalse();
+        assertThat(preparation.status())
+                .isEqualTo(FilmRollStatus.QUEUED.name());
+        assertThat(preparation.requestedAt()).isEqualTo(requestedAt);
+        verifyNoInteractions(photoRepository);
+    }
+
+    @Test
+    @DisplayName("완료된 필름 롤은 다시 현상할 수 없다")
+    void rejectDevelopmentForCompletedFilmRoll() {
+        FilmRoll filmRoll = createFilmRollWithOnePhoto();
+        LocalDateTime completedAt =
+                LocalDateTime.of(2026, 8, 5, 18, 0);
+        filmRoll.markReady();
+        filmRoll.markQueued(completedAt.minusMinutes(1));
+        filmRoll.completeFromResult(
+                "result.zip",
+                "result.mp4",
+                completedAt
+        );
+
+        when(filmRollRepository.findByIdAndUserIdForUpdate(
+                100L,
+                1L
+        )).thenReturn(Optional.of(filmRoll));
+
+        assertThatThrownBy(() ->
+                service.prepareDevelopment(1L, 100L)
+        )
+                .isInstanceOf(FilmRollConflictException.class)
+                .hasMessageContaining("이미 현상이 완료");
+
+        verifyNoInteractions(photoRepository);
+    }
+
+    private FilmRoll createFilmRollWithOnePhoto() {
+        FilmRoll filmRoll = FilmRoll.create(
+                user,
+                region,
+                "gongju_baekje_love",
+                0.8,
+                1
+        );
+
+        ReflectionTestUtils.setField(
+                filmRoll,
+                "id",
+                100L
+        );
+        filmRoll.increasePhotoCount();
+        return filmRoll;
+    }
+
+    private void stubCompletedPhotoUpload() {
+        when(photoRepository.countByFilmRollId(100L))
+                .thenReturn(1L);
+        when(photoRepository.existsByFilmRollIdAndStatusNot(
+                100L,
+                PhotoStatus.UPLOADED
+        )).thenReturn(false);
+    }
+
 }
