@@ -17,6 +17,12 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 1
+      connection-timeout: 30000
+      idle-timeout: 30000
+      max-lifetime: 1800000
 
   jpa:
     hibernate:
@@ -25,11 +31,12 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-    show-sql: true
+    show-sql: ${JPA_SHOW_SQL:false}
 
   flyway:
     enabled: true
     locations: classpath:db/migration
+    ignore-migration-patterns: "*:missing"
 
 supabase:
   url: ${SUPABASE_URL}
@@ -43,7 +50,11 @@ external:
   tour-api:
     key: ${TOUR_API_KEY}
   odii:
-    key: ${ODII_API_KEY}
+    base-url: https://apis.data.go.kr/B551011/Odii
+    service-key: ${ODII_SERVICE_KEY}
+    mobile-os: AND
+    mobile-app: Chaerok
+    language-code: ko
 
 oauth:
   kakao:
@@ -62,3 +73,8 @@ jwt:
   access-expiration: ${JWT_ACCESS_EXPIRATION}
   refresh-expiration: ${JWT_REFRESH_EXPIRATION}
   signup-expiration: ${JWT_SIGNUP_EXPIRATION}
+
+logging:
+  level:
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
