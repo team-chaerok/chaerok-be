@@ -70,6 +70,15 @@ public class RenderResultProcessor {
 
         validateIdentity(message, filmRoll);
 
+        if (hasNewerRenderJob(message)) {
+            log.warn(
+                    "최신 렌더링 작업이 존재해 이전 결과 무시: renderJobId={}, resultMessageId={}",
+                    message.renderJobId(),
+                    resultMessageId
+            );
+            return RenderResultProcessingOutcome.STALE_IGNORED;
+        }
+
         if (message.isCompleted()) {
             List<Photo> photos = photoRepository
                     .findAllByFilmRollIdOrderBySequenceAscForUpdate(
@@ -103,16 +112,6 @@ public class RenderResultProcessor {
         if (renderJob.getStatus() == RenderJobStatus.COMPLETED) {
             validateDuplicateCompleted(message, renderJob, filmRoll, photos);
             return RenderResultProcessingOutcome.DUPLICATE;
-        }
-
-        if (renderJob.getStatus() == RenderJobStatus.FAILED
-                && hasNewerRenderJob(message)) {
-            log.warn(
-                    "재시도 후 늦게 도착한 이전 완료 결과 무시: renderJobId={}, resultMessageId={}",
-                    message.renderJobId(),
-                    resultMessageId
-            );
-            return RenderResultProcessingOutcome.STALE_IGNORED;
         }
 
         if (renderJob.getStatus() == RenderJobStatus.FAILED
@@ -192,17 +191,6 @@ public class RenderResultProcessor {
                 filmRoll.getStatus() == FilmRollStatus.FAILED;
 
         if (renderFailed || filmRollFailed) {
-            if (renderFailed
-                    && !filmRollFailed
-                    && hasNewerRenderJob(message)) {
-                log.warn(
-                        "재시도 후 늦게 도착한 이전 실패 결과 무시: renderJobId={}, resultMessageId={}",
-                        message.renderJobId(),
-                        resultMessageId
-                );
-                return RenderResultProcessingOutcome.STALE_IGNORED;
-            }
-
             if (!renderFailed || !filmRollFailed) {
                 throw conflict(
                         "렌더링 작업과 필름 롤의 실패 상태가 일치하지 않습니다."

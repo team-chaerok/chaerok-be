@@ -171,25 +171,62 @@ class RenderResultProcessorTest {
     }
 
     @Test
-    @DisplayName("재시도 작업이 생긴 뒤 늦게 도착한 이전 실패 결과는 무시한다")
-    void ignoreFailedResultFromOlderRenderJob() {
-        RenderResultMessage message = failedMessage();
+    @DisplayName("재시도 작업 뒤에 도착한 QUEUE_FAILED 이전 작업의 완료 결과는 무시한다")
+    void ignoreCompletedResultFromOlderQueueFailedJob() {
+        RenderResultMessage message = completedMessage();
         UUID latestRenderJobId = UUID.randomUUID();
 
-        when(renderJob.getStatus()).thenReturn(RenderJobStatus.FAILED);
-        when(filmRoll.getStatus()).thenReturn(FilmRollStatus.READY);
         when(renderJobRepository.findFirstByFilmRollIdOrderByCreatedAtDesc(2L))
                 .thenReturn(Optional.of(latestRenderJob));
         when(latestRenderJob.getId()).thenReturn(latestRenderJobId);
 
         RenderResultProcessingOutcome outcome = processor.process(
                 message,
-                "result-message-old"
+                "result-message-old-completed"
         );
 
         assertThat(outcome)
                 .isEqualTo(RenderResultProcessingOutcome.STALE_IGNORED);
 
+        verifyNoInteractions(photoRepository);
+        verify(renderJob, never()).completeFromResult(
+                anyInt(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+        );
+        verify(filmRoll, never()).completeFromResult(
+                any(),
+                any(),
+                any()
+        );
+    }
+
+    @Test
+    @DisplayName("재시도 작업 뒤에 도착한 QUEUE_FAILED 이전 작업의 실패 결과는 무시한다")
+    void ignoreFailedResultFromOlderQueueFailedJob() {
+        RenderResultMessage message = failedMessage();
+        UUID latestRenderJobId = UUID.randomUUID();
+
+        when(renderJobRepository.findFirstByFilmRollIdOrderByCreatedAtDesc(2L))
+                .thenReturn(Optional.of(latestRenderJob));
+        when(latestRenderJob.getId()).thenReturn(latestRenderJobId);
+
+        RenderResultProcessingOutcome outcome = processor.process(
+                message,
+                "result-message-old-failed"
+        );
+
+        assertThat(outcome)
+                .isEqualTo(RenderResultProcessingOutcome.STALE_IGNORED);
+
+        verifyNoInteractions(photoRepository);
         verify(renderJob, never()).failFromResult(
                 anyInt(),
                 any(),
