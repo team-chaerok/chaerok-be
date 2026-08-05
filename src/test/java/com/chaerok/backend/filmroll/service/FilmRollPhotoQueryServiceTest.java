@@ -2,7 +2,6 @@ package com.chaerok.backend.filmroll.service;
 
 import com.chaerok.backend.filmroll.dto.FilmRollPhotoListResponse;
 import com.chaerok.backend.filmroll.entity.FilmRoll;
-import com.chaerok.backend.filmroll.exception.FilmRollConflictException;
 import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.filter.analysis.SceneType;
@@ -131,26 +130,40 @@ class FilmRollPhotoQueryServiceTest {
     }
 
     @Test
-    @DisplayName("필름 롤 사진 수와 저장된 사진 수가 다르면 조회를 거부한다")
-    void rejectsInconsistentPhotoCount() {
-        FilmRoll filmRoll = filmRollWithPhotoCount(2);
-        Photo first = uploadedPhoto(
+    @DisplayName("업로드 완료 전 UPLOADING 사진도 목록에서 조회할 수 있다")
+    void returnsUploadingPhotoBeforeCompletion() {
+        FilmRoll filmRoll = filmRollWithPhotoCount(0);
+        Photo uploadingPhoto = Photo.create(
                 filmRoll,
-                201L,
                 1,
+                "users/1/rolls/100/original/1.jpg",
                 false,
-                null
+                SceneType.LANDSCAPE,
+                LocalDateTime.of(2026, 8, 5, 18, 1)
+        );
+        ReflectionTestUtils.setField(
+                uploadingPhoto,
+                "id",
+                201L
         );
 
         when(filmRollRepository.findByIdAndUserId(100L, 1L))
                 .thenReturn(Optional.of(filmRoll));
         when(photoRepository
                 .findAllByFilmRollIdOrderBySequenceAsc(100L))
-                .thenReturn(List.of(first));
+                .thenReturn(List.of(uploadingPhoto));
 
-        assertThatThrownBy(() -> service.getPhotos(1L, 100L))
-                .isInstanceOf(FilmRollConflictException.class)
-                .hasMessageContaining("사진 수");
+        FilmRollPhotoListResponse response =
+                service.getPhotos(1L, 100L);
+
+        assertThat(response.totalPhotoCount()).isZero();
+        assertThat(response.photos()).hasSize(1);
+        assertThat(response.photos().get(0).photoId())
+                .isEqualTo(201L);
+        assertThat(response.photos().get(0).status())
+                .isEqualTo("UPLOADING");
+        assertThat(response.photos().get(0).sequence())
+                .isEqualTo(1);
     }
 
     private FilmRoll filmRollWithPhotoCount(int photoCount) {
