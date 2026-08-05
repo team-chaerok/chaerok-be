@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +31,9 @@ import java.util.Map;
         havingValue = "true"
 )
 public class RenderResultProcessor {
+
+    private static final ZoneId APPLICATION_ZONE_ID =
+            ZoneId.of("Asia/Seoul");
 
     private final RenderJobRepository renderJobRepository;
     private final FilmRollRepository filmRollRepository;
@@ -120,10 +123,8 @@ public class RenderResultProcessor {
 
         validateCompletedPhotos(message, filmRoll, photos);
 
-        LocalDateTime occurredAt = LocalDateTime.ofInstant(
-                message.occurredAt(),
-                ZoneOffset.UTC
-        );
+        LocalDateTime occurredAt =
+                toApplicationDateTime(message);
 
         Map<Long, Photo> photoById = new HashMap<>();
         for (Photo photo : photos) {
@@ -210,10 +211,8 @@ public class RenderResultProcessor {
             return RenderResultProcessingOutcome.DUPLICATE;
         }
 
-        LocalDateTime occurredAt = LocalDateTime.ofInstant(
-                message.occurredAt(),
-                ZoneOffset.UTC
-        );
+        LocalDateTime occurredAt =
+                toApplicationDateTime(message);
 
         filmRoll.failFromResult(
                 message.errorCode(),
@@ -231,6 +230,15 @@ public class RenderResultProcessor {
         );
 
         return RenderResultProcessingOutcome.APPLIED;
+    }
+
+    private static LocalDateTime toApplicationDateTime(
+            RenderResultMessage message
+    ) {
+        return LocalDateTime.ofInstant(
+                message.occurredAt(),
+                APPLICATION_ZONE_ID
+        );
     }
 
     private boolean hasNewerRenderJob(

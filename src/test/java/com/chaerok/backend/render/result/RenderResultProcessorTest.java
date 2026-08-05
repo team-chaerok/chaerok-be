@@ -20,7 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -93,7 +93,7 @@ class RenderResultProcessorTest {
         RenderResultMessage message = completedMessage();
         LocalDateTime occurredAt = LocalDateTime.ofInstant(
                 message.occurredAt(),
-                ZoneOffset.UTC
+                ZoneId.of("Asia/Seoul")
         );
 
         when(renderJob.getStatus()).thenReturn(RenderJobStatus.CREATED);
@@ -141,7 +141,7 @@ class RenderResultProcessorTest {
         RenderResultMessage message = failedMessage();
         LocalDateTime occurredAt = LocalDateTime.ofInstant(
                 message.occurredAt(),
-                ZoneOffset.UTC
+                ZoneId.of("Asia/Seoul")
         );
 
         when(renderJob.getStatus()).thenReturn(RenderJobStatus.CREATED);
