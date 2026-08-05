@@ -51,3 +51,4 @@ Thumbs.db
 /test-input.jpg
 /lambda/render/local-render-result/
 /lambda/render/zip-check/
+/lambda/render/aws-invoke-response*.json

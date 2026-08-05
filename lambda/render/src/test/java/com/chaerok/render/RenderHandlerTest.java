@@ -16,6 +16,9 @@ import com.chaerok.render.media.FilteredPhotoZipWriter;
 import com.chaerok.render.media.JpegImageWriter;
 import com.chaerok.render.media.ReelRenderer;
 import com.chaerok.render.pipeline.RenderPipeline;
+import com.chaerok.render.result.RenderResultMessage;
+import com.chaerok.render.result.RenderResultPublisher;
+import com.chaerok.render.retry.RenderRetryConfig;
 import com.chaerok.render.storage.ObjectStorage;
 import com.chaerok.render.validation.RenderMessageValidator;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +37,7 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,19 +46,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class RenderHandlerTest {
 
+    private static final Instant FIXED_NOW =
+            Instant.parse("2026-08-04T13:00:00Z");
+
     @Test
-    @DisplayName("정상 메시지는 필터 사진, ZIP, MP4, manifest를 업로드한다")
-    void processesValidMessage() throws Exception {
+    @DisplayName("정상 메시지는 결과물을 업로드하고 COMPLETED 결과를 발행한다")
+    void processesValidMessageAndPublishesCompleted() throws Exception {
         InMemoryObjectStorage storage = new InMemoryObjectStorage();
         storage.put(
                 "users/6/rolls/2/original/photo.jpg",
                 createJpeg()
         );
+        CapturingResultPublisher publisher =
+                new CapturingResultPublisher();
 
-        RenderHandler handler = createHandler(storage);
+        RenderHandler handler = createHandler(storage, publisher);
 
         SQSBatchResponse response = handler.handleRequest(
-                event("message-1", validBody()),
+                event("message-1", validBody(), "2"),
                 new TestContext()
         );
 
@@ -79,24 +88,64 @@ class RenderHandlerTest {
                         "\"completedAt\" : "
                                 + "\"2026-08-04T13:00:00Z\""
                 );
+
+        assertThat(publisher.messages()).hasSize(1);
+        RenderResultMessage result = publisher.messages().get(0);
+        assertThat(result.eventType())
+                .isEqualTo(RenderResultMessage.EVENT_COMPLETED);
+        assertThat(result.status()).isEqualTo("COMPLETED");
+        assertThat(result.requestMessageId()).isEqualTo("message-1");
+        assertThat(result.attempt()).isEqualTo(2);
+        assertThat(result.retryable()).isFalse();
+        assertThat(result.filteredPhotos()).hasSize(1);
+        assertThat(result.reelObjectKey()).endsWith(".mp4");
+        assertThat(result.occurredAt()).isEqualTo(FIXED_NOW);
+        assertThat(result.errorCode()).isNull();
     }
 
     @Test
-    @DisplayName("잘못된 메시지는 해당 messageId만 실패로 반환한다")
-    void returnsPartialBatchFailure() {
+    @DisplayName("검증 실패는 FAILED 결과를 발행하고 재시도 없이 종료한다")
+    void publishesFailedResultForInvalidMessage() {
+        CapturingResultPublisher publisher =
+                new CapturingResultPublisher();
         RenderHandler handler = createHandler(
-                new InMemoryObjectStorage()
+                new InMemoryObjectStorage(),
+                publisher
         );
 
         SQSBatchResponse response = handler.handleRequest(
-                event(
-                        "message-bad",
-                        """
-                        {
-                          "schemaVersion": 99
-                        }
-                        """
-                ),
+                event("message-bad", invalidBody(), "3"),
+                new TestContext()
+        );
+
+        assertThat(response.getBatchItemFailures()).isEmpty();
+
+        assertThat(publisher.messages()).hasSize(1);
+        RenderResultMessage result = publisher.messages().get(0);
+        assertThat(result.eventType())
+                .isEqualTo(RenderResultMessage.EVENT_FAILED);
+        assertThat(result.status()).isEqualTo("FAILED");
+        assertThat(result.attempt()).isEqualTo(3);
+        assertThat(result.retryable()).isFalse();
+        assertThat(result.errorCode())
+                .isEqualTo("INVALID_RENDER_MESSAGE");
+        assertThat(result.errorMessage())
+                .contains("totalPhotoCount");
+        assertThat(result.occurredAt()).isEqualTo(FIXED_NOW);
+    }
+
+    @Test
+    @DisplayName("재시도 중인 실행 실패는 terminal FAILED 결과를 발행하지 않는다")
+    void doesNotPublishTerminalFailureBeforeFinalAttempt() {
+        CapturingResultPublisher publisher =
+                new CapturingResultPublisher();
+        RenderHandler handler = createHandler(
+                new InMemoryObjectStorage(),
+                publisher
+        );
+
+        SQSBatchResponse response = handler.handleRequest(
+                event("message-missing-input", validBody(), "1"),
                 new TestContext()
         );
 
@@ -105,11 +154,96 @@ class RenderHandlerTest {
                         SQSBatchResponse.BatchItemFailure
                                 ::getItemIdentifier
                 )
-                .containsExactly("message-bad");
+                .containsExactly("message-missing-input");
+        assertThat(publisher.messages()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("마지막 실행 실패는 terminal FAILED 결과를 발행하고 요청을 DLQ 대상으로 남긴다")
+    void publishesTerminalFailureOnFinalAttempt() {
+        CapturingResultPublisher publisher =
+                new CapturingResultPublisher();
+        RenderHandler handler = createHandler(
+                new InMemoryObjectStorage(),
+                publisher
+        );
+
+        SQSBatchResponse response = handler.handleRequest(
+                event("message-final-failure", validBody(), "3"),
+                new TestContext()
+        );
+
+        assertThat(response.getBatchItemFailures())
+                .extracting(
+                        SQSBatchResponse.BatchItemFailure
+                                ::getItemIdentifier
+                )
+                .containsExactly("message-final-failure");
+
+        assertThat(publisher.messages()).hasSize(1);
+        RenderResultMessage result = publisher.messages().get(0);
+        assertThat(result.status()).isEqualTo("FAILED");
+        assertThat(result.retryable()).isFalse();
+        assertThat(result.attempt()).isEqualTo(3);
+        assertThat(result.errorCode())
+                .isEqualTo("RENDER_EXECUTION_FAILED");
+    }
+
+    @Test
+    @DisplayName("COMPLETED 결과 발행 실패 시 요청 메시지를 재시도 대상으로 반환한다")
+    void returnsBatchFailureWhenCompletedPublishFails()
+            throws Exception {
+        InMemoryObjectStorage storage = new InMemoryObjectStorage();
+        storage.put(
+                "users/6/rolls/2/original/photo.jpg",
+                createJpeg()
+        );
+        CapturingResultPublisher publisher =
+                new CapturingResultPublisher(true);
+        RenderHandler handler = createHandler(storage, publisher);
+
+        SQSBatchResponse response = handler.handleRequest(
+                event("message-publish-fail", validBody(), "1"),
+                new TestContext()
+        );
+
+        assertThat(response.getBatchItemFailures())
+                .extracting(
+                        SQSBatchResponse.BatchItemFailure
+                                ::getItemIdentifier
+                )
+                .containsExactly("message-publish-fail");
+        assertThat(publisher.messages()).hasSize(1);
+        assertThat(publisher.messages().get(0).status())
+                .isEqualTo("COMPLETED");
+    }
+
+    @Test
+    @DisplayName("식별자가 없는 잘못된 메시지는 결과 큐에 발행하지 않는다")
+    void skipsFailedPublishWithoutIdentifiers() {
+        CapturingResultPublisher publisher =
+                new CapturingResultPublisher();
+        RenderHandler handler = createHandler(
+                new InMemoryObjectStorage(),
+                publisher
+        );
+
+        SQSBatchResponse response = handler.handleRequest(
+                event(
+                        "message-no-identifiers",
+                        "{\"schemaVersion\":99}",
+                        "1"
+                ),
+                new TestContext()
+        );
+
+        assertThat(response.getBatchItemFailures()).hasSize(1);
+        assertThat(publisher.messages()).isEmpty();
     }
 
     private RenderHandler createHandler(
-            InMemoryObjectStorage storage
+            InMemoryObjectStorage storage,
+            RenderResultPublisher publisher
     ) {
         ObjectMapper objectMapper = RenderRuntimeFactory.objectMapper();
 
@@ -138,6 +272,7 @@ class RenderHandlerTest {
             }
         };
 
+        Clock clock = Clock.fixed(FIXED_NOW, ZoneOffset.UTC);
         RenderPipeline pipeline = new RenderPipeline(
                 storage,
                 filterEngine,
@@ -145,23 +280,30 @@ class RenderHandlerTest {
                 new FilteredPhotoZipWriter(),
                 fakeReelRenderer,
                 objectMapper,
-                Clock.fixed(
-                        Instant.parse("2026-08-04T13:00:00Z"),
-                        ZoneOffset.UTC
-                )
+                clock
         );
 
         return new RenderHandler(
                 objectMapper,
                 new RenderMessageValidator(),
-                pipeline
+                pipeline,
+                publisher,
+                clock,
+                new RenderRetryConfig(3)
         );
     }
 
-    private SQSEvent event(String messageId, String body) {
+    private SQSEvent event(
+            String messageId,
+            String body,
+            String receiveCount
+    ) {
         SQSEvent.SQSMessage record = new SQSEvent.SQSMessage();
         record.setMessageId(messageId);
         record.setBody(body);
+        record.setAttributes(
+                Map.of("ApproximateReceiveCount", receiveCount)
+        );
 
         SQSEvent event = new SQSEvent();
         event.setRecords(List.of(record));
@@ -196,6 +338,25 @@ class RenderHandlerTest {
                 """;
     }
 
+    private String invalidBody() {
+        return """
+                {
+                  "schemaVersion": 1,
+                  "renderJobId": "133d6ee3-a120-4df3-8ba3-f60adbdd64d6",
+                  "filmRollId": 2,
+                  "userId": 6,
+                  "regionId": 1,
+                  "bucket": "chaerok-media-dev-7f3k2m",
+                  "filterId": "gongju_baekje_love",
+                  "filterStrength": 0.8,
+                  "filterVersion": 1,
+                  "totalPhotoCount": 0,
+                  "requestedAt": "2026-07-30T22:59:17.022325",
+                  "photos": []
+                }
+                """;
+    }
+
     private byte[] createJpeg() throws IOException {
         BufferedImage image = new BufferedImage(
                 320,
@@ -212,6 +373,37 @@ class RenderHandlerTest {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         ImageIO.write(image, "jpg", output);
         return output.toByteArray();
+    }
+
+    private static final class CapturingResultPublisher
+            implements RenderResultPublisher {
+
+        private final List<RenderResultMessage> messages =
+                new ArrayList<>();
+        private final boolean fail;
+
+        CapturingResultPublisher() {
+            this(false);
+        }
+
+        CapturingResultPublisher(boolean fail) {
+            this.fail = fail;
+        }
+
+        @Override
+        public String publish(RenderResultMessage message) {
+            messages.add(message);
+            if (fail) {
+                throw new IllegalStateException(
+                        "fake result publish failure"
+                );
+            }
+            return "result-message-" + messages.size();
+        }
+
+        List<RenderResultMessage> messages() {
+            return List.copyOf(messages);
+        }
     }
 
     private static final class InMemoryObjectStorage

@@ -10,12 +10,17 @@ import com.chaerok.render.media.FfmpegReelRenderer;
 import com.chaerok.render.media.FilteredPhotoZipWriter;
 import com.chaerok.render.media.JpegImageWriter;
 import com.chaerok.render.pipeline.RenderPipeline;
+import com.chaerok.render.result.RenderResultPublisher;
+import com.chaerok.render.result.RenderResultQueueConfig;
+import com.chaerok.render.result.SqsRenderResultPublisher;
+import com.chaerok.render.retry.RenderRetryConfig;
 import com.chaerok.render.storage.S3ObjectStorage;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.sqs.SqsClient;
 
 import java.time.Clock;
 
@@ -55,6 +60,25 @@ final class RenderRuntimeFactory {
                 new FfmpegReelRenderer(ffmpegPath),
                 objectMapper,
                 Clock.systemUTC()
+        );
+    }
+
+    static RenderRetryConfig retryConfig() {
+        return RenderRetryConfig.fromEnvironment(System.getenv());
+    }
+
+    static RenderResultPublisher resultPublisher(
+            ObjectMapper objectMapper
+    ) {
+        RenderResultQueueConfig config =
+                RenderResultQueueConfig.fromEnvironment(
+                        System.getenv()
+                );
+
+        return new SqsRenderResultPublisher(
+                SqsClient.builder().build(),
+                config,
+                objectMapper
         );
     }
 }

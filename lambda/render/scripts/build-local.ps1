@@ -13,7 +13,7 @@ try {
         --provenance=false `
         --load `
         --file lambda/render/Dockerfile `
-        --tag chaerok-render-lambda:render-v2-stage1 `
+        --tag chaerok-render-lambda:render-v2-result-v1 `
         .
 } finally {
     Pop-Location
