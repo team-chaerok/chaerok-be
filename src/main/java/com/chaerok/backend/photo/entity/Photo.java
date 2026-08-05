@@ -167,6 +167,33 @@ public class Photo {
         clearError();
     }
 
+    public void completeFromResult(
+            String filteredObjectKey,
+            LocalDateTime processedAt
+    ) {
+        if (status != PhotoStatus.UPLOADED
+                && status != PhotoStatus.PROCESSING
+                && status != PhotoStatus.FAILED) {
+            throw new IllegalStateException(
+                    "현재 사진 상태에는 처리 완료 결과를 적용할 수 없습니다. status="
+                            + status
+            );
+        }
+
+        requireText(filteredObjectKey, "필터 결과 S3 객체 키");
+
+        if (processedAt == null) {
+            throw new IllegalArgumentException(
+                    "사진 처리 완료 시각은 필수입니다."
+            );
+        }
+
+        this.status = PhotoStatus.COMPLETED;
+        this.filteredObjectKey = filteredObjectKey;
+        this.processedAt = processedAt;
+        clearError();
+    }
+
     public void fail(String errorCode, String errorMessage) {
         requireText(errorCode, "오류 코드");
         requireText(errorMessage, "오류 메시지");

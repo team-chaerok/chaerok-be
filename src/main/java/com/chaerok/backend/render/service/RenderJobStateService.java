@@ -7,9 +7,11 @@ import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.render.dto.RenderRequestResponse;
 import com.chaerok.backend.render.entity.RenderJob;
+import com.chaerok.backend.render.entity.RenderJobStatus;
 import com.chaerok.backend.render.queue.RenderQueuePublishResult;
 import com.chaerok.backend.render.repository.RenderJobRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -18,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @ConditionalOnProperty(
@@ -37,7 +40,7 @@ public class RenderJobStateService {
             RenderQueuePublishResult publishResult
     ) {
         RenderJob renderJob = renderJobRepository
-                .findById(renderJobId)
+                .findByIdForUpdate(renderJobId)
                 .orElseThrow(() ->
                         new IllegalStateException(
                                 "렌더링 작업을 찾을 수 없습니다."
@@ -51,6 +54,20 @@ public class RenderJobStateService {
                 )
                 .orElseThrow(FilmRollNotFoundException::new);
 
+        if (isTerminal(renderJob, filmRoll)) {
+            log.info(
+                    "큐 전송 성공 기록 전에 결과가 먼저 반영됨: renderJobId={}, renderJobStatus={}, filmRollStatus={}",
+                    renderJobId,
+                    renderJob.getStatus(),
+                    filmRoll.getStatus()
+            );
+
+            return RenderRequestResponse.of(
+                    renderJob,
+                    publishResult
+            );
+        }
+
         if (filmRoll.getStatus() != FilmRollStatus.READY) {
             throw new FilmRollConflictException(
                     "READY 상태에서만 현상 대기 상태로 전환할 수 있습니다."
@@ -59,7 +76,10 @@ public class RenderJobStateService {
 
         LocalDateTime queuedAt = LocalDateTime.now();
 
-        renderJob.markQueued(queuedAt);
+        renderJob.markQueued(
+                queuedAt,
+                publishResult.messageId()
+        );
         filmRoll.markQueued(queuedAt);
 
         return RenderRequestResponse.of(
@@ -73,13 +93,39 @@ public class RenderJobStateService {
             UUID renderJobId,
             RuntimeException cause
     ) {
-        renderJobRepository.findById(renderJobId)
-                .ifPresent(renderJob ->
+        renderJobRepository.findByIdForUpdate(renderJobId)
+                .ifPresent(renderJob -> {
+                    if (renderJob.getStatus() == RenderJobStatus.CREATED
+                            || renderJob.getStatus() == RenderJobStatus.QUEUED) {
                         renderJob.queueFailed(
                                 "SQS_SEND_FAILED",
                                 summarize(cause)
-                        )
-                );
+                        );
+                        return;
+                    }
+
+                    log.warn(
+                            "큐 전송 실패 기록을 건너뜁니다. 이미 결과가 반영됐을 수 있습니다: renderJobId={}, status={}",
+                            renderJobId,
+                            renderJob.getStatus()
+                    );
+                });
+    }
+
+    private boolean isTerminal(
+            RenderJob renderJob,
+            FilmRoll filmRoll
+    ) {
+        boolean renderTerminal =
+                renderJob.getStatus() == RenderJobStatus.COMPLETED
+                        || renderJob.getStatus() == RenderJobStatus.FAILED;
+
+        boolean filmRollTerminal =
+                filmRoll.getStatus() == FilmRollStatus.COMPLETED
+                        || filmRoll.getStatus() == FilmRollStatus.FAILED
+                        || filmRoll.getStatus() == FilmRollStatus.EXPIRED;
+
+        return renderTerminal && filmRollTerminal;
     }
 
     private String summarize(RuntimeException cause) {

@@ -121,4 +121,25 @@ class PhotoTest {
                 LocalDateTime.of(2026, 7, 29, 18, 0)
         );
     }
+
+    @Test
+    @DisplayName("업로드 완료 상태에서 결과 메시지로 바로 사진 처리를 완료한다")
+    void completeFromResultAfterUpload() {
+        Photo photo = createPhoto(1);
+        photo.markUploaded(LocalDateTime.now());
+
+        LocalDateTime processedAt =
+                LocalDateTime.of(2026, 8, 5, 3, 42, 31);
+
+        photo.completeFromResult(
+                "filtered/001.jpg",
+                processedAt
+        );
+
+        assertThat(photo.getStatus())
+                .isEqualTo(PhotoStatus.COMPLETED);
+        assertThat(photo.getFilteredObjectKey())
+                .isEqualTo("filtered/001.jpg");
+        assertThat(photo.getProcessedAt()).isEqualTo(processedAt);
+    }
 }

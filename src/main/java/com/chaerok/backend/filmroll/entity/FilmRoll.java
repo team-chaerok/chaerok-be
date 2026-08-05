@@ -211,6 +211,54 @@ public class FilmRoll {
         clearError();
     }
 
+    public void completeFromResult(
+            String zipObjectKey,
+            String reelObjectKey,
+            LocalDateTime completedAt
+    ) {
+        if (status != FilmRollStatus.READY
+                && status != FilmRollStatus.QUEUED
+                && status != FilmRollStatus.PROCESSING) {
+            throw new IllegalStateException(
+                    "현재 필름 롤 상태에는 완료 결과를 적용할 수 없습니다. status="
+                            + status
+            );
+        }
+
+        requireText(zipObjectKey, "ZIP S3 객체 키");
+        requireText(reelObjectKey, "릴스 S3 객체 키");
+
+        if (completedAt == null) {
+            throw new IllegalArgumentException(
+                    "현상 완료 시각은 필수입니다."
+            );
+        }
+
+        this.status = FilmRollStatus.COMPLETED;
+        this.processedPhotoCount = totalPhotoCount;
+        this.zipObjectKey = zipObjectKey;
+        this.reelObjectKey = reelObjectKey;
+        this.completedAt = completedAt;
+        this.expiresAt = completedAt.plusHours(RESULT_RETENTION_HOURS);
+        clearError();
+    }
+
+    public void failFromResult(
+            String errorCode,
+            String errorMessage
+    ) {
+        if (status != FilmRollStatus.READY
+                && status != FilmRollStatus.QUEUED
+                && status != FilmRollStatus.PROCESSING) {
+            throw new IllegalStateException(
+                    "현재 필름 롤 상태에는 실패 결과를 적용할 수 없습니다. status="
+                            + status
+            );
+        }
+
+        fail(errorCode, errorMessage);
+    }
+
     public void fail(String errorCode, String errorMessage) {
         requireText(errorCode, "오류 코드");
         requireText(errorMessage, "오류 메시지");

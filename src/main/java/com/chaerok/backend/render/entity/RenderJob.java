@@ -49,6 +49,33 @@ public class RenderJob {
     @Column(name = "error_message")
     private String errorMessage;
 
+    @Column(name = "request_message_id", length = 100)
+    private String requestMessageId;
+
+    @Column(name = "result_message_id", length = 100)
+    private String resultMessageId;
+
+    @Column(name = "result_bucket", length = 255)
+    private String resultBucket;
+
+    @Column(name = "zip_object_key")
+    private String zipObjectKey;
+
+    @Column(name = "zip_file_size")
+    private Long zipFileSize;
+
+    @Column(name = "reel_object_key")
+    private String reelObjectKey;
+
+    @Column(name = "reel_file_size")
+    private Long reelFileSize;
+
+    @Column(name = "manifest_object_key")
+    private String manifestObjectKey;
+
+    @Column(name = "result_occurred_at")
+    private LocalDateTime resultOccurredAt;
+
     @Column(name = "queued_at")
     private LocalDateTime queuedAt;
 
@@ -100,6 +127,15 @@ public class RenderJob {
         clearError();
     }
 
+    public void markQueued(
+            LocalDateTime queuedAt,
+            String requestMessageId
+    ) {
+        requireText(requestMessageId, "요청 메시지 ID");
+        markQueued(queuedAt);
+        this.requestMessageId = requestMessageId;
+    }
+
     public void markProcessing(LocalDateTime startedAt) {
         requireStatus(RenderJobStatus.QUEUED);
 
@@ -127,6 +163,92 @@ public class RenderJob {
         this.status = RenderJobStatus.COMPLETED;
         this.completedAt = completedAt;
         clearError();
+    }
+
+    public void completeFromResult(
+            int attempt,
+            String requestMessageId,
+            String resultMessageId,
+            String resultBucket,
+            String zipObjectKey,
+            Long zipFileSize,
+            String reelObjectKey,
+            Long reelFileSize,
+            String manifestObjectKey,
+            LocalDateTime occurredAt
+    ) {
+        requireResultApplicableStatus();
+        requirePositiveAttempt(attempt);
+        requireText(requestMessageId, "요청 메시지 ID");
+        requireText(resultMessageId, "결과 메시지 ID");
+        requireText(resultBucket, "결과 S3 버킷");
+        requireText(zipObjectKey, "ZIP S3 객체 키");
+        requireNonNegative(zipFileSize, "ZIP 파일 크기");
+        requireText(reelObjectKey, "릴스 S3 객체 키");
+        requireNonNegative(reelFileSize, "릴스 파일 크기");
+        requireText(manifestObjectKey, "manifest S3 객체 키");
+
+        if (occurredAt == null) {
+            throw new IllegalArgumentException(
+                    "결과 발생 시각은 필수입니다."
+            );
+        }
+
+        this.status = RenderJobStatus.COMPLETED;
+        this.attemptCount = Math.max(this.attemptCount, attempt);
+        this.requestMessageId = requestMessageId;
+        this.resultMessageId = resultMessageId;
+        this.resultBucket = resultBucket;
+        this.zipObjectKey = zipObjectKey;
+        this.zipFileSize = zipFileSize;
+        this.reelObjectKey = reelObjectKey;
+        this.reelFileSize = reelFileSize;
+        this.manifestObjectKey = manifestObjectKey;
+        this.resultOccurredAt = occurredAt;
+        this.completedAt = occurredAt;
+
+        if (this.startedAt == null) {
+            this.startedAt = occurredAt;
+        }
+
+        clearError();
+    }
+
+    public void failFromResult(
+            int attempt,
+            String requestMessageId,
+            String resultMessageId,
+            String resultBucket,
+            String errorCode,
+            String errorMessage,
+            LocalDateTime occurredAt
+    ) {
+        requireResultApplicableStatus();
+        requirePositiveAttempt(attempt);
+        requireText(requestMessageId, "요청 메시지 ID");
+        requireText(resultMessageId, "결과 메시지 ID");
+        requireText(resultBucket, "결과 S3 버킷");
+        requireText(errorCode, "오류 코드");
+        requireText(errorMessage, "오류 메시지");
+
+        if (occurredAt == null) {
+            throw new IllegalArgumentException(
+                    "결과 발생 시각은 필수입니다."
+            );
+        }
+
+        this.status = RenderJobStatus.FAILED;
+        this.attemptCount = Math.max(this.attemptCount, attempt);
+        this.requestMessageId = requestMessageId;
+        this.resultMessageId = resultMessageId;
+        this.resultBucket = resultBucket;
+        this.resultOccurredAt = occurredAt;
+        this.errorCode = errorCode;
+        this.errorMessage = errorMessage;
+
+        if (this.startedAt == null) {
+            this.startedAt = occurredAt;
+        }
     }
 
     public void queueFailed(String errorCode, String errorMessage) {
@@ -165,6 +287,18 @@ public class RenderJob {
         this.errorMessage = errorMessage;
     }
 
+    private void requireResultApplicableStatus() {
+        if (status != RenderJobStatus.CREATED
+                && status != RenderJobStatus.QUEUED
+                && status != RenderJobStatus.PROCESSING
+                && status != RenderJobStatus.QUEUE_FAILED) {
+            throw new IllegalStateException(
+                    "현재 렌더링 작업 상태에는 결과를 적용할 수 없습니다. status="
+                            + status
+            );
+        }
+    }
+
     private void requireStatus(RenderJobStatus expected) {
         if (status != expected) {
             throw new IllegalStateException(
@@ -179,6 +313,25 @@ public class RenderJob {
     private void clearError() {
         this.errorCode = null;
         this.errorMessage = null;
+    }
+
+    private static void requirePositiveAttempt(int attempt) {
+        if (attempt < 1) {
+            throw new IllegalArgumentException(
+                    "렌더링 시도 횟수는 1 이상이어야 합니다."
+            );
+        }
+    }
+
+    private static void requireNonNegative(
+            Long value,
+            String fieldName
+    ) {
+        if (value == null || value < 0L) {
+            throw new IllegalArgumentException(
+                    fieldName + "은(는) 0 이상이어야 합니다."
+            );
+        }
     }
 
     private static void requireText(String value, String fieldName) {

@@ -155,4 +155,26 @@ class FilmRollTest {
                 1
         );
     }
+
+    @Test
+    @DisplayName("큐 상태 기록보다 결과가 먼저 도착해도 필름 롤 완료 상태를 반영한다")
+    void completeFromResultBeforeQueuedStateIsRecorded() {
+        FilmRoll filmRoll = newFilmRoll();
+        filmRoll.increasePhotoCount();
+        filmRoll.markReady();
+
+        LocalDateTime completedAt =
+                LocalDateTime.of(2026, 8, 5, 3, 42, 31);
+
+        filmRoll.completeFromResult(
+                "result.zip",
+                "result.mp4",
+                completedAt
+        );
+
+        assertThat(filmRoll.getStatus())
+                .isEqualTo(FilmRollStatus.COMPLETED);
+        assertThat(filmRoll.getProcessedPhotoCount()).isEqualTo(1);
+        assertThat(filmRoll.getCompletedAt()).isEqualTo(completedAt);
+    }
 }

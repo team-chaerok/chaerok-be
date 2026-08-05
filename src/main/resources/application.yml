@@ -78,3 +78,12 @@ logging:
   level:
     org.hibernate.SQL: WARN
     org.hibernate.orm.jdbc.bind: WARN
+
+aws:
+  sqs:
+    render-result-queue-url: ${RENDER_RESULT_QUEUE_URL:}
+    render-result-consumer-enabled: ${RENDER_RESULT_CONSUMER_ENABLED:false}
+    render-result-max-messages: ${RENDER_RESULT_MAX_MESSAGES:10}
+    render-result-wait-time-seconds: ${RENDER_RESULT_WAIT_TIME_SECONDS:20}
+    render-result-visibility-timeout-seconds: ${RENDER_RESULT_VISIBILITY_TIMEOUT_SECONDS:60}
+    render-result-poll-delay-ms: ${RENDER_RESULT_POLL_DELAY_MS:1000}

@@ -24,8 +24,8 @@ public class AwsSqsConfig {
     public SqsClient sqsClient(AwsProperties awsProperties) {
         ClientOverrideConfiguration overrideConfiguration =
                 ClientOverrideConfiguration.builder()
-                        .apiCallAttemptTimeout(Duration.ofSeconds(10))
-                        .apiCallTimeout(Duration.ofSeconds(20))
+                        .apiCallAttemptTimeout(Duration.ofSeconds(30))
+                        .apiCallTimeout(Duration.ofSeconds(40))
                         .build();
 
         return SqsClient.builder()

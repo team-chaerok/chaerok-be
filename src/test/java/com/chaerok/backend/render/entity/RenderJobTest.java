@@ -45,6 +45,21 @@ class RenderJobTest {
     }
 
     @Test
+    @DisplayName("큐 등록 시 SQS 요청 메시지 ID를 함께 저장한다")
+    void saveRequestMessageIdWhenQueued() {
+        RenderJob renderJob = RenderJob.create(filmRoll);
+
+        renderJob.markQueued(
+                LocalDateTime.now(),
+                "request-message-1"
+        );
+
+        assertThat(renderJob.getStatus()).isEqualTo(RenderJobStatus.QUEUED);
+        assertThat(renderJob.getRequestMessageId())
+                .isEqualTo("request-message-1");
+    }
+
+    @Test
     @DisplayName("큐 전송 실패 작업은 오류를 지우고 다시 큐에 등록할 수 있다")
     void retryQueueFailedJob() {
         RenderJob renderJob = RenderJob.create(filmRoll);
@@ -91,5 +106,37 @@ class RenderJobTest {
         assertThat(renderJob.getStatus()).isEqualTo(RenderJobStatus.FAILED);
         assertThat(renderJob.getErrorCode()).isEqualTo("RENDER_FAILED");
         assertThat(renderJob.getErrorMessage()).isEqualTo("렌더링 실패");
+    }
+
+    @Test
+    @DisplayName("큐 상태 기록보다 결과가 먼저 도착해도 완료 상태를 직접 반영한다")
+    void completeFromResultBeforeQueuedStateIsRecorded() {
+        RenderJob renderJob = RenderJob.create(filmRoll);
+        LocalDateTime occurredAt =
+                LocalDateTime.of(2026, 8, 5, 3, 42, 31);
+
+        renderJob.completeFromResult(
+                3,
+                "request-message",
+                "result-message",
+                "bucket",
+                "result.zip",
+                100L,
+                "result.mp4",
+                200L,
+                "manifest.json",
+                occurredAt
+        );
+
+        assertThat(renderJob.getStatus())
+                .isEqualTo(RenderJobStatus.COMPLETED);
+        assertThat(renderJob.getAttemptCount()).isEqualTo(3);
+        assertThat(renderJob.getRequestMessageId())
+                .isEqualTo("request-message");
+        assertThat(renderJob.getResultMessageId())
+                .isEqualTo("result-message");
+        assertThat(renderJob.getManifestObjectKey())
+                .isEqualTo("manifest.json");
+        assertThat(renderJob.getCompletedAt()).isEqualTo(occurredAt);
     }
 }
