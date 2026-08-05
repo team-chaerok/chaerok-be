@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
@@ -30,6 +31,9 @@ import java.util.List;
         name = "bucket"
 )
 public class FilmRollResultService {
+
+    private static final ZoneId APPLICATION_ZONE_ID =
+            ZoneId.of("Asia/Seoul");
 
     private final FilmRollRepository filmRollRepository;
     private final PhotoRepository photoRepository;
@@ -106,7 +110,10 @@ public class FilmRollResultService {
             throw conflict("완료된 필름 롤의 만료 시각이 없습니다.");
         }
 
-        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime now = LocalDateTime.ofInstant(
+                clock.instant(),
+                APPLICATION_ZONE_ID
+        );
         return expiresAt.isAfter(now)
                 ? FilmRollStatus.COMPLETED
                 : FilmRollStatus.EXPIRED;

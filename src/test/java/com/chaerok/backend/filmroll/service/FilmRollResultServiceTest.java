@@ -225,6 +225,46 @@ class FilmRollResultServiceTest {
     }
 
     @Test
+    @DisplayName("서버 Clock이 UTC여도 한국 시간 기준으로 결과 만료를 판단한다")
+    void determinesExpiryUsingKoreanTimeWithUtcClock() {
+        Clock utcClock = Clock.fixed(
+                Instant.parse("2026-08-07T11:07:00Z"),
+                ZoneOffset.UTC
+        );
+        FilmRollResultService utcClockService =
+                new FilmRollResultService(
+                        filmRollRepository,
+                        photoRepository,
+                        renderJobRepository,
+                        objectStorage,
+                        utcClock
+                );
+        FilmRoll filmRoll = completedFilmRoll(
+                LocalDateTime.of(2026, 8, 5, 20, 6)
+        );
+
+        when(filmRollRepository.findByIdAndUserId(100L, 1L))
+                .thenReturn(Optional.of(filmRoll));
+
+        FilmRollResultResponse result =
+                utcClockService.getResult(1L, 100L);
+
+        assertThat(result.status()).isEqualTo("EXPIRED");
+        assertThat(result.expiresAt())
+                .isEqualTo(
+                        LocalDateTime.of(2026, 8, 7, 20, 6)
+                );
+        assertThat(result.filteredPhotos()).isEmpty();
+        assertThat(result.zip()).isNull();
+        assertThat(result.reel()).isNull();
+        verifyNoInteractions(
+                photoRepository,
+                renderJobRepository,
+                objectStorage
+        );
+    }
+
+    @Test
     @DisplayName("오류 사유가 있는 EXPIRED 결과에는 만료 사유를 반환한다")
     void returnsExpiredFailureWhenStored() {
         FilmRoll filmRoll = queuedFilmRoll();
