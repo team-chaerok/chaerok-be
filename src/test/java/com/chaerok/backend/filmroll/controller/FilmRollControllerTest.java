@@ -1,10 +1,10 @@
 package com.chaerok.backend.filmroll.controller;
 
 import com.chaerok.backend.auth.security.AuthenticatedUser;
+import com.chaerok.backend.filmroll.dto.FilmRollCreateRequest;
 import com.chaerok.backend.filmroll.dto.FilmRollResponse;
 import com.chaerok.backend.filmroll.service.FilmRollCommandService;
 import com.chaerok.backend.filmroll.service.FilmRollQueryService;
-import com.chaerok.backend.photo.service.PhotoUploadService;
 import com.chaerok.backend.user.entity.UserRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,9 +30,6 @@ class FilmRollControllerTest {
     @Mock
     private FilmRollQueryService filmRollQueryService;
 
-    @Mock
-    private PhotoUploadService photoUploadService;
-
     private FilmRollController controller;
     private AuthenticatedUser authenticatedUser;
 
@@ -39,25 +37,58 @@ class FilmRollControllerTest {
     void setUp() {
         controller = new FilmRollController(
                 filmRollCommandService,
-                filmRollQueryService,
-                photoUploadService
+                filmRollQueryService
         );
-        authenticatedUser = new AuthenticatedUser(1L, UserRole.USER);
+        authenticatedUser =
+                new AuthenticatedUser(1L, UserRole.USER);
+    }
+
+    @Test
+    @DisplayName("필름 롤 생성을 201로 반환한다")
+    void createFilmRoll() {
+        FilmRollCreateRequest request =
+                new FilmRollCreateRequest(
+                        10L,
+                        "gongju_baekje_love",
+                        0.8
+                );
+        FilmRollResponse expected = response();
+
+        when(filmRollCommandService.createFilmRoll(
+                1L,
+                request
+        )).thenReturn(expected);
+
+        ResponseEntity<FilmRollResponse> result =
+                controller.createFilmRoll(
+                        authenticatedUser,
+                        request
+                );
+
+        assertThat(result.getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
+        assertThat(result.getBody()).isSameAs(expected);
+
+        verify(filmRollCommandService)
+                .createFilmRoll(1L, request);
     }
 
     @Test
     @DisplayName("현재 미완료 필름 롤이 있으면 200으로 반환한다")
     void getCurrentFilmRoll() {
-        FilmRollResponse response = response();
+        FilmRollResponse expected = response();
 
         when(filmRollQueryService.findCurrentFilmRoll(1L))
-                .thenReturn(Optional.of(response));
+                .thenReturn(Optional.of(expected));
 
         ResponseEntity<FilmRollResponse> result =
-                controller.getCurrentFilmRoll(authenticatedUser);
+                controller.getCurrentFilmRoll(
+                        authenticatedUser
+                );
 
-        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(result.getBody()).isSameAs(response);
+        assertThat(result.getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(result.getBody()).isSameAs(expected);
     }
 
     @Test
@@ -67,7 +98,9 @@ class FilmRollControllerTest {
                 .thenReturn(Optional.empty());
 
         ResponseEntity<FilmRollResponse> result =
-                controller.getCurrentFilmRoll(authenticatedUser);
+                controller.getCurrentFilmRoll(
+                        authenticatedUser
+                );
 
         assertThat(result.getStatusCode())
                 .isEqualTo(HttpStatus.NO_CONTENT);
@@ -77,17 +110,24 @@ class FilmRollControllerTest {
     @Test
     @DisplayName("소유한 필름 롤 상세를 200으로 반환한다")
     void getFilmRoll() {
-        FilmRollResponse response = response();
+        FilmRollResponse expected = response();
 
-        when(filmRollQueryService.getFilmRoll(1L, 100L))
-                .thenReturn(response);
+        when(filmRollQueryService.getFilmRoll(
+                1L,
+                100L
+        )).thenReturn(expected);
 
         ResponseEntity<FilmRollResponse> result =
-                controller.getFilmRoll(authenticatedUser, 100L);
+                controller.getFilmRoll(
+                        authenticatedUser,
+                        100L
+                );
 
-        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(result.getBody()).isSameAs(response);
+        assertThat(result.getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(result.getBody()).isSameAs(expected);
     }
+
     private FilmRollResponse response() {
         return new FilmRollResponse(
                 100L,
@@ -107,5 +147,4 @@ class FilmRollControllerTest {
                 null
         );
     }
-
 }
