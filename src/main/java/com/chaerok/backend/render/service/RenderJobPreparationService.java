@@ -117,6 +117,8 @@ public class RenderJobPreparationService {
             );
         }
 
+        validatePhotoSequences(photos);
+
         boolean hasIncompletePhoto = photos.stream()
                 .anyMatch(photo ->
                         photo.getStatus() != PhotoStatus.UPLOADED
@@ -126,6 +128,20 @@ public class RenderJobPreparationService {
             throw new FilmRollConflictException(
                     "업로드가 완료되지 않은 사진이 있습니다."
             );
+        }
+    }
+
+    private void validatePhotoSequences(List<Photo> photos) {
+        for (int index = 0; index < photos.size(); index++) {
+            int expectedSequence = index + 1;
+            Integer actualSequence = photos.get(index).getSequence();
+
+            if (!Integer.valueOf(expectedSequence)
+                    .equals(actualSequence)) {
+                throw new FilmRollConflictException(
+                        "사진 순서는 1부터 빠짐없이 연속되어야 합니다."
+                );
+            }
         }
     }
 
