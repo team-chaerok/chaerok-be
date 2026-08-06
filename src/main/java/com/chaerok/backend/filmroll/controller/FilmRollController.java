@@ -107,6 +107,7 @@ public class FilmRollController {
                     필름 롤을 READY 상태로 전환합니다.
                     """
     )
+    @io.swagger.v3.oas.annotations.Hidden
     @PostMapping("/{filmRollId}/ready")
     public ResponseEntity<FilmRollResponse> markFilmRollReady(
             @AuthenticationPrincipal

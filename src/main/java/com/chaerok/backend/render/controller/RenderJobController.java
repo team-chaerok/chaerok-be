@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 )
 @RestController
 @RequiredArgsConstructor
+@io.swagger.v3.oas.annotations.Hidden
 @RequestMapping("/api/film-rolls/{filmRollId}/render-jobs")
 @ConditionalOnProperty(
         prefix = "aws.sqs",
