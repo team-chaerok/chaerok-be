@@ -64,7 +64,7 @@ public class AdaptiveFilterPolicy {
          * 대비는 장면 프로필 값을 중심으로 적용합니다.
          *
          * 풍경에서는 조금 강하게,
-         * 인물과 야간에서는 조금 부드럽게 적용됩니다.
+         * 야간에서는 조금 부드럽게 적용됩니다.
          */
         double contrastMultiplier =
                 profile.contrast();
@@ -115,24 +115,6 @@ public class AdaptiveFilterPolicy {
                 profile.overlay()
                         * brightnessIntensity;
 
-        /*
-         * 야간 인물 사진 보호
-         *
-         * NIGHT로 분류됐지만 얼굴도 검출된 경우,
-         * 피부가 거칠어지거나 얼굴이 과하게 어두워지는 것을
-         * 방지하기 위해 일부 효과를 추가로 완화합니다.
-         *
-         * 기존보다 완화 폭을 줄여 필터감이 유지되도록 했습니다.
-         */
-        if (
-                analysis.sceneType() == SceneType.NIGHT
-                        && analysis.hasFace()
-        ) {
-            contrastMultiplier *= 0.95;
-            grainMultiplier *= 0.85;
-            vignetteMultiplier *= 0.90;
-            overlayMultiplier *= 0.92;
-        }
 
         return new FilterAdjustment(
                 exposureMultiplier,
@@ -146,7 +128,7 @@ public class AdaptiveFilterPolicy {
     }
 
     /**
-     * 풍경·인물·야간 장면별 기본 프로필입니다.
+     * 풍경·야간 장면별 기본 프로필입니다.
      */
     private SceneProfile getSceneProfile(
             SceneType sceneType
@@ -171,24 +153,6 @@ public class AdaptiveFilterPolicy {
                     1.05  // overlay
             );
 
-            /*
-             * 인물
-             *
-             * 기존 인물 정책은 전체 필터를 너무 많이 약화해
-             * 필터감이 거의 사라졌습니다.
-             *
-             * 피부 보호를 위해 그레인과 비네팅은 조금 낮추되,
-             * 대비·색감·오버레이는 충분히 유지합니다.
-             */
-            case PORTRAIT -> new SceneProfile(
-                    1.00, // exposure
-                    0.94, // contrast
-                    1.00, // temperature
-                    1.00, // fade
-                    0.82, // grain
-                    0.88, // vignette
-                    0.95  // overlay
-            );
 
             /*
              * 야간

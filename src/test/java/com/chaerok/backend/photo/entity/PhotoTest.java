@@ -1,7 +1,6 @@
 package com.chaerok.backend.photo.entity;
 
 import com.chaerok.backend.filmroll.entity.FilmRoll;
-import com.chaerok.backend.filter.analysis.SceneType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -24,8 +23,6 @@ class PhotoTest {
                 filmRoll,
                 1,
                 "users/1/rolls/1/original/001.jpg",
-                true,
-                SceneType.PORTRAIT,
                 takenAt
         );
 
@@ -34,8 +31,6 @@ class PhotoTest {
         assertThat(photo.getOriginalObjectKey())
                 .isEqualTo("users/1/rolls/1/original/001.jpg");
         assertThat(photo.getStatus()).isEqualTo(PhotoStatus.UPLOADING);
-        assertThat(photo.isHasFace()).isTrue();
-        assertThat(photo.getSceneType()).isEqualTo(SceneType.PORTRAIT);
         assertThat(photo.getTakenAt()).isEqualTo(takenAt);
         assertThat(photo.getFilteredObjectKey()).isNull();
     }
@@ -116,8 +111,6 @@ class PhotoTest {
                 filmRoll,
                 sequence,
                 "users/1/rolls/1/original/%03d.jpg".formatted(sequence),
-                false,
-                SceneType.LANDSCAPE,
                 LocalDateTime.of(2026, 7, 29, 18, 0)
         );
     }

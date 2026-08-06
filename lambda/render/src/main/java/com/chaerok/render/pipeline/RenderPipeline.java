@@ -1,6 +1,5 @@
 package com.chaerok.render.pipeline;
 
-import com.chaerok.backend.filter.analysis.SceneType;
 import com.chaerok.backend.filter.engine.FilmFilterEngine;
 import com.chaerok.render.media.FilteredPhotoZipWriter;
 import com.chaerok.render.media.JpegImageWriter;
@@ -205,14 +204,10 @@ public final class RenderPipeline {
         BufferedImage original = readImage(source);
         validateImageSize(original, photo.sequence());
 
-        SceneType forcedSceneType = parseSceneType(photo.sceneType());
-
         BufferedImage filteredImage = filmFilterEngine.apply(
                 original,
                 message.filterId(),
-                message.filterStrength(),
-                photo.hasFace(),
-                forcedSceneType
+                message.filterStrength()
         );
 
         jpegImageWriter.write(filteredImage, filtered);
@@ -324,13 +319,6 @@ public final class RenderPipeline {
                             + sequence
             );
         }
-    }
-
-    private SceneType parseSceneType(String sceneType) {
-        if (sceneType == null || sceneType.isBlank()) {
-            return null;
-        }
-        return SceneType.valueOf(sceneType);
     }
 
     private void writeManifest(

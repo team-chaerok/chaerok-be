@@ -1,7 +1,6 @@
 package com.chaerok.backend.photo.entity;
 
 import com.chaerok.backend.filmroll.entity.FilmRoll;
-import com.chaerok.backend.filter.analysis.SceneType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -52,13 +51,6 @@ public class Photo {
     @Column(nullable = false, length = 30)
     private PhotoStatus status;
 
-    @Column(name = "has_face", nullable = false)
-    private boolean hasFace;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "scene_type", length = 30)
-    private SceneType sceneType;
-
     @Column(name = "taken_at", nullable = false)
     private LocalDateTime takenAt;
 
@@ -86,8 +78,6 @@ public class Photo {
             FilmRoll filmRoll,
             int sequence,
             String originalObjectKey,
-            boolean hasFace,
-            SceneType sceneType,
             LocalDateTime takenAt
     ) {
         if (filmRoll == null) {
@@ -116,8 +106,6 @@ public class Photo {
         photo.sequence = sequence;
         photo.originalObjectKey = originalObjectKey;
         photo.status = PhotoStatus.UPLOADING;
-        photo.hasFace = hasFace;
-        photo.sceneType = sceneType;
         photo.takenAt = takenAt;
         return photo;
     }

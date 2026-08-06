@@ -29,8 +29,6 @@ public record RenderQueueMessage(
             Long photoId,
             int sequence,
             String originalObjectKey,
-            boolean hasFace,
-            String sceneType,
             LocalDateTime takenAt
     ) {
     }

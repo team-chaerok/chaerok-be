@@ -368,8 +368,6 @@ class FilmRollResultServiceTest {
                 filmRoll,
                 sequence,
                 "original/" + sequence + ".jpg",
-                false,
-                null,
                 LocalDateTime.of(2026, 8, 5, 8, sequence)
         );
         ReflectionTestUtils.setField(photo, "id", photoId);

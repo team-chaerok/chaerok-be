@@ -38,8 +38,6 @@ public record FilmRollPhotoListResponse(
             Long photoId,
             int sequence,
             String status,
-            boolean hasFace,
-            String sceneType,
             LocalDateTime takenAt,
             LocalDateTime uploadCompletedAt,
             LocalDateTime processedAt,
@@ -51,10 +49,6 @@ public record FilmRollPhotoListResponse(
                     photo.getId(),
                     photo.getSequence(),
                     photo.getStatus().name(),
-                    photo.isHasFace(),
-                    photo.getSceneType() == null
-                            ? null
-                            : photo.getSceneType().name(),
                     photo.getTakenAt(),
                     photo.getUploadCompletedAt(),
                     photo.getProcessedAt(),

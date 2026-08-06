@@ -161,8 +161,6 @@ public class PhotoUploadService {
                 filmRoll,
                 request.sequence(),
                 objectKey,
-                request.hasFace(),
-                request.sceneType(),
                 request.takenAt()
         );
 

@@ -1,7 +1,5 @@
 package com.chaerok.backend.render.queue;
 
-import com.chaerok.backend.filter.analysis.SceneType;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -21,7 +19,7 @@ public record RenderQueueMessage(
         List<PhotoItem> photos
 ) {
 
-    public static final int CURRENT_SCHEMA_VERSION = 1;
+    public static final int CURRENT_SCHEMA_VERSION = 2;
 
     public RenderQueueMessage {
         photos = List.copyOf(photos);
@@ -31,8 +29,6 @@ public record RenderQueueMessage(
             Long photoId,
             int sequence,
             String originalObjectKey,
-            boolean hasFace,
-            SceneType sceneType,
             LocalDateTime takenAt
     ) {
     }

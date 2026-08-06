@@ -313,7 +313,7 @@ class RenderHandlerTest {
     private String validBody() {
         return """
                 {
-                  "schemaVersion": 1,
+                  "schemaVersion": 2,
                   "renderJobId": "133d6ee3-a120-4df3-8ba3-f60adbdd64d6",
                   "filmRollId": 2,
                   "userId": 6,
@@ -329,8 +329,6 @@ class RenderHandlerTest {
                       "photoId": 1,
                       "sequence": 1,
                       "originalObjectKey": "users/6/rolls/2/original/photo.jpg",
-                      "hasFace": false,
-                      "sceneType": null,
                       "takenAt": "2026-07-30T22:40:00"
                     }
                   ]
@@ -341,7 +339,7 @@ class RenderHandlerTest {
     private String invalidBody() {
         return """
                 {
-                  "schemaVersion": 1,
+                  "schemaVersion": 2,
                   "renderJobId": "133d6ee3-a120-4df3-8ba3-f60adbdd64d6",
                   "filmRollId": 2,
                   "userId": 6,

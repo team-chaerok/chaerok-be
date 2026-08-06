@@ -20,7 +20,7 @@ class RenderObjectKeysTest {
         );
 
         RenderQueueMessage message = new RenderQueueMessage(
-                1,
+                2,
                 renderJobId,
                 2L,
                 6L,
@@ -36,8 +36,6 @@ class RenderObjectKeysTest {
                                 1L,
                                 1,
                                 "input.jpg",
-                                false,
-                                null,
                                 LocalDateTime.now()
                         )
                 )

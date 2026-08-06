@@ -1,6 +1,5 @@
 package com.chaerok.backend.filter.controller;
 
-import com.chaerok.backend.filter.analysis.SceneType;
 import com.chaerok.backend.filter.engine.FilmFilterEngine;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,7 +18,6 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.Locale;
 
 @Tag(
         name = "Filter Preview",
@@ -43,14 +41,9 @@ public class FilterPreviewController {
     @Operation(
             summary = "이미지 필터 미리보기",
             description = """
-                    이미지의 밝기와 장면 종류에 따라
-                    필터 강도를 자동으로 조절하여 적용합니다.
-                    
-                    scene을 입력하지 않으면 장면을 자동 분석합니다.
-                    hasFace가 true이고 야간 사진이 아니면
-                    인물 사진으로 처리합니다.
-                    
-                    scene에는 LANDSCAPE, PORTRAIT, NIGHT를 사용할 수 있습니다.
+                    이미지 밝기와 어두운 픽셀 비율을 서버가 분석해
+                    LANDSCAPE 또는 NIGHT 장면으로 자동 분류한 뒤
+                    필터 강도를 보정하여 적용합니다.
                     """
     )
     @PostMapping(
@@ -69,31 +62,13 @@ public class FilterPreviewController {
                     value = "strength",
                     defaultValue = "1.0"
             )
-            double strength,
-
-            @RequestParam(
-                    value = "hasFace",
-                    defaultValue = "false"
-            )
-            boolean hasFace,
-
-            @RequestParam(
-                    value = "scene",
-                    required = false
-            )
-            String scene
+            double strength
     ) throws IOException {
 
         validateFile(image);
         validateFilterId(filterId);
         validateStrength(strength);
 
-        /*
-         * scene이 전달되면 해당 장면을 강제로 적용합니다.
-         * 전달되지 않으면 null이 되어 자동 분석합니다.
-         */
-        SceneType forcedSceneType =
-                parseSceneType(scene);
 
         BufferedImage original;
 
@@ -113,9 +88,7 @@ public class FilterPreviewController {
                 filmFilterEngine.apply(
                         original,
                         filterId.trim(),
-                        strength,
-                        hasFace,
-                        forcedSceneType
+                        strength
                 );
 
         byte[] jpegBytes =
@@ -125,29 +98,6 @@ public class FilterPreviewController {
                 .contentType(MediaType.IMAGE_JPEG)
                 .contentLength(jpegBytes.length)
                 .body(jpegBytes);
-    }
-
-    /**
-     * 장면 입력값을 SceneType으로 변환합니다.
-     *
-     * null 또는 빈 문자열이면 자동 분석 모드입니다.
-     * 대소문자를 구분하지 않습니다.
-     */
-    private SceneType parseSceneType(String scene) {
-        if (scene == null || scene.isBlank()) {
-            return null;
-        }
-
-        try {
-            return SceneType.valueOf(
-                    scene.trim()
-                            .toUpperCase(Locale.ROOT)
-            );
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalArgumentException(
-                    "scene은 LANDSCAPE, PORTRAIT, NIGHT 중 하나여야 합니다."
-            );
-        }
     }
 
     private void validateFile(MultipartFile image) {

@@ -1,7 +1,6 @@
 package com.chaerok.backend.filmroll.controller;
 
 import com.chaerok.backend.auth.security.AuthenticatedUser;
-import com.chaerok.backend.filter.analysis.SceneType;
 import com.chaerok.backend.photo.dto.PhotoUploadCompleteResponse;
 import com.chaerok.backend.photo.dto.PhotoUploadUrlRequest;
 import com.chaerok.backend.photo.dto.PhotoUploadUrlResponse;
@@ -40,8 +39,6 @@ class FilmRollUploadControllerTest {
                         1,
                         "image/jpeg",
                         1024L,
-                        false,
-                        SceneType.LANDSCAPE,
                         LocalDateTime.of(
                                 2026,
                                 8,

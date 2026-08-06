@@ -5,7 +5,6 @@ public record ImageAnalysis(
         double darkPixelRatio,
         double highlightPixelRatio,
         double contrast,
-        boolean hasFace,
         SceneType sceneType
 ) {
 }

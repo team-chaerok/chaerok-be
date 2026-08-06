@@ -6,7 +6,6 @@ import com.chaerok.backend.filter.analysis.FilterOverlayTuning;
 import com.chaerok.backend.filter.analysis.FilterOverlayTuningPolicy;
 import com.chaerok.backend.filter.analysis.ImageAnalysis;
 import com.chaerok.backend.filter.analysis.ImageSceneAnalyzer;
-import com.chaerok.backend.filter.analysis.SceneType;
 import com.chaerok.backend.filter.preset.FilmFilterPreset;
 import com.chaerok.backend.filter.preset.FilmFilterPresetProvider;
 import com.chaerok.backend.filter.processor.ContrastProcessor;
@@ -49,22 +48,6 @@ public class FilmFilterEngine {
             String filterId,
             double strength
     ) {
-        return apply(
-                original,
-                filterId,
-                strength,
-                false,
-                null
-        );
-    }
-
-    public BufferedImage apply(
-            BufferedImage original,
-            String filterId,
-            double strength,
-            boolean hasFace,
-            SceneType forcedSceneType
-    ) {
         validateOriginal(original);
         validateFilterId(filterId);
 
@@ -80,11 +63,7 @@ public class FilmFilterEngine {
         );
 
         ImageAnalysis analysis =
-                imageSceneAnalyzer.analyze(
-                        original,
-                        hasFace,
-                        forcedSceneType
-                );
+                imageSceneAnalyzer.analyze(original);
 
         FilterAdjustment adjustment =
                 adaptiveFilterPolicy.calculate(analysis);
@@ -259,7 +238,6 @@ public class FilmFilterEngine {
                         [Adaptive Film Filter]
                         filterId=%s
                         scene=%s
-                        hasFace=%s
                         brightness=%.3f
                         darkPixelRatio=%.3f
                         highlightPixelRatio=%.3f
@@ -279,7 +257,6 @@ public class FilmFilterEngine {
                         """,
                 filterId,
                 analysis.sceneType(),
-                analysis.hasFace(),
                 analysis.brightness(),
                 analysis.darkPixelRatio(),
                 analysis.highlightPixelRatio(),

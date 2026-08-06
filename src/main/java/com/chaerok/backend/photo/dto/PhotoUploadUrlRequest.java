@@ -1,7 +1,6 @@
 package com.chaerok.backend.photo.dto;
 
 import com.chaerok.backend.filmroll.entity.FilmRoll;
-import com.chaerok.backend.filter.analysis.SceneType;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -33,10 +32,6 @@ public record PhotoUploadUrlRequest(
                 message = "이미지 파일은 최대 5MB까지 업로드할 수 있습니다."
         )
         long contentLength,
-
-        boolean hasFace,
-
-        SceneType sceneType,
 
         @NotNull(message = "촬영 시각은 필수입니다.")
         LocalDateTime takenAt

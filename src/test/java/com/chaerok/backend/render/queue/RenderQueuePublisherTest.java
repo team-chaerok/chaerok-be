@@ -61,7 +61,7 @@ class RenderQueuePublisherTest {
 
         RenderQueueMessage message =
                 new RenderQueueMessage(
-                        1,
+                        RenderQueueMessage.CURRENT_SCHEMA_VERSION,
                         renderJobId,
                         2L,
                         6L,
@@ -79,8 +79,6 @@ class RenderQueuePublisherTest {
                                         1L,
                                         1,
                                         "users/6/rolls/2/original/001.jpg",
-                                        false,
-                                        null,
                                         LocalDateTime.of(
                                                 2026, 7, 30, 21, 0
                                         )
@@ -108,8 +106,10 @@ class RenderQueuePublisherTest {
 
         assertThat(request.messageBody())
                 .contains(renderJobId.toString())
+                .contains("\"schemaVersion\":2")
                 .contains("\"filmRollId\":2")
-                .contains("\"originalObjectKey\"");
+                .contains("\"originalObjectKey\"")
+                .doesNotContain("hasFace", "sceneType");
 
         assertThat(request.messageAttributes())
                 .containsKeys(

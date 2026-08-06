@@ -1,6 +1,5 @@
 package com.chaerok.render.validation;
 
-import com.chaerok.backend.filter.analysis.SceneType;
 import com.chaerok.render.message.RenderQueueMessage;
 
 import java.util.HashSet;
@@ -9,7 +8,7 @@ import java.util.Set;
 
 public final class RenderMessageValidator {
 
-    private static final int SUPPORTED_SCHEMA_VERSION = 1;
+    private static final int SUPPORTED_SCHEMA_VERSION = 2;
     private static final int MAX_PHOTO_COUNT = 24;
 
     public void validate(RenderQueueMessage message) {
@@ -97,17 +96,6 @@ public final class RenderMessageValidator {
                     "takenAt is required for photoId=" + photo.photoId()
             );
 
-            if (photo.sceneType() != null
-                    && !photo.sceneType().isBlank()) {
-                try {
-                    SceneType.valueOf(photo.sceneType());
-                } catch (IllegalArgumentException exception) {
-                    throw new InvalidRenderMessageException(
-                            "Unsupported sceneType: "
-                                    + photo.sceneType()
-                    );
-                }
-            }
         }
 
         for (int sequence = 1;

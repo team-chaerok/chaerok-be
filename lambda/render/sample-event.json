@@ -3,7 +3,7 @@
     {
       "messageId": "local-render-v2-stage1",
       "receiptHandle": "local",
-      "body": "{\"schemaVersion\":1,\"renderJobId\":\"133d6ee3-a120-4df3-8ba3-f60adbdd64d6\",\"filmRollId\":999001,\"userId\":999001,\"regionId\":1,\"bucket\":\"chaerok-media-dev-7f3k2m\",\"filterId\":\"gongju\",\"filterStrength\":0.8,\"filterVersion\":1,\"totalPhotoCount\":1,\"requestedAt\":\"2026-08-04T22:00:00\",\"photos\":[{\"photoId\":999001,\"sequence\":1,\"originalObjectKey\":\"local-tests/render-v2-stage1/input.jpg\",\"hasFace\":false,\"sceneType\":null,\"takenAt\":\"2026-08-04T21:50:00\"}]}",
+      "body": "{\"schemaVersion\":2,\"renderJobId\":\"133d6ee3-a120-4df3-8ba3-f60adbdd64d6\",\"filmRollId\":999001,\"userId\":999001,\"regionId\":1,\"bucket\":\"chaerok-media-dev-7f3k2m\",\"filterId\":\"gongju\",\"filterStrength\":0.8,\"filterVersion\":1,\"totalPhotoCount\":1,\"requestedAt\":\"2026-08-04T22:00:00\",\"photos\":[{\"photoId\":999001,\"sequence\":1,\"originalObjectKey\":\"local-tests/render-v2-stage1/input.jpg\",\"takenAt\":\"2026-08-04T21:50:00\"}]}",
       "attributes": {},
       "messageAttributes": {},
       "md5OfBody": "local",

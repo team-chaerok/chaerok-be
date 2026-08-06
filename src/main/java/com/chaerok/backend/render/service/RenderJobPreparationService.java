@@ -158,8 +158,6 @@ public class RenderJobPreparationService {
                                         photo.getId(),
                                         photo.getSequence(),
                                         photo.getOriginalObjectKey(),
-                                        photo.isHasFace(),
-                                        photo.getSceneType(),
                                         photo.getTakenAt()
                                 )
                         )

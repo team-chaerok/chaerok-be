@@ -41,7 +41,7 @@ class RenderRequestServiceTest {
         UUID renderJobId = UUID.randomUUID();
 
         RenderQueueMessage message = new RenderQueueMessage(
-                1,
+                RenderQueueMessage.CURRENT_SCHEMA_VERSION,
                 renderJobId,
                 2L,
                 6L,
@@ -129,7 +129,7 @@ class RenderRequestServiceTest {
         UUID renderJobId = UUID.randomUUID();
 
         RenderQueueMessage message = new RenderQueueMessage(
-                1,
+                RenderQueueMessage.CURRENT_SCHEMA_VERSION,
                 renderJobId,
                 2L,
                 6L,

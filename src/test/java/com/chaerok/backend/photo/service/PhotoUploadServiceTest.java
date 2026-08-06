@@ -98,8 +98,6 @@ class PhotoUploadServiceTest {
                         1,
                         "image/jpeg",
                         1024L,
-                        false,
-                        null,
                         takenAt
                 );
 
@@ -171,8 +169,6 @@ class PhotoUploadServiceTest {
                 filmRoll,
                 1,
                 "users/1/rolls/100/original/001-test.jpg",
-                false,
-                null,
                 LocalDateTime.of(
                         2026,
                         7,
@@ -239,8 +235,6 @@ class PhotoUploadServiceTest {
                 filmRoll,
                 1,
                 "users/1/rolls/100/original/001-test.jpg",
-                false,
-                null,
                 LocalDateTime.of(
                         2026,
                         7,

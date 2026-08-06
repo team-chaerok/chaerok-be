@@ -49,7 +49,7 @@ class RenderMessageValidatorTest {
             List<RenderQueueMessage.PhotoItem> photos
     ) {
         return new RenderQueueMessage(
-                1,
+                2,
                 UUID.randomUUID(),
                 1L,
                 1L,
@@ -72,8 +72,6 @@ class RenderMessageValidatorTest {
                 photoId,
                 sequence,
                 "users/1/rolls/1/original/" + sequence + ".jpg",
-                false,
-                null,
                 LocalDateTime.now()
         );
     }

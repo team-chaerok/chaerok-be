@@ -4,7 +4,6 @@ import com.chaerok.backend.filmroll.dto.FilmRollPhotoListResponse;
 import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
-import com.chaerok.backend.filter.analysis.SceneType;
 import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.photo.repository.PhotoRepository;
 import com.chaerok.backend.region.entity.Region;
@@ -58,16 +57,12 @@ class FilmRollPhotoQueryServiceTest {
         Photo first = uploadedPhoto(
                 filmRoll,
                 201L,
-                1,
-                true,
-                SceneType.PORTRAIT
+                1
         );
         Photo second = uploadedPhoto(
                 filmRoll,
                 202L,
-                2,
-                false,
-                null
+                2
         );
         second.fail(
                 "FILTER_FAILED",
@@ -98,15 +93,11 @@ class FilmRollPhotoQueryServiceTest {
                 response.photos().get(0);
         assertThat(firstResponse.sequence()).isEqualTo(1);
         assertThat(firstResponse.status()).isEqualTo("UPLOADED");
-        assertThat(firstResponse.hasFace()).isTrue();
-        assertThat(firstResponse.sceneType())
-                .isEqualTo(SceneType.PORTRAIT.name());
         assertThat(firstResponse.failure()).isNull();
 
         FilmRollPhotoListResponse.PhotoResponse secondResponse =
                 response.photos().get(1);
         assertThat(secondResponse.status()).isEqualTo("FAILED");
-        assertThat(secondResponse.sceneType()).isNull();
         assertThat(secondResponse.failure())
                 .isEqualTo(
                         new FilmRollPhotoListResponse.FailureResponse(
@@ -137,8 +128,6 @@ class FilmRollPhotoQueryServiceTest {
                 filmRoll,
                 1,
                 "users/1/rolls/100/original/1.jpg",
-                false,
-                SceneType.LANDSCAPE,
                 LocalDateTime.of(2026, 8, 5, 18, 1)
         );
         ReflectionTestUtils.setField(
@@ -185,9 +174,7 @@ class FilmRollPhotoQueryServiceTest {
     private Photo uploadedPhoto(
             FilmRoll filmRoll,
             Long photoId,
-            int sequence,
-            boolean hasFace,
-            SceneType sceneType
+            int sequence
     ) {
         Photo photo = Photo.create(
                 filmRoll,
@@ -195,8 +182,6 @@ class FilmRollPhotoQueryServiceTest {
                 "users/1/rolls/100/original/"
                         + sequence
                         + ".jpg",
-                hasFace,
-                sceneType,
                 LocalDateTime.of(2026, 8, 5, 18, sequence)
         );
         ReflectionTestUtils.setField(photo, "id", photoId);
