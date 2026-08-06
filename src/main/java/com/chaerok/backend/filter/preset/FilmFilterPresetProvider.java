@@ -7,8 +7,8 @@ public class FilmFilterPresetProvider {
 
     private final List<FilmFilterPreset> presets = List.of(
             new FilmFilterPreset(
-                    "gongju_baekje_love",
-                    "백제의 연(戀)",
+                    "gongju",
+                    "공주",
                     "공주의 녹음과 오래된 성곽의 따뜻한 필름톤",
                     4,
                     0.96,
@@ -21,8 +21,8 @@ public class FilmFilterPresetProvider {
                     "overlay"
             ),
             new FilmFilterPreset(
-                    "buyeo_baekje_dream",
-                    "백제의 몽(夢)",
+                    "buyeo",
+                    "부여",
                     "부여의 흐릿하고 몽환적인 파스텔 필름톤",
                     3,
                     0.89,
@@ -35,8 +35,8 @@ public class FilmFilterPresetProvider {
                     "overlay"
             ),
             new FilmFilterPreset(
-                    "seosan_warm_sunset",
-                    "서산의 잔상",
+                    "seosan",
+                    "서산",
                     "서산의 노을빛과 오래된 필름 질감이 섞인 따뜻한 필름톤",
                     5,
                     0.95,
@@ -49,8 +49,8 @@ public class FilmFilterPresetProvider {
                     "soft_light"
             ),
             new FilmFilterPreset(
-                    "yesan_old_memory",
-                    "예산의 결",
+                    "yesan",
+                    "예산",
                     "예산의 오래된 골목과 시장의 색을 닮은 빈티지 필름톤",
                     1,
                     0.93,

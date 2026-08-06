@@ -67,7 +67,7 @@ class RenderQueuePublisherTest {
                         6L,
                         1L,
                         "chaerok-media-dev-7f3k2m",
-                        "gongju_baekje_love",
+                        "gongju",
                         0.8,
                         1,
                         1,

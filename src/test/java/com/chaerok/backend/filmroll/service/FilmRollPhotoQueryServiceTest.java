@@ -170,7 +170,7 @@ class FilmRollPhotoQueryServiceTest {
         FilmRoll filmRoll = FilmRoll.create(
                 user,
                 region,
-                "gongju_baekje_love",
+                "gongju",
                 0.8,
                 1
         );

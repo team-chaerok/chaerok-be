@@ -23,7 +23,7 @@ class FilmRollTest {
 
         assertThat(filmRoll.getUser()).isSameAs(user);
         assertThat(filmRoll.getRegion()).isSameAs(region);
-        assertThat(filmRoll.getFilterId()).isEqualTo("gongju_baekje_love");
+        assertThat(filmRoll.getFilterId()).isEqualTo("gongju");
         assertThat(filmRoll.getFilterStrength()).isEqualTo(0.8);
         assertThat(filmRoll.getFilterVersion()).isEqualTo(1);
         assertThat(filmRoll.getStatus()).isEqualTo(FilmRollStatus.CAPTURING);
@@ -150,7 +150,7 @@ class FilmRollTest {
         return FilmRoll.create(
                 user,
                 region,
-                " gongju_baekje_love ",
+                " gongju ",
                 0.8,
                 1
         );

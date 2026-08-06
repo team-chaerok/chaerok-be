@@ -87,7 +87,7 @@ class FilmRollCommandServiceTest {
         FilmRollCreateRequest request =
                 new FilmRollCreateRequest(
                         10L,
-                        "gongju_baekje_love",
+                        "gongju",
                         0.8
                 );
 
@@ -103,7 +103,7 @@ class FilmRollCommandServiceTest {
                 .thenReturn(Optional.of(region));
 
         when(filterPresetProvider.getByFilterId(
-                "gongju_baekje_love"
+                "gongju"
         )).thenReturn(mock(FilmFilterPreset.class));
 
         when(filmRollRepository.saveAndFlush(
@@ -131,7 +131,7 @@ class FilmRollCommandServiceTest {
         assertThat(response.totalPhotoCount()).isZero();
 
         verify(filterPresetProvider)
-                .getByFilterId("gongju_baekje_love");
+                .getByFilterId("gongju");
     }
 
     @Test
@@ -145,7 +145,7 @@ class FilmRollCommandServiceTest {
         FilmRollCreateRequest request =
                 new FilmRollCreateRequest(
                         10L,
-                        "gongju_baekje_love",
+                        "gongju",
                         0.8
                 );
 
@@ -179,7 +179,7 @@ class FilmRollCommandServiceTest {
         FilmRoll filmRoll = FilmRoll.create(
                 user,
                 region,
-                "gongju_baekje_love",
+                "gongju",
                 0.8,
                 1
         );
@@ -323,7 +323,7 @@ class FilmRollCommandServiceTest {
         FilmRoll filmRoll = FilmRoll.create(
                 user,
                 region,
-                "gongju_baekje_love",
+                "gongju",
                 0.8,
                 1
         );

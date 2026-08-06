@@ -55,7 +55,7 @@ class RenderMessageValidatorTest {
                 1L,
                 1L,
                 "bucket",
-                "gongju_baekje_love",
+                "gongju",
                 0.8,
                 1,
                 photos.size(),

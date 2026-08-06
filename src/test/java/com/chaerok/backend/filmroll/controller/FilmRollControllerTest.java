@@ -49,7 +49,7 @@ class FilmRollControllerTest {
         FilmRollCreateRequest request =
                 new FilmRollCreateRequest(
                         10L,
-                        "gongju_baekje_love",
+                        "gongju",
                         0.8
                 );
         FilmRollResponse expected = response();
@@ -132,7 +132,7 @@ class FilmRollControllerTest {
         return new FilmRollResponse(
                 100L,
                 10L,
-                "gongju_baekje_love",
+                "gongju",
                 0.8,
                 1,
                 "CAPTURING",
