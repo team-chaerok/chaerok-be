@@ -6,6 +6,7 @@
 
 - 사용자당 미완료 필름 롤 최대 1개 정책
 - 필름 롤 생성, 현재 롤 조회, 상세 조회
+- FilmRoll별 방문 인증과 관광지·식당·카페 방문 진행도 조회
 - 사진 업로드용 Presigned URL 발급
 - 사진 업로드 완료 처리 및 사진 목록 조회
 - 통합 현상 요청 API
@@ -28,6 +29,9 @@ POST /api/film-rolls
 GET  /api/film-rolls/current
 GET  /api/film-rolls/{filmRollId}
 
+POST /api/film-rolls/{filmRollId}/visits
+GET  /api/film-rolls/{filmRollId}/visits
+
 POST /api/film-rolls/{filmRollId}/photos/upload-url
 POST /api/film-rolls/{filmRollId}/photos/{photoId}/complete
 GET  /api/film-rolls/{filmRollId}/photos
@@ -37,6 +41,8 @@ GET  /api/film-rolls/{filmRollId}/results
 ```
 
 기존 `/ready`, `/render-jobs` API는 하위 호환을 위해 유지하지만 Swagger에서는 숨깁니다.
+
+방문 인증은 프론트가 GPS와 거리 검증을 완료한 뒤 `placeId`만 전달합니다. 백엔드는 GPS 좌표·정확도·거리·이동 경로를 받거나 저장하지 않습니다. 현상에는 `TOURISM`, `FOOD`, `CAFE_DESSERT` 세 유형을 각각 1곳 이상 방문한 기록이 필요합니다.
 
 ## 필름 롤 상태
 

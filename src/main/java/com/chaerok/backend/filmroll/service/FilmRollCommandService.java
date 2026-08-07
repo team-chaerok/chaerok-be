@@ -16,6 +16,7 @@ import com.chaerok.backend.region.entity.Region;
 import com.chaerok.backend.region.repository.RegionRepository;
 import com.chaerok.backend.user.entity.User;
 import com.chaerok.backend.user.repository.UserRepository;
+import com.chaerok.backend.visit.service.VisitRequirementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ public class FilmRollCommandService {
     private final UserRepository userRepository;
     private final RegionRepository regionRepository;
     private final FilmFilterPresetProvider filterPresetProvider;
+    private final VisitRequirementService visitRequirementService;
 
     @Transactional
     public FilmRollResponse createFilmRoll(
@@ -100,6 +102,7 @@ public class FilmRollCommandService {
         }
 
         validateUploadedPhotos(filmRoll);
+        visitRequirementService.requireSatisfied(filmRollId);
         filmRoll.markReady();
 
         return FilmRollResponse.from(filmRoll);
@@ -119,6 +122,7 @@ public class FilmRollCommandService {
         return switch (filmRoll.getStatus()) {
             case CAPTURING -> {
                 validateUploadedPhotos(filmRoll);
+                visitRequirementService.requireSatisfied(filmRollId);
                 filmRoll.markReady();
                 yield PreparedFilmRollDevelopment.requestRequired(
                         filmRoll
@@ -126,12 +130,14 @@ public class FilmRollCommandService {
             }
             case READY -> {
                 validateUploadedPhotos(filmRoll);
+                visitRequirementService.requireSatisfied(filmRollId);
                 yield PreparedFilmRollDevelopment.requestRequired(
                         filmRoll
                 );
             }
             case FAILED -> {
                 validateUploadedPhotos(filmRoll);
+                visitRequirementService.requireSatisfied(filmRollId);
                 filmRoll.prepareRetry();
                 yield PreparedFilmRollDevelopment.requestRequired(
                         filmRoll

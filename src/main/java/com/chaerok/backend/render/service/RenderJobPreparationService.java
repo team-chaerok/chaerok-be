@@ -13,6 +13,7 @@ import com.chaerok.backend.render.entity.RenderJob;
 import com.chaerok.backend.render.entity.RenderJobStatus;
 import com.chaerok.backend.render.queue.RenderQueueMessage;
 import com.chaerok.backend.render.repository.RenderJobRepository;
+import com.chaerok.backend.visit.service.VisitRequirementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -40,6 +41,7 @@ public class RenderJobPreparationService {
     private final PhotoRepository photoRepository;
     private final RenderJobRepository renderJobRepository;
     private final AwsProperties awsProperties;
+    private final VisitRequirementService visitRequirementService;
 
     @Transactional
     public PreparedRenderJob prepare(
@@ -63,6 +65,7 @@ public class RenderJobPreparationService {
                         );
 
         validatePhotos(filmRoll, photos);
+        visitRequirementService.requireSatisfied(filmRollId);
 
         RenderJob renderJob = RenderJob.create(filmRoll);
         renderJobRepository.saveAndFlush(renderJob);

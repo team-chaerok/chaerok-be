@@ -15,6 +15,8 @@ import com.chaerok.backend.region.entity.Region;
 import com.chaerok.backend.region.repository.RegionRepository;
 import com.chaerok.backend.user.entity.User;
 import com.chaerok.backend.user.repository.UserRepository;
+import com.chaerok.backend.visit.exception.VisitRequirementNotMetException;
+import com.chaerok.backend.visit.service.VisitRequirementService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,6 +32,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -53,6 +56,9 @@ class FilmRollCommandServiceTest {
     @Mock
     private FilmFilterPresetProvider filterPresetProvider;
 
+    @Mock
+    private VisitRequirementService visitRequirementService;
+
     private FilmRollCommandService service;
     private User user;
     private Region region;
@@ -64,7 +70,8 @@ class FilmRollCommandServiceTest {
                 photoRepository,
                 userRepository,
                 regionRepository,
-                filterPresetProvider
+                filterPresetProvider,
+                visitRequirementService
         );
 
         user = mock(User.class);
@@ -169,12 +176,13 @@ class FilmRollCommandServiceTest {
         verifyNoInteractions(
                 userRepository,
                 regionRepository,
-                filterPresetProvider
+                filterPresetProvider,
+                visitRequirementService
         );
     }
 
     @Test
-    @DisplayName("모든 사진 업로드가 끝나면 READY 상태로 전환한다")
+    @DisplayName("사진 업로드와 Visit 조건이 충족되면 READY 상태로 전환한다")
     void markReady() {
         FilmRoll filmRoll = FilmRoll.create(
                 user,
@@ -213,6 +221,50 @@ class FilmRollCommandServiceTest {
 
         assertThat(response.status())
                 .isEqualTo(FilmRollStatus.READY.name());
+        verify(visitRequirementService).requireSatisfied(100L);
+    }
+
+    @Test
+    @DisplayName("Visit 조건이 부족하면 숨겨진 READY 전환 API도 상태를 바꾸지 않는다")
+    void markReadyRejectsUnsatisfiedVisitRequirement() {
+        FilmRoll filmRoll = createFilmRollWithOnePhoto();
+
+        when(filmRollRepository.findByIdAndUserIdForUpdate(
+                100L,
+                1L
+        )).thenReturn(Optional.of(filmRoll));
+        stubCompletedPhotoUpload();
+        doThrow(new VisitRequirementNotMetException())
+                .when(visitRequirementService)
+                .requireSatisfied(100L);
+
+        assertThatThrownBy(() -> service.markReady(1L, 100L))
+                .isInstanceOf(VisitRequirementNotMetException.class);
+
+        assertThat(filmRoll.getStatus())
+                .isEqualTo(FilmRollStatus.CAPTURING);
+    }
+
+    @Test
+    @DisplayName("Visit 조건이 부족하면 CAPTURING 상태를 유지한 채 현상을 거부한다")
+    void rejectDevelopmentWhenVisitRequirementIsNotMet() {
+        FilmRoll filmRoll = createFilmRollWithOnePhoto();
+
+        when(filmRollRepository.findByIdAndUserIdForUpdate(
+                100L,
+                1L
+        )).thenReturn(Optional.of(filmRoll));
+        stubCompletedPhotoUpload();
+        doThrow(new VisitRequirementNotMetException())
+                .when(visitRequirementService)
+                .requireSatisfied(100L);
+
+        assertThatThrownBy(() ->
+                service.prepareDevelopment(1L, 100L)
+        ).isInstanceOf(VisitRequirementNotMetException.class);
+
+        assertThat(filmRoll.getStatus())
+                .isEqualTo(FilmRollStatus.CAPTURING);
     }
 
     @Test
@@ -234,10 +286,32 @@ class FilmRollCommandServiceTest {
                 .isEqualTo(FilmRollStatus.READY.name());
         assertThat(filmRoll.getStatus())
                 .isEqualTo(FilmRollStatus.READY);
+        verify(visitRequirementService).requireSatisfied(100L);
     }
 
     @Test
-    @DisplayName("FAILED 필름 롤은 같은 사진으로 재시도할 수 있도록 READY로 복구한다")
+    @DisplayName("READY 필름 롤도 Visit 조건을 다시 확인한 뒤 현상을 요청한다")
+    void prepareDevelopmentFromReady() {
+        FilmRoll filmRoll = createFilmRollWithOnePhoto();
+        filmRoll.markReady();
+
+        when(filmRollRepository.findByIdAndUserIdForUpdate(
+                100L,
+                1L
+        )).thenReturn(Optional.of(filmRoll));
+        stubCompletedPhotoUpload();
+
+        PreparedFilmRollDevelopment preparation =
+                service.prepareDevelopment(1L, 100L);
+
+        assertThat(preparation.renderRequestRequired()).isTrue();
+        assertThat(preparation.status())
+                .isEqualTo(FilmRollStatus.READY.name());
+        verify(visitRequirementService).requireSatisfied(100L);
+    }
+
+    @Test
+    @DisplayName("FAILED 필름 롤은 같은 사진과 방문 기록으로 재시도할 수 있도록 READY로 복구한다")
     void prepareDevelopmentFromFailed() {
         FilmRoll filmRoll = createFilmRollWithOnePhoto();
         LocalDateTime requestedAt =
@@ -265,6 +339,7 @@ class FilmRollCommandServiceTest {
                 .isEqualTo(FilmRollStatus.READY);
         assertThat(filmRoll.getErrorCode()).isNull();
         assertThat(filmRoll.getErrorMessage()).isNull();
+        verify(visitRequirementService).requireSatisfied(100L);
     }
 
     @Test

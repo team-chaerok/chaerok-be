@@ -33,7 +33,7 @@ public class FilmRollDevelopmentController {
     @Operation(
             summary = "필름 롤 현상 시작",
             description = """
-                    사진 업로드 정합성을 확인한 뒤 필름 롤의 현상을 시작합니다.
+                    사진 업로드 정합성과 방문 유형 조건을 확인한 뒤 필름 롤의 현상을 시작합니다.
                     CAPTURING 상태는 내부적으로 READY로 전환한 후 현상 요청을
                     SQS에 등록하며, FAILED 상태는 같은 필름 롤로 재시도합니다.
                     이미 QUEUED 또는 PROCESSING 상태이면 새 RenderJob을 만들지 않고
