@@ -5,6 +5,7 @@ import com.chaerok.backend.filmroll.entity.FilmRollStatus;
 import com.chaerok.backend.filmroll.exception.FilmRollConflictException;
 import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
+import com.chaerok.backend.filmroll.service.FilmRollDevelopmentTimingService;
 import com.chaerok.backend.global.aws.AwsProperties;
 import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.photo.entity.PhotoStatus;
@@ -42,6 +43,7 @@ public class RenderJobPreparationService {
     private final RenderJobRepository renderJobRepository;
     private final AwsProperties awsProperties;
     private final VisitRequirementService visitRequirementService;
+    private final FilmRollDevelopmentTimingService developmentTimingService;
 
     @Transactional
     public PreparedRenderJob prepare(
@@ -66,6 +68,7 @@ public class RenderJobPreparationService {
 
         validatePhotos(filmRoll, photos);
         visitRequirementService.requireSatisfied(filmRollId);
+        developmentTimingService.requireAvailable(filmRoll);
 
         RenderJob renderJob = RenderJob.create(filmRoll);
         renderJobRepository.saveAndFlush(renderJob);

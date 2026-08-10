@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Locale;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -57,11 +58,19 @@ public class PhotoUploadService {
 
         requireCapturing(filmRoll);
 
-        Photo photo = photoRepository
+        Optional<Photo> existingPhoto = photoRepository
                 .findByFilmRollIdAndSequence(
                         filmRollId,
                         request.sequence()
-                )
+                );
+
+        if (filmRoll.isExitConfirmed() && existingPhoto.isEmpty()) {
+            throw new FilmRollConflictException(
+                    "지역 이탈 확정 후에는 새 사진을 추가할 수 없습니다."
+            );
+        }
+
+        Photo photo = existingPhoto
                 .map(this::validateReusableUpload)
                 .orElseGet(() ->
                         createPhoto(

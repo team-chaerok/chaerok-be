@@ -59,6 +59,9 @@ class FilmRollCommandServiceTest {
     @Mock
     private VisitRequirementService visitRequirementService;
 
+    @Mock
+    private FilmRollDevelopmentTimingService developmentTimingService;
+
     private FilmRollCommandService service;
     private User user;
     private Region region;
@@ -71,7 +74,8 @@ class FilmRollCommandServiceTest {
                 userRepository,
                 regionRepository,
                 filterPresetProvider,
-                visitRequirementService
+                visitRequirementService,
+                developmentTimingService
         );
 
         user = mock(User.class);
@@ -177,7 +181,8 @@ class FilmRollCommandServiceTest {
                 userRepository,
                 regionRepository,
                 filterPresetProvider,
-                visitRequirementService
+                visitRequirementService,
+                developmentTimingService
         );
     }
 
@@ -222,6 +227,7 @@ class FilmRollCommandServiceTest {
         assertThat(response.status())
                 .isEqualTo(FilmRollStatus.READY.name());
         verify(visitRequirementService).requireSatisfied(100L);
+        verify(developmentTimingService).requireAvailable(filmRoll);
     }
 
     @Test
@@ -287,10 +293,11 @@ class FilmRollCommandServiceTest {
         assertThat(filmRoll.getStatus())
                 .isEqualTo(FilmRollStatus.READY);
         verify(visitRequirementService).requireSatisfied(100L);
+        verify(developmentTimingService).requireAvailable(filmRoll);
     }
 
     @Test
-    @DisplayName("READY 필름 롤도 Visit 조건을 다시 확인한 뒤 현상을 요청한다")
+    @DisplayName("READY 필름 롤도 Visit 조건과 이탈 시간을 다시 확인한 뒤 현상을 요청한다")
     void prepareDevelopmentFromReady() {
         FilmRoll filmRoll = createFilmRollWithOnePhoto();
         filmRoll.markReady();
@@ -308,6 +315,7 @@ class FilmRollCommandServiceTest {
         assertThat(preparation.status())
                 .isEqualTo(FilmRollStatus.READY.name());
         verify(visitRequirementService).requireSatisfied(100L);
+        verify(developmentTimingService).requireAvailable(filmRoll);
     }
 
     @Test
@@ -340,6 +348,7 @@ class FilmRollCommandServiceTest {
         assertThat(filmRoll.getErrorCode()).isNull();
         assertThat(filmRoll.getErrorMessage()).isNull();
         verify(visitRequirementService).requireSatisfied(100L);
+        verify(developmentTimingService).requireAvailable(filmRoll);
     }
 
     @Test

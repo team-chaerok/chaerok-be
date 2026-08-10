@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -43,5 +44,20 @@ public interface FilmRollRepository
     boolean existsByUserIdAndStatusIn(
             Long userId,
             List<FilmRollStatus> statuses
+    );
+
+    @Query("""
+            select filmRoll
+            from FilmRoll filmRoll
+            join fetch filmRoll.user
+            where filmRoll.status in :statuses
+              and filmRoll.developAvailableAt is not null
+              and filmRoll.developAvailableAt <= :now
+              and filmRoll.totalPhotoCount > 0
+            order by filmRoll.developAvailableAt asc
+            """)
+    List<FilmRoll> findDueForAutoDevelopment(
+            @Param("statuses") List<FilmRollStatus> statuses,
+            @Param("now") LocalDateTime now
     );
 }

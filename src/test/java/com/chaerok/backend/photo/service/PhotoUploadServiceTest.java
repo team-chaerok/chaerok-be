@@ -1,6 +1,7 @@
 package com.chaerok.backend.photo.service;
 
 import com.chaerok.backend.filmroll.entity.FilmRoll;
+import com.chaerok.backend.filmroll.exception.FilmRollConflictException;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.global.aws.PresignedUpload;
 import com.chaerok.backend.global.aws.S3ObjectKeyGenerator;
@@ -29,6 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
@@ -160,6 +162,36 @@ class PhotoUploadServiceTest {
                 );
         assertThat(response.uploadUrl())
                 .isEqualTo("https://example.com/upload");
+    }
+
+
+    @Test
+    @DisplayName("지역 이탈 확정 후에는 새 사진 슬롯을 만들 수 없다")
+    void rejectsNewPhotoAfterExitConfirmation() {
+        PhotoUploadUrlRequest request =
+                new PhotoUploadUrlRequest(
+                        1,
+                        "image/jpeg",
+                        1024L,
+                        LocalDateTime.now()
+                );
+
+        filmRoll.confirmExit(LocalDateTime.now());
+
+        when(filmRollRepository.findByIdAndUserIdForUpdate(
+                100L,
+                1L
+        )).thenReturn(Optional.of(filmRoll));
+        when(photoRepository.findByFilmRollIdAndSequence(100L, 1))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() ->
+                service.createUploadUrl(1L, 100L, request)
+        )
+                .isInstanceOf(FilmRollConflictException.class)
+                .hasMessageContaining("지역 이탈 확정 후");
+
+        verify(photoRepository, never()).saveAndFlush(any(Photo.class));
     }
 
     @Test

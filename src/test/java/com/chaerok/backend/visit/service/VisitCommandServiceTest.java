@@ -212,6 +212,23 @@ class VisitCommandServiceTest {
                 .saveAndFlush(any(Visit.class));
     }
 
+
+    @Test
+    @DisplayName("지역 이탈이 확정된 뒤에는 새 방문을 추가하지 않는다")
+    void rejectsVisitAfterExitConfirmation() {
+        when(filmRoll.isExitConfirmed()).thenReturn(true);
+        when(filmRollRepository.findByIdAndUserIdForUpdate(
+                100L,
+                1L
+        )).thenReturn(Optional.of(filmRoll));
+
+        assertThatThrownBy(() ->
+                service.createVisit(1L, 100L, request)
+        ).isInstanceOf(FilmRollNotVisitableException.class);
+
+        verify(placeRepository, never()).findById(any());
+    }
+
     @Test
     @DisplayName("같은 FilmRoll의 같은 Place 중복 방문은 거부한다")
     void rejectsDuplicateVisit() {

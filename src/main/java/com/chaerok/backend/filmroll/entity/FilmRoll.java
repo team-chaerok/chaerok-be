@@ -31,6 +31,7 @@ public class FilmRoll {
 
     public static final int MAX_PHOTO_COUNT = 24;
     public static final int RESULT_RETENTION_HOURS = 48;
+    public static final int DEVELOPMENT_DELAY_HOURS = 1;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -74,6 +75,12 @@ public class FilmRoll {
 
     @Column(name = "error_message")
     private String errorMessage;
+
+    @Column(name = "exited_at")
+    private LocalDateTime exitedAt;
+
+    @Column(name = "develop_available_at")
+    private LocalDateTime developAvailableAt;
 
     @Column(name = "requested_at")
     private LocalDateTime requestedAt;
@@ -141,6 +148,57 @@ public class FilmRoll {
         }
 
         totalPhotoCount--;
+    }
+
+
+    public void confirmExit(LocalDateTime exitedAt) {
+        requireStatus(FilmRollStatus.CAPTURING);
+
+        if (exitedAt == null) {
+            throw new IllegalArgumentException(
+                    "지역 이탈 확정 시각은 필수입니다."
+            );
+        }
+
+        if (this.exitedAt != null) {
+            throw new IllegalStateException(
+                    "이미 지역 이탈이 확정된 필름 롤입니다."
+            );
+        }
+
+        this.exitedAt = exitedAt;
+        this.developAvailableAt =
+                exitedAt.plusHours(DEVELOPMENT_DELAY_HOURS);
+    }
+
+    public boolean isExitConfirmed() {
+        return exitedAt != null;
+    }
+
+    public boolean isDevelopmentAvailable(LocalDateTime now) {
+        if (now == null) {
+            throw new IllegalArgumentException(
+                    "현상 가능 여부 확인 시각은 필수입니다."
+            );
+        }
+
+        return isExitConfirmed()
+                && developAvailableAt != null
+                && status != FilmRollStatus.EXPIRED
+                && !now.isBefore(developAvailableAt);
+    }
+
+    public void expireAfterExit() {
+        requireStatus(FilmRollStatus.CAPTURING);
+
+        if (!isExitConfirmed()) {
+            throw new IllegalStateException(
+                    "지역 이탈이 확정된 필름 롤만 종료할 수 있습니다."
+            );
+        }
+
+        status = FilmRollStatus.EXPIRED;
+        developAvailableAt = null;
     }
 
     public void markReady() {

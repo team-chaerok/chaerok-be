@@ -57,6 +57,34 @@ public class FilmRollApiExceptionHandler {
                 ));
     }
 
+    @ExceptionHandler(FilmRollExitRequiredException.class)
+    public ResponseEntity<ErrorResponse> handleFilmRollExitRequired(
+            FilmRollExitRequiredException exception,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of(
+                        "FILM_ROLL_EXIT_REQUIRED",
+                        exception.getMessage(),
+                        request.getRequestURI()
+                ));
+    }
+
+    @ExceptionHandler(FilmRollDevelopmentWaitException.class)
+    public ResponseEntity<ErrorResponse> handleDevelopmentWait(
+            FilmRollDevelopmentWaitException exception,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of(
+                        "DEVELOPMENT_WAIT_NOT_FINISHED",
+                        exception.getMessage(),
+                        request.getRequestURI()
+                ));
+    }
+
     @ExceptionHandler(FilmRollConflictException.class)
     public ResponseEntity<ErrorResponse> handleFilmRollConflict(
             FilmRollConflictException exception,

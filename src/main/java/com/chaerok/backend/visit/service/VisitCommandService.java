@@ -81,7 +81,8 @@ public class VisitCommandService {
     }
 
     private void requireVisitable(FilmRoll filmRoll) {
-        if (filmRoll.getStatus() != FilmRollStatus.CAPTURING) {
+        if (filmRoll.getStatus() != FilmRollStatus.CAPTURING
+                || filmRoll.isExitConfirmed()) {
             throw new FilmRollNotVisitableException();
         }
     }

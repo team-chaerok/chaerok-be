@@ -4,6 +4,7 @@ import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.entity.FilmRollStatus;
 import com.chaerok.backend.filmroll.exception.FilmRollConflictException;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
+import com.chaerok.backend.filmroll.service.FilmRollDevelopmentTimingService;
 import com.chaerok.backend.global.aws.AwsProperties;
 import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.photo.entity.PhotoStatus;
@@ -52,6 +53,9 @@ class RenderJobPreparationServiceTest {
     private VisitRequirementService visitRequirementService;
 
     @Mock
+    private FilmRollDevelopmentTimingService developmentTimingService;
+
+    @Mock
     private FilmRoll filmRoll;
 
     @Mock
@@ -93,7 +97,8 @@ class RenderJobPreparationServiceTest {
                         photoRepository,
                         renderJobRepository,
                         awsProperties,
-                        visitRequirementService
+                        visitRequirementService,
+                        developmentTimingService
                 );
 
         assertThatThrownBy(() -> service.prepare(6L, 2L))
@@ -132,7 +137,8 @@ class RenderJobPreparationServiceTest {
                         photoRepository,
                         renderJobRepository,
                         awsProperties,
-                        visitRequirementService
+                        visitRequirementService,
+                        developmentTimingService
                 );
 
         assertThatThrownBy(() -> service.prepare(6L, 2L))
@@ -188,7 +194,8 @@ class RenderJobPreparationServiceTest {
                         photoRepository,
                         renderJobRepository,
                         awsProperties,
-                        visitRequirementService
+                        visitRequirementService,
+                        developmentTimingService
                 );
 
         PreparedRenderJob prepared = service.prepare(6L, 2L);
@@ -199,6 +206,7 @@ class RenderJobPreparationServiceTest {
         assertThat(prepared.message().photos().get(0).sequence())
                 .isEqualTo(1);
         verify(visitRequirementService).requireSatisfied(2L);
+        verify(developmentTimingService).requireAvailable(filmRoll);
         verify(renderJobRepository).saveAndFlush(any(RenderJob.class));
     }
 

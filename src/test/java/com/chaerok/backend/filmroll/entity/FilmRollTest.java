@@ -48,6 +48,67 @@ class FilmRollTest {
                 .hasMessageContaining("최대 24장");
     }
 
+
+    @Test
+    @DisplayName("지역 이탈을 확정하면 1시간 뒤 현상 가능 시각을 저장한다")
+    void confirmExitSetsDevelopmentSchedule() {
+        FilmRoll filmRoll = newFilmRoll();
+        LocalDateTime exitedAt =
+                LocalDateTime.of(2026, 8, 7, 18, 0);
+
+        filmRoll.confirmExit(exitedAt);
+
+        assertThat(filmRoll.getExitedAt()).isEqualTo(exitedAt);
+        assertThat(filmRoll.getDevelopAvailableAt())
+                .isEqualTo(
+                        exitedAt.plusHours(
+                                FilmRoll.DEVELOPMENT_DELAY_HOURS
+                        )
+                );
+        assertThat(filmRoll.isExitConfirmed()).isTrue();
+        assertThat(filmRoll.isDevelopmentAvailable(
+                exitedAt.plusMinutes(59)
+        )).isFalse();
+        assertThat(filmRoll.isDevelopmentAvailable(
+                exitedAt.plusHours(1)
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("이탈 확정 후 현상 조건이 부족하면 EXPIRED로 종료할 수 있다")
+    void expiresFilmRollAfterExitWithoutDevelopment() {
+        FilmRoll filmRoll = newFilmRoll();
+        LocalDateTime exitedAt =
+                LocalDateTime.of(2026, 8, 7, 18, 0);
+
+        filmRoll.confirmExit(exitedAt);
+        filmRoll.expireAfterExit();
+
+        assertThat(filmRoll.getStatus())
+                .isEqualTo(FilmRollStatus.EXPIRED);
+        assertThat(filmRoll.getExitedAt()).isEqualTo(exitedAt);
+        assertThat(filmRoll.getDevelopAvailableAt()).isNull();
+        assertThat(filmRoll.isExitConfirmed()).isTrue();
+        assertThat(filmRoll.isDevelopmentAvailable(
+                exitedAt.plusHours(2)
+        )).isFalse();
+    }
+
+    @Test
+    @DisplayName("사진이 있어도 이탈 후 현상하지 않는 롤은 EXPIRED로 종료할 수 있다")
+    void filmRollWithPhotoCanExpireAfterExit() {
+        FilmRoll filmRoll = newFilmRoll();
+        filmRoll.increasePhotoCount();
+        filmRoll.confirmExit(LocalDateTime.now());
+
+        filmRoll.expireAfterExit();
+
+        assertThat(filmRoll.getStatus())
+                .isEqualTo(FilmRollStatus.EXPIRED);
+        assertThat(filmRoll.getTotalPhotoCount()).isEqualTo(1);
+        assertThat(filmRoll.getDevelopAvailableAt()).isNull();
+    }
+
     @Test
     @DisplayName("사진이 없는 필름 롤은 현상 준비 상태로 바꿀 수 없다")
     void emptyFilmRollCannotBeReady() {
