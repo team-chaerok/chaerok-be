@@ -1,0 +1,67 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.chaerok'
+version = '0.3.0-result-v1'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir 'src/main/java'
+            srcDir '../../src/main/java'
+            include 'com/chaerok/render/**'
+            include 'com/chaerok/backend/filter/analysis/**'
+            include 'com/chaerok/backend/filter/engine/**'
+            include 'com/chaerok/backend/filter/preset/**'
+            include 'com/chaerok/backend/filter/processor/**'
+        }
+        resources {
+            srcDir '../../src/main/resources'
+            include 'filter/overlays/**'
+        }
+    }
+}
+
+dependencies {
+    implementation 'com.amazonaws:aws-lambda-java-core:1.2.3'
+    implementation 'com.amazonaws:aws-lambda-java-events:3.16.1'
+
+    implementation platform('software.amazon.awssdk:bom:2.49.3')
+    implementation 'software.amazon.awssdk:s3'
+    implementation 'software.amazon.awssdk:sqs'
+
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.19.2'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.19.2'
+
+    testImplementation platform('org.junit:junit-bom:5.13.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation 'org.assertj:assertj-core:3.27.4'
+}
+
+tasks.register('copyRuntimeDependencies', Copy) {
+    from configurations.runtimeClasspath
+    into layout.buildDirectory.dir('dependency')
+}
+
+tasks.named('classes') {
+    dependsOn tasks.named('copyRuntimeDependencies')
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+tasks.withType(org.gradle.api.tasks.compile.JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

@@ -1,0 +1,8 @@
+.git
+.gradle
+.idea
+**/build
+**/*.iml
+.env
+application.yml
+application-*.yml

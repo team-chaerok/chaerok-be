@@ -47,3 +47,8 @@ out/
 ### OS ###
 .DS_Store
 Thumbs.db
+### Lambda local render test artifacts ###
+/test-input.jpg
+/lambda/render/local-render-result/
+/lambda/render/zip-check/
+/lambda/render/aws-invoke-response*.json
