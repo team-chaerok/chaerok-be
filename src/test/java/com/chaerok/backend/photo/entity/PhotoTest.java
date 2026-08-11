@@ -69,6 +69,29 @@ class PhotoTest {
     }
 
     @Test
+    @DisplayName("업로드 완료 사진은 현상 직전에 순서를 다시 부여할 수 있다")
+    void resequenceUploadedPhotoForDevelopment() {
+        Photo photo = createPhoto(3);
+        photo.markUploaded(LocalDateTime.now());
+
+        photo.resequenceForDevelopment(2);
+
+        assertThat(photo.getSequence()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("업로드 중 사진은 현상용 순서 재배치를 할 수 없다")
+    void uploadingPhotoCannotBeResequencedForDevelopment() {
+        Photo photo = createPhoto(2);
+
+        assertThatThrownBy(() ->
+                photo.resequenceForDevelopment(1)
+        )
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("사진 상태");
+    }
+
+    @Test
     @DisplayName("업로드가 끝나지 않은 사진은 필터 처리를 시작할 수 없다")
     void uploadingPhotoCannotStartProcessing() {
         Photo photo = createPhoto(1);

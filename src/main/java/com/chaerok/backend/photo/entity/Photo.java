@@ -110,6 +110,19 @@ public class Photo {
         return photo;
     }
 
+    public void resequenceForDevelopment(int newSequence) {
+        requireStatus(PhotoStatus.UPLOADED);
+
+        if (newSequence < 1
+                || newSequence > FilmRoll.MAX_PHOTO_COUNT) {
+            throw new IllegalArgumentException(
+                    "사진 순서는 1 이상 24 이하여야 합니다."
+            );
+        }
+
+        this.sequence = newSequence;
+    }
+
     public void markUploaded(LocalDateTime uploadCompletedAt) {
         requireStatus(PhotoStatus.UPLOADING);
 

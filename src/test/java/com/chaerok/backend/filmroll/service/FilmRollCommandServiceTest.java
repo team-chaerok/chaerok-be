@@ -9,7 +9,7 @@ import com.chaerok.backend.filmroll.exception.FilmRollConflictException;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.filter.preset.FilmFilterPreset;
 import com.chaerok.backend.filter.preset.FilmFilterPresetProvider;
-import com.chaerok.backend.photo.entity.PhotoStatus;
+import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.photo.repository.PhotoRepository;
 import com.chaerok.backend.region.entity.Region;
 import com.chaerok.backend.region.repository.RegionRepository;
@@ -34,6 +34,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -90,7 +92,8 @@ class FilmRollCommandServiceTest {
                 .thenReturn(10L);
         org.mockito.Mockito.lenient()
                 .when(region.isServiceEnabled())
-                .thenReturn(true);    }
+                .thenReturn(true);
+    }
 
     @Test
     @DisplayName("인증 사용자에게 촬영 중 필름 롤을 생성한다")
@@ -210,13 +213,7 @@ class FilmRollCommandServiceTest {
                 1L
         )).thenReturn(Optional.of(filmRoll));
 
-        when(photoRepository.countByFilmRollId(100L))
-                .thenReturn(1L);
-
-        when(photoRepository.existsByFilmRollIdAndStatusNot(
-                100L,
-                PhotoStatus.UPLOADED
-        )).thenReturn(false);
+        stubCompletedPhotoUpload(filmRoll);
 
         FilmRollResponse response =
                 service.markReady(
@@ -239,7 +236,6 @@ class FilmRollCommandServiceTest {
                 100L,
                 1L
         )).thenReturn(Optional.of(filmRoll));
-        stubCompletedPhotoUpload();
         doThrow(new VisitRequirementNotMetException())
                 .when(visitRequirementService)
                 .requireSatisfied(100L);
@@ -260,7 +256,6 @@ class FilmRollCommandServiceTest {
                 100L,
                 1L
         )).thenReturn(Optional.of(filmRoll));
-        stubCompletedPhotoUpload();
         doThrow(new VisitRequirementNotMetException())
                 .when(visitRequirementService)
                 .requireSatisfied(100L);
@@ -282,7 +277,7 @@ class FilmRollCommandServiceTest {
                 100L,
                 1L
         )).thenReturn(Optional.of(filmRoll));
-        stubCompletedPhotoUpload();
+        stubCompletedPhotoUpload(filmRoll);
 
         PreparedFilmRollDevelopment preparation =
                 service.prepareDevelopment(1L, 100L);
@@ -306,7 +301,7 @@ class FilmRollCommandServiceTest {
                 100L,
                 1L
         )).thenReturn(Optional.of(filmRoll));
-        stubCompletedPhotoUpload();
+        stubCompletedPhotoUpload(filmRoll);
 
         PreparedFilmRollDevelopment preparation =
                 service.prepareDevelopment(1L, 100L);
@@ -335,7 +330,7 @@ class FilmRollCommandServiceTest {
                 100L,
                 1L
         )).thenReturn(Optional.of(filmRoll));
-        stubCompletedPhotoUpload();
+        stubCompletedPhotoUpload(filmRoll);
 
         PreparedFilmRollDevelopment preparation =
                 service.prepareDevelopment(1L, 100L);
@@ -349,6 +344,74 @@ class FilmRollCommandServiceTest {
         assertThat(filmRoll.getErrorMessage()).isNull();
         verify(visitRequirementService).requireSatisfied(100L);
         verify(developmentTimingService).requireAvailable(filmRoll);
+    }
+
+    @Test
+    @DisplayName("현상 시 남은 UPLOADING 슬롯은 버리고 완료 사진 순서를 연속으로 압축한다")
+    void finalizeAbandonedUploadingSlotBeforeDevelopment() {
+        FilmRoll filmRoll = FilmRoll.create(
+                user,
+                region,
+                "gongju",
+                0.8,
+                1
+        );
+        ReflectionTestUtils.setField(filmRoll, "id", 100L);
+        filmRoll.increasePhotoCount();
+        filmRoll.increasePhotoCount();
+
+        Photo abandoned = Photo.create(
+                filmRoll,
+                1,
+                "users/1/rolls/100/original/001-abandoned.jpg",
+                LocalDateTime.of(2026, 8, 11, 18, 0)
+        );
+        Photo second = uploadedPhoto(filmRoll, 2);
+        Photo third = uploadedPhoto(filmRoll, 3);
+
+        when(filmRollRepository.findByIdAndUserIdForUpdate(
+                100L,
+                1L
+        )).thenReturn(Optional.of(filmRoll));
+        when(photoRepository
+                .findAllByFilmRollIdOrderBySequenceAscForUpdate(100L))
+                .thenReturn(List.of(abandoned, second, third));
+
+        PreparedFilmRollDevelopment preparation =
+                service.prepareDevelopment(1L, 100L);
+
+        assertThat(preparation.renderRequestRequired()).isTrue();
+        assertThat(filmRoll.getStatus()).isEqualTo(FilmRollStatus.READY);
+        assertThat(second.getSequence()).isEqualTo(1);
+        assertThat(third.getSequence()).isEqualTo(2);
+        verify(photoRepository).deleteAll(List.of(abandoned));
+        verify(photoRepository, times(3)).flush();
+    }
+
+    @Test
+    @DisplayName("현상 가능 시각 전에는 UPLOADING 슬롯을 정리하지 않는다")
+    void doesNotFinalizePhotosBeforeDevelopmentIsAvailable() {
+        FilmRoll filmRoll = createFilmRollWithOnePhoto();
+
+        when(filmRollRepository.findByIdAndUserIdForUpdate(
+                100L,
+                1L
+        )).thenReturn(Optional.of(filmRoll));
+        doThrow(new com.chaerok.backend.filmroll.exception
+                .FilmRollDevelopmentWaitException())
+                .when(developmentTimingService)
+                .requireAvailable(filmRoll);
+
+        assertThatThrownBy(() ->
+                service.prepareDevelopment(1L, 100L)
+        ).isInstanceOf(
+                com.chaerok.backend.filmroll.exception
+                        .FilmRollDevelopmentWaitException.class
+        );
+
+        verify(photoRepository, never())
+                .findAllByFilmRollIdOrderBySequenceAscForUpdate(100L);
+        verify(photoRepository, never()).deleteAll(any());
     }
 
     @Test
@@ -421,13 +484,27 @@ class FilmRollCommandServiceTest {
         return filmRoll;
     }
 
-    private void stubCompletedPhotoUpload() {
-        when(photoRepository.countByFilmRollId(100L))
-                .thenReturn(1L);
-        when(photoRepository.existsByFilmRollIdAndStatusNot(
-                100L,
-                PhotoStatus.UPLOADED
-        )).thenReturn(false);
+    private void stubCompletedPhotoUpload(FilmRoll filmRoll) {
+        when(photoRepository
+                .findAllByFilmRollIdOrderBySequenceAscForUpdate(100L))
+                .thenReturn(List.of(uploadedPhoto(filmRoll, 1)));
+    }
+
+    private Photo uploadedPhoto(
+            FilmRoll filmRoll,
+            int sequence
+    ) {
+        Photo photo = Photo.create(
+                filmRoll,
+                sequence,
+                "users/1/rolls/100/original/%03d.jpg"
+                        .formatted(sequence),
+                LocalDateTime.of(2026, 8, 11, 18, sequence)
+        );
+        photo.markUploaded(
+                LocalDateTime.of(2026, 8, 11, 18, sequence + 1)
+        );
+        return photo;
     }
 
 }

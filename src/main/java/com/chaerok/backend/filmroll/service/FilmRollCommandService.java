@@ -10,6 +10,7 @@ import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.filter.preset.FilmFilterPresetProvider;
 import com.chaerok.backend.global.exception.RegionNotFoundException;
+import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.photo.entity.PhotoStatus;
 import com.chaerok.backend.photo.repository.PhotoRepository;
 import com.chaerok.backend.region.entity.Region;
@@ -21,6 +22,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -102,9 +105,9 @@ public class FilmRollCommandService {
             );
         }
 
-        validateUploadedPhotos(filmRoll);
         visitRequirementService.requireSatisfied(filmRollId);
         developmentTimingService.requireAvailable(filmRoll);
+        finalizePhotosForDevelopment(filmRoll);
         filmRoll.markReady();
 
         return FilmRollResponse.from(filmRoll);
@@ -123,26 +126,26 @@ public class FilmRollCommandService {
 
         return switch (filmRoll.getStatus()) {
             case CAPTURING -> {
-                validateUploadedPhotos(filmRoll);
                 visitRequirementService.requireSatisfied(filmRollId);
                 developmentTimingService.requireAvailable(filmRoll);
+                finalizePhotosForDevelopment(filmRoll);
                 filmRoll.markReady();
                 yield PreparedFilmRollDevelopment.requestRequired(
                         filmRoll
                 );
             }
             case READY -> {
-                validateUploadedPhotos(filmRoll);
                 visitRequirementService.requireSatisfied(filmRollId);
                 developmentTimingService.requireAvailable(filmRoll);
+                finalizePhotosForDevelopment(filmRoll);
                 yield PreparedFilmRollDevelopment.requestRequired(
                         filmRoll
                 );
             }
             case FAILED -> {
-                validateUploadedPhotos(filmRoll);
                 visitRequirementService.requireSatisfied(filmRollId);
                 developmentTimingService.requireAvailable(filmRoll);
+                finalizePhotosForDevelopment(filmRoll);
                 filmRoll.prepareRetry();
                 yield PreparedFilmRollDevelopment.requestRequired(
                         filmRoll
@@ -161,34 +164,80 @@ public class FilmRollCommandService {
         };
     }
 
-    private void validateUploadedPhotos(FilmRoll filmRoll) {
+    private void finalizePhotosForDevelopment(FilmRoll filmRoll) {
         Long filmRollId = filmRoll.getId();
 
-        long savedPhotoCount =
-                photoRepository.countByFilmRollId(filmRollId);
+        List<Photo> photos = photoRepository
+                .findAllByFilmRollIdOrderBySequenceAscForUpdate(
+                        filmRollId
+                );
 
-        if (savedPhotoCount == 0) {
+        if (photos.isEmpty()) {
             throw new FilmRollConflictException(
                     "사진이 없는 필름 롤은 현상할 수 없습니다."
             );
         }
 
-        if (savedPhotoCount != filmRoll.getTotalPhotoCount()) {
+        boolean hasUnexpectedStatus = photos.stream()
+                .anyMatch(photo ->
+                        photo.getStatus() != PhotoStatus.UPLOADED
+                                && photo.getStatus() != PhotoStatus.UPLOADING
+                );
+
+        if (hasUnexpectedStatus) {
             throw new FilmRollConflictException(
-                    "아직 업로드가 완료되지 않은 사진이 있습니다."
+                    "현재 사진 상태에는 현상을 시작할 수 없습니다."
             );
         }
 
-        boolean hasIncompletePhoto =
-                photoRepository.existsByFilmRollIdAndStatusNot(
-                        filmRollId,
-                        PhotoStatus.UPLOADED
-                );
+        List<Photo> uploadedPhotos = photos.stream()
+                .filter(photo ->
+                        photo.getStatus() == PhotoStatus.UPLOADED
+                )
+                .toList();
 
-        if (hasIncompletePhoto) {
+        if (uploadedPhotos.isEmpty()) {
             throw new FilmRollConflictException(
-                    "모든 사진의 업로드가 완료되어야 현상을 시작할 수 있습니다."
+                    "업로드가 완료된 사진이 없어 현상할 수 없습니다."
             );
+        }
+
+        if (uploadedPhotos.size() != filmRoll.getTotalPhotoCount()) {
+            throw new FilmRollConflictException(
+                    "필름 롤 사진 수와 업로드 완료 사진 수가 일치하지 않습니다."
+            );
+        }
+
+        List<Photo> abandonedUploads = photos.stream()
+                .filter(photo ->
+                        photo.getStatus() == PhotoStatus.UPLOADING
+                )
+                .toList();
+
+        if (!abandonedUploads.isEmpty()) {
+            photoRepository.deleteAll(abandonedUploads);
+            photoRepository.flush();
+        }
+
+        compactUploadedPhotoSequences(uploadedPhotos);
+    }
+
+    private void compactUploadedPhotoSequences(
+            List<Photo> uploadedPhotos
+    ) {
+        for (int index = 0; index < uploadedPhotos.size(); index++) {
+            Photo photo = uploadedPhotos.get(index);
+            int expectedSequence = index + 1;
+
+            if (photo.getSequence() == expectedSequence) {
+                continue;
+            }
+
+            photo.resequenceForDevelopment(expectedSequence);
+
+            // UNIQUE(film_roll_id, sequence) 충돌을 피하려고
+            // 낮은 sequence부터 한 장씩 반영한다.
+            photoRepository.flush();
         }
     }
 
