@@ -37,6 +37,7 @@ public class FilmRollCommandService {
     private final UserRepository userRepository;
     private final RegionRepository regionRepository;
     private final FilmFilterPresetProvider filterPresetProvider;
+    private final RegionFilterPolicy regionFilterPolicy;
     private final VisitRequirementService visitRequirementService;
     private final FilmRollDevelopmentTimingService developmentTimingService;
 
@@ -66,14 +67,15 @@ public class FilmRollCommandService {
             throw new RegionNotFoundException();
         }
 
-        filterPresetProvider.getByFilterId(
-                request.filterId().trim()
-        );
+        String filterId = request.filterId().trim();
+
+        filterPresetProvider.getByFilterId(filterId);
+        regionFilterPolicy.validate(region, filterId);
 
         FilmRoll filmRoll = FilmRoll.create(
                 user,
                 region,
-                request.filterId(),
+                filterId,
                 request.filterStrength(),
                 CURRENT_FILTER_VERSION
         );

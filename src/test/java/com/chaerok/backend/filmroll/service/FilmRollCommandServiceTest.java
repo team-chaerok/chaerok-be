@@ -59,6 +59,9 @@ class FilmRollCommandServiceTest {
     private FilmFilterPresetProvider filterPresetProvider;
 
     @Mock
+    private RegionFilterPolicy regionFilterPolicy;
+
+    @Mock
     private VisitRequirementService visitRequirementService;
 
     @Mock
@@ -76,6 +79,7 @@ class FilmRollCommandServiceTest {
                 userRepository,
                 regionRepository,
                 filterPresetProvider,
+                regionFilterPolicy,
                 visitRequirementService,
                 developmentTimingService
         );
@@ -146,6 +150,43 @@ class FilmRollCommandServiceTest {
 
         verify(filterPresetProvider)
                 .getByFilterId("gongju");
+        verify(regionFilterPolicy)
+                .validate(region, "gongju");
+    }
+
+    @Test
+    @DisplayName("지역과 필터 조합이 맞지 않으면 필름 롤을 생성하지 않는다")
+    void rejectMismatchedRegionFilter() {
+        FilmRollCreateRequest request =
+                new FilmRollCreateRequest(
+                        10L,
+                        "buyeo",
+                        0.8
+                );
+
+        when(filmRollRepository.existsByUserIdAndStatusIn(
+                1L,
+                FilmRollStatus.incompleteStatuses()
+        )).thenReturn(false);
+        when(userRepository.findById(1L))
+                .thenReturn(Optional.of(user));
+        when(regionRepository.findById(10L))
+                .thenReturn(Optional.of(region));
+        when(filterPresetProvider.getByFilterId("buyeo"))
+                .thenReturn(mock(FilmFilterPreset.class));
+        doThrow(new IllegalArgumentException(
+                "선택한 지역에서 사용할 수 없는 필터입니다."
+        )).when(regionFilterPolicy).validate(region, "buyeo");
+
+        assertThatThrownBy(() ->
+                service.createFilmRoll(1L, request)
+        )
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("사용할 수 없는 필터");
+
+        verify(regionFilterPolicy).validate(region, "buyeo");
+        verify(filmRollRepository, never())
+                .saveAndFlush(any(FilmRoll.class));
     }
 
     @Test
@@ -184,6 +225,7 @@ class FilmRollCommandServiceTest {
                 userRepository,
                 regionRepository,
                 filterPresetProvider,
+                regionFilterPolicy,
                 visitRequirementService,
                 developmentTimingService
         );
