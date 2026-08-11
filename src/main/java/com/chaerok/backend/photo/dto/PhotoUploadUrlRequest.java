@@ -28,8 +28,8 @@ public record PhotoUploadUrlRequest(
 
         @Positive(message = "파일 크기는 1바이트 이상이어야 합니다.")
         @Max(
-                value = 5L * 1024 * 1024,
-                message = "이미지 파일은 최대 5MB까지 업로드할 수 있습니다."
+                value = 10L * 1024 * 1024,
+                message = "이미지 파일은 최대 10MB까지 업로드할 수 있습니다."
         )
         long contentLength,
 

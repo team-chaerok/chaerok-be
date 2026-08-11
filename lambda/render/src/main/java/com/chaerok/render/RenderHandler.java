@@ -4,15 +4,13 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.SQSBatchResponse;
 import com.amazonaws.services.lambda.runtime.events.SQSEvent;
-import com.chaerok.render.media.MediaGenerationException;
 import com.chaerok.render.message.RenderQueueMessage;
 import com.chaerok.render.output.RenderOutput;
+import com.chaerok.render.pipeline.RenderFailureException;
 import com.chaerok.render.pipeline.RenderPipeline;
-import com.chaerok.render.pipeline.RenderPipelineException;
 import com.chaerok.render.result.RenderResultMessage;
 import com.chaerok.render.result.RenderResultPublisher;
 import com.chaerok.render.retry.RenderRetryConfig;
-import com.chaerok.render.storage.ObjectStorageOperationException;
 import com.chaerok.render.validation.InvalidRenderMessageException;
 import com.chaerok.render.validation.RenderMessageValidator;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -329,6 +327,12 @@ public class RenderHandler
     }
 
     private boolean isRetryable(Exception exception) {
+        RenderFailureException renderFailure =
+                findRenderFailure(exception);
+        if (renderFailure != null) {
+            return renderFailure.retryable();
+        }
+
         return !hasCause(
                 exception,
                 InvalidRenderMessageException.class
@@ -336,25 +340,32 @@ public class RenderHandler
     }
 
     private String errorCode(Exception exception) {
+        RenderFailureException renderFailure =
+                findRenderFailure(exception);
+        if (renderFailure != null) {
+            return renderFailure.errorCode();
+        }
+
         if (hasCause(exception, InvalidRenderMessageException.class)) {
             return "INVALID_RENDER_MESSAGE";
         }
         if (hasCause(exception, IllegalArgumentException.class)) {
             return "INVALID_RENDER_REQUEST";
         }
-        if (hasCause(
-                exception,
-                ObjectStorageOperationException.class
-        )) {
-            return "OBJECT_STORAGE_FAILED";
-        }
-        if (hasCause(exception, MediaGenerationException.class)) {
-            return "MEDIA_GENERATION_FAILED";
-        }
-        if (hasCause(exception, RenderPipelineException.class)) {
-            return "RENDER_PIPELINE_FAILED";
-        }
         return "RENDER_EXECUTION_FAILED";
+    }
+
+    private RenderFailureException findRenderFailure(
+            Throwable throwable
+    ) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof RenderFailureException failure) {
+                return failure;
+            }
+            current = current.getCause();
+        }
+        return null;
     }
 
     private boolean hasCause(
