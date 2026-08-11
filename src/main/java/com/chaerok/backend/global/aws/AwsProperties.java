@@ -38,6 +38,6 @@ public class AwsProperties {
         private Duration presignedGetExpiration = Duration.ofMinutes(10);
 
         @Min(value = 1, message = "최대 업로드 크기는 1바이트 이상이어야 합니다.")
-        private long maxUploadBytes = 5L * 1024 * 1024;
+        private long maxUploadBytes = 10L * 1024 * 1024;
     }
 }

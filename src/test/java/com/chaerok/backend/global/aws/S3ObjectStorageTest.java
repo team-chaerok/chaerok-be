@@ -54,7 +54,7 @@ class S3ObjectStorageTest {
                 Duration.ofMinutes(10)
         );
         properties.getS3().setMaxUploadBytes(
-                5L * 1024 * 1024
+                10L * 1024 * 1024
         );
 
         objectStorage = new S3ObjectStorage(
@@ -148,7 +148,7 @@ class S3ObjectStorageTest {
                 objectStorage.createPresignedUpload(
                         "users/1/rolls/2/original/001-test.jpg",
                         "image/jpeg",
-                        5L * 1024 * 1024 + 1
+                        10L * 1024 * 1024 + 1
                 )
         ).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("최대");

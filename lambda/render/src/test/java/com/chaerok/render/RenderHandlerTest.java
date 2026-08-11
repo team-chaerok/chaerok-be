@@ -135,6 +135,122 @@ class RenderHandlerTest {
     }
 
     @Test
+    @DisplayName("깨진 JPEG는 재시도하지 않고 사진 식별 정보와 함께 실패 처리한다")
+    void publishesNonRetryableFailureForInvalidImage() {
+        InMemoryObjectStorage storage = new InMemoryObjectStorage();
+        storage.put(
+                "users/6/rolls/2/original/photo.jpg",
+                "not-a-jpeg".getBytes(StandardCharsets.UTF_8)
+        );
+        CapturingResultPublisher publisher =
+                new CapturingResultPublisher();
+        RenderHandler handler = createHandler(storage, publisher);
+
+        SQSBatchResponse response = handler.handleRequest(
+                event("message-invalid-image", validBody(), "1"),
+                new TestContext()
+        );
+
+        assertThat(response.getBatchItemFailures()).isEmpty();
+        assertThat(publisher.messages()).hasSize(1);
+
+        RenderResultMessage result = publisher.messages().get(0);
+        assertThat(result.errorCode()).isEqualTo("PHOTO_INVALID_IMAGE");
+        assertThat(result.retryable()).isFalse();
+        assertThat(result.errorMessage())
+                .contains("stage=READ_HEADER")
+                .contains("photoId=1")
+                .contains("sequence=1");
+    }
+
+    @Test
+    @DisplayName("6000px 이하여도 16MP를 넘는 JPEG는 디코딩 전에 거부한다")
+    void rejectsImageThatExceedsPixelLimitBeforeDecode() throws Exception {
+        InMemoryObjectStorage storage = new InMemoryObjectStorage();
+        storage.put(
+                "users/6/rolls/2/original/photo.jpg",
+                createJpegWithDimensions(5000, 4000)
+        );
+        CapturingResultPublisher publisher =
+                new CapturingResultPublisher();
+        RenderHandler handler = createHandler(storage, publisher);
+
+        SQSBatchResponse response = handler.handleRequest(
+                event("message-too-large", validBody(), "1"),
+                new TestContext()
+        );
+
+        assertThat(response.getBatchItemFailures()).isEmpty();
+        assertThat(publisher.messages()).hasSize(1);
+
+        RenderResultMessage result = publisher.messages().get(0);
+        assertThat(result.errorCode()).isEqualTo("PHOTO_TOO_LARGE");
+        assertThat(result.errorMessage())
+                .contains("width=5000")
+                .contains("height=4000")
+                .contains("pixels=20000000");
+    }
+
+    @Test
+    @DisplayName("필터 처리의 결정적 실패는 재시도하지 않는다")
+    void publishesNonRetryableFailureForFilterError() throws Exception {
+        InMemoryObjectStorage storage = new InMemoryObjectStorage();
+        storage.put(
+                "users/6/rolls/2/original/photo.jpg",
+                createJpeg()
+        );
+        CapturingResultPublisher publisher =
+                new CapturingResultPublisher();
+        RenderHandler handler = createHandler(storage, publisher);
+
+        String unsupportedFilterBody = validBody().replace(
+                "\"gongju\"",
+                "\"unsupported-filter\""
+        );
+
+        SQSBatchResponse response = handler.handleRequest(
+                event("message-filter-fail", unsupportedFilterBody, "1"),
+                new TestContext()
+        );
+
+        assertThat(response.getBatchItemFailures()).isEmpty();
+        assertThat(publisher.messages()).hasSize(1);
+
+        RenderResultMessage result = publisher.messages().get(0);
+        assertThat(result.errorCode()).isEqualTo("PHOTO_FILTER_FAILED");
+        assertThat(result.retryable()).isFalse();
+        assertThat(result.errorMessage())
+                .contains("stage=FILTER")
+                .contains("photoId=1")
+                .contains("sequence=1");
+    }
+
+    @Test
+    @DisplayName("유효하지 않은 기존 manifest는 재시도하지 않는다")
+    void publishesNonRetryableFailureForInvalidManifest() {
+        InMemoryObjectStorage storage = new InMemoryObjectStorage();
+        storage.put(
+                "users/6/rolls/2/render-jobs/"
+                        + "133d6ee3-a120-4df3-8ba3-f60adbdd64d6/"
+                        + "manifest.json",
+                "{invalid-json".getBytes(StandardCharsets.UTF_8)
+        );
+        CapturingResultPublisher publisher =
+                new CapturingResultPublisher();
+        RenderHandler handler = createHandler(storage, publisher);
+
+        SQSBatchResponse response = handler.handleRequest(
+                event("message-invalid-manifest", validBody(), "1"),
+                new TestContext()
+        );
+
+        assertThat(response.getBatchItemFailures()).isEmpty();
+        assertThat(publisher.messages()).hasSize(1);
+        assertThat(publisher.messages().get(0).errorCode())
+                .isEqualTo("MANIFEST_INVALID");
+    }
+
+    @Test
     @DisplayName("재시도 중인 실행 실패는 terminal FAILED 결과를 발행하지 않는다")
     void doesNotPublishTerminalFailureBeforeFinalAttempt() {
         CapturingResultPublisher publisher =
@@ -186,7 +302,79 @@ class RenderHandlerTest {
         assertThat(result.retryable()).isFalse();
         assertThat(result.attempt()).isEqualTo(3);
         assertThat(result.errorCode())
-                .isEqualTo("RENDER_EXECUTION_FAILED");
+                .isEqualTo("PHOTO_DOWNLOAD_FAILED");
+        assertThat(result.errorMessage())
+                .contains("stage=DOWNLOAD")
+                .contains("photoId=1")
+                .contains("sequence=1");
+    }
+
+    @Test
+    @DisplayName("릴스 생성 실패는 마지막 시도까지 재시도한 뒤 실패 처리한다")
+    void publishesReelGenerationFailureOnFinalAttempt() throws Exception {
+        InMemoryObjectStorage storage = new InMemoryObjectStorage();
+        storage.put(
+                "users/6/rolls/2/original/photo.jpg",
+                createJpeg()
+        );
+        CapturingResultPublisher publisher =
+                new CapturingResultPublisher();
+        ReelRenderer failingReelRenderer = (
+                filteredDirectory,
+                photoCount,
+                destination
+        ) -> {
+            throw new IllegalStateException("fake ffmpeg failure");
+        };
+        RenderHandler handler = createHandler(
+                storage,
+                publisher,
+                failingReelRenderer
+        );
+
+        SQSBatchResponse response = handler.handleRequest(
+                event("message-reel-fail", validBody(), "3"),
+                new TestContext()
+        );
+
+        assertThat(response.getBatchItemFailures())
+                .extracting(
+                        SQSBatchResponse.BatchItemFailure
+                                ::getItemIdentifier
+                )
+                .containsExactly("message-reel-fail");
+        assertThat(publisher.messages()).hasSize(1);
+        assertThat(publisher.messages().get(0).errorCode())
+                .isEqualTo("REEL_GENERATION_FAILED");
+    }
+
+    @Test
+    @DisplayName("ZIP 업로드 실패는 마지막 시도에 ZIP_UPLOAD_FAILED로 기록한다")
+    void publishesZipUploadFailureOnFinalAttempt() throws Exception {
+        InMemoryObjectStorage storage = new InMemoryObjectStorage();
+        storage.put(
+                "users/6/rolls/2/original/photo.jpg",
+                createJpeg()
+        );
+        storage.failUploadsEndingWith(".zip");
+        CapturingResultPublisher publisher =
+                new CapturingResultPublisher();
+        RenderHandler handler = createHandler(storage, publisher);
+
+        SQSBatchResponse response = handler.handleRequest(
+                event("message-zip-upload-fail", validBody(), "3"),
+                new TestContext()
+        );
+
+        assertThat(response.getBatchItemFailures())
+                .extracting(
+                        SQSBatchResponse.BatchItemFailure
+                                ::getItemIdentifier
+                )
+                .containsExactly("message-zip-upload-fail");
+        assertThat(publisher.messages()).hasSize(1);
+        assertThat(publisher.messages().get(0).errorCode())
+                .isEqualTo("ZIP_UPLOAD_FAILED");
     }
 
     @Test
@@ -219,6 +407,40 @@ class RenderHandlerTest {
     }
 
     @Test
+    @DisplayName("COMPLETED 결과 발행 재시도는 기존 manifest를 재사용한다")
+    void reusesManifestWhenCompletedResultPublishIsRetried()
+            throws Exception {
+        InMemoryObjectStorage storage = new InMemoryObjectStorage();
+        storage.put(
+                "users/6/rolls/2/original/photo.jpg",
+                createJpeg()
+        );
+        FailOnceResultPublisher publisher =
+                new FailOnceResultPublisher();
+        RenderHandler handler = createHandler(storage, publisher);
+
+        SQSBatchResponse first = handler.handleRequest(
+                event("message-result-retry", validBody(), "1"),
+                new TestContext()
+        );
+        int uploadsAfterFirstAttempt = storage.uploadCount();
+
+        SQSBatchResponse second = handler.handleRequest(
+                event("message-result-retry", validBody(), "2"),
+                new TestContext()
+        );
+
+        assertThat(first.getBatchItemFailures()).hasSize(1);
+        assertThat(second.getBatchItemFailures()).isEmpty();
+        assertThat(uploadsAfterFirstAttempt).isEqualTo(4);
+        assertThat(storage.uploadCount())
+                .isEqualTo(uploadsAfterFirstAttempt);
+        assertThat(publisher.messages()).hasSize(2);
+        assertThat(publisher.messages())
+                .allMatch(message -> "COMPLETED".equals(message.status()));
+    }
+
+    @Test
     @DisplayName("식별자가 없는 잘못된 메시지는 결과 큐에 발행하지 않는다")
     void skipsFailedPublishWithoutIdentifiers() {
         CapturingResultPublisher publisher =
@@ -245,6 +467,18 @@ class RenderHandlerTest {
             InMemoryObjectStorage storage,
             RenderResultPublisher publisher
     ) {
+        return createHandler(
+                storage,
+                publisher,
+                successfulReelRenderer()
+        );
+    }
+
+    private RenderHandler createHandler(
+            InMemoryObjectStorage storage,
+            RenderResultPublisher publisher,
+            ReelRenderer reelRenderer
+    ) {
         ObjectMapper objectMapper = RenderRuntimeFactory.objectMapper();
 
         FilmFilterEngine filterEngine = new FilmFilterEngine(
@@ -255,30 +489,13 @@ class RenderHandlerTest {
                 new FilterOverlayTuningPolicy()
         );
 
-        ReelRenderer fakeReelRenderer = (
-                filteredDirectory,
-                photoCount,
-                destination
-        ) -> {
-            try {
-                Files.createDirectories(destination.getParent());
-                Files.writeString(
-                        destination,
-                        "fake-mp4-" + photoCount,
-                        StandardCharsets.UTF_8
-                );
-            } catch (IOException exception) {
-                throw new RuntimeException(exception);
-            }
-        };
-
         Clock clock = Clock.fixed(FIXED_NOW, ZoneOffset.UTC);
         RenderPipeline pipeline = new RenderPipeline(
                 storage,
                 filterEngine,
                 new JpegImageWriter(),
                 new FilteredPhotoZipWriter(),
-                fakeReelRenderer,
+                reelRenderer,
                 objectMapper,
                 clock
         );
@@ -291,6 +508,21 @@ class RenderHandlerTest {
                 clock,
                 new RenderRetryConfig(3)
         );
+    }
+
+    private ReelRenderer successfulReelRenderer() {
+        return (filteredDirectory, photoCount, destination) -> {
+            try {
+                Files.createDirectories(destination.getParent());
+                Files.writeString(
+                        destination,
+                        "fake-mp4-" + photoCount,
+                        StandardCharsets.UTF_8
+                );
+            } catch (IOException exception) {
+                throw new RuntimeException(exception);
+            }
+        };
     }
 
     private SQSEvent event(
@@ -373,6 +605,40 @@ class RenderHandlerTest {
         return output.toByteArray();
     }
 
+    private byte[] createJpegWithDimensions(
+            int width,
+            int height
+    ) throws IOException {
+        if (width < 1 || width > 65535
+                || height < 1 || height > 65535) {
+            throw new IllegalArgumentException(
+                    "JPEG dimensions must fit unsigned 16-bit values."
+            );
+        }
+
+        byte[] jpeg = createJpeg();
+        for (int index = 0; index < jpeg.length - 9; index++) {
+            if ((jpeg[index] & 0xFF) != 0xFF) {
+                continue;
+            }
+
+            int marker = jpeg[index + 1] & 0xFF;
+            if (marker != 0xC0 && marker != 0xC1 && marker != 0xC2) {
+                continue;
+            }
+
+            jpeg[index + 5] = (byte) (height >>> 8);
+            jpeg[index + 6] = (byte) height;
+            jpeg[index + 7] = (byte) (width >>> 8);
+            jpeg[index + 8] = (byte) width;
+            return jpeg;
+        }
+
+        throw new IllegalStateException(
+                "JPEG start-of-frame marker was not found."
+        );
+    }
+
     private static final class CapturingResultPublisher
             implements RenderResultPublisher {
 
@@ -404,14 +670,48 @@ class RenderHandlerTest {
         }
     }
 
+    private static final class FailOnceResultPublisher
+            implements RenderResultPublisher {
+
+        private final List<RenderResultMessage> messages =
+                new ArrayList<>();
+        private boolean failedOnce;
+
+        @Override
+        public String publish(RenderResultMessage message) {
+            messages.add(message);
+            if (!failedOnce) {
+                failedOnce = true;
+                throw new IllegalStateException(
+                        "fake first result publish failure"
+                );
+            }
+            return "result-message-success";
+        }
+
+        List<RenderResultMessage> messages() {
+            return List.copyOf(messages);
+        }
+    }
+
     private static final class InMemoryObjectStorage
             implements ObjectStorage {
 
         private final Map<String, byte[]> objects = new HashMap<>();
         private final Map<String, byte[]> uploads = new HashMap<>();
+        private String failingUploadSuffix;
+        private int uploadCount;
 
         void put(String objectKey, byte[] bytes) {
             objects.put(objectKey, bytes);
+        }
+
+        void failUploadsEndingWith(String suffix) {
+            this.failingUploadSuffix = suffix;
+        }
+
+        int uploadCount() {
+            return uploadCount;
         }
 
         List<String> uploadedKeys() {
@@ -442,6 +742,9 @@ class RenderHandlerTest {
         ) {
             byte[] bytes = objects.get(objectKey);
             if (bytes == null) {
+                bytes = uploads.get(objectKey);
+            }
+            if (bytes == null) {
                 throw new IllegalStateException(
                         "Missing fake object: " + objectKey
                 );
@@ -462,8 +765,16 @@ class RenderHandlerTest {
                 Path source,
                 String contentType
         ) {
+            if (failingUploadSuffix != null
+                    && objectKey.endsWith(failingUploadSuffix)) {
+                throw new IllegalStateException(
+                        "Fake upload failure: " + objectKey
+                );
+            }
+
             try {
                 uploads.put(objectKey, Files.readAllBytes(source));
+                uploadCount++;
             } catch (IOException exception) {
                 throw new RuntimeException(exception);
             }

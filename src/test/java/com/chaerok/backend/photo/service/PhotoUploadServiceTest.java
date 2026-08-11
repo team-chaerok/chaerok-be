@@ -241,7 +241,7 @@ class PhotoUploadServiceTest {
         );
 
         when(objectStorage.getMaxUploadBytes())
-                .thenReturn(5L * 1024 * 1024);
+                .thenReturn(10L * 1024 * 1024);
 
         PhotoUploadCompleteResponse response =
                 service.completeUpload(
