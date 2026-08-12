@@ -16,13 +16,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TourApiPlaceClient {
 
-    private static final String BASE_URL = "https://apis.data.go.kr/B551011/KorService2";
     private static final String AREA_BASED_LIST_PATH = "/areaBasedList2";
     private static final String SEARCH_KEYWORD_PATH = "/searchKeyword2";
     private static final String DETAIL_COMMON_PATH = "/detailCommon2";
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
 
-    private final WebClient.Builder webClientBuilder;
+    private final WebClient tourApiWebClient;
 
     @Value("${external.tour-api.key}")
     private String serviceKey;
@@ -32,9 +31,7 @@ public class TourApiPlaceClient {
             String lDongSignguCd
     ) {
         try {
-            TourApiPlaceResponse response = webClientBuilder
-                    .baseUrl(BASE_URL)
-                    .build()
+            TourApiPlaceResponse response = tourApiWebClient
                     .get()
                     .uri(uriBuilder -> uriBuilder
                             .path(AREA_BASED_LIST_PATH)
@@ -58,21 +55,39 @@ public class TourApiPlaceClient {
             }
 
             if (!response.isSuccess()) {
-                log.warn("TourAPI areaBasedList2 failed. lDongRegnCd={}, lDongSignguCd={}",
-                        lDongRegnCd, lDongSignguCd);
+                log.warn(
+                        "TourAPI areaBasedList2 failed. lDongRegnCd={}, lDongSignguCd={}, resultCode={}, resultMsg={}",
+                        lDongRegnCd,
+                        lDongSignguCd,
+                        response.getResultCode(),
+                        response.getResultMsg()
+                );
                 return List.of();
             }
 
             return response.getItems();
+
         } catch (WebClientResponseException e) {
-            log.warn("TourAPI areaBasedList2 response error. status={}, body={}",
-                    e.getStatusCode(), e.getResponseBodyAsString());
+            log.warn(
+                    "TourAPI areaBasedList2 response error. status={}, body={}",
+                    e.getStatusCode(),
+                    e.getResponseBodyAsString()
+            );
             return List.of();
+
         } catch (WebClientRequestException e) {
-            log.warn("TourAPI areaBasedList2 request error. message={}", e.getMessage());
+            log.warn(
+                    "TourAPI areaBasedList2 request error. message={}",
+                    e.getMessage()
+            );
             return List.of();
+
         } catch (RuntimeException e) {
-            log.error("TourAPI areaBasedList2 unexpected error. message={}", e.getMessage(), e);
+            log.error(
+                    "TourAPI areaBasedList2 unexpected error. message={}",
+                    e.getMessage(),
+                    e
+            );
             return List.of();
         }
     }
@@ -87,9 +102,7 @@ public class TourApiPlaceClient {
         }
 
         try {
-            TourApiPlaceResponse response = webClientBuilder
-                    .baseUrl(BASE_URL)
-                    .build()
+            TourApiPlaceResponse response = tourApiWebClient
                     .get()
                     .uri(uriBuilder -> uriBuilder
                             .path(SEARCH_KEYWORD_PATH)
@@ -114,23 +127,43 @@ public class TourApiPlaceClient {
             }
 
             if (!response.isSuccess()) {
-                log.warn("TourAPI searchKeyword2 failed. keyword={}, lDongRegnCd={}, lDongSignguCd={}",
-                        keyword, lDongRegnCd, lDongSignguCd);
+                log.warn(
+                        "TourAPI searchKeyword2 failed. keyword={}, lDongRegnCd={}, lDongSignguCd={}, resultCode={}, resultMsg={}",
+                        keyword,
+                        lDongRegnCd,
+                        lDongSignguCd,
+                        response.getResultCode(),
+                        response.getResultMsg()
+                );
                 return List.of();
             }
 
             return response.getItems();
+
         } catch (WebClientResponseException e) {
-            log.warn("TourAPI searchKeyword2 response error. keyword={}, status={}, body={}",
-                    keyword, e.getStatusCode(), e.getResponseBodyAsString());
+            log.warn(
+                    "TourAPI searchKeyword2 response error. keyword={}, status={}, body={}",
+                    keyword,
+                    e.getStatusCode(),
+                    e.getResponseBodyAsString()
+            );
             return List.of();
+
         } catch (WebClientRequestException e) {
-            log.warn("TourAPI searchKeyword2 request error. keyword={}, message={}",
-                    keyword, e.getMessage());
+            log.warn(
+                    "TourAPI searchKeyword2 request error. keyword={}, message={}",
+                    keyword,
+                    e.getMessage()
+            );
             return List.of();
+
         } catch (RuntimeException e) {
-            log.error("TourAPI searchKeyword2 unexpected error. keyword={}, message={}",
-                    keyword, e.getMessage(), e);
+            log.error(
+                    "TourAPI searchKeyword2 unexpected error. keyword={}, message={}",
+                    keyword,
+                    e.getMessage(),
+                    e
+            );
             return List.of();
         }
     }
@@ -141,9 +174,7 @@ public class TourApiPlaceClient {
         }
 
         try {
-            TourApiPlaceResponse response = webClientBuilder
-                    .baseUrl(BASE_URL)
-                    .build()
+            TourApiPlaceResponse response = tourApiWebClient
                     .get()
                     .uri(uriBuilder -> uriBuilder
                             .path(DETAIL_COMMON_PATH)
@@ -167,7 +198,9 @@ public class TourApiPlaceClient {
             if (!response.isSuccess()) {
                 log.warn(
                         "TourAPI detailCommon2 failed. contentId={}, resultCode={}, resultMsg={}",
-                        contentId
+                        contentId,
+                        response.getResultCode(),
+                        response.getResultMsg()
                 );
                 return null;
             }
