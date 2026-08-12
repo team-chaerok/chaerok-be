@@ -30,8 +30,6 @@ public class TourApiPlaceClient {
             String lDongRegnCd,
             String lDongSignguCd
     ) {
-        long start = System.currentTimeMillis();
-
         try {
             TourApiPlaceResponse response = tourApiWebClient
                     .get()
@@ -89,14 +87,6 @@ public class TourApiPlaceClient {
                     e
             );
             return List.of();
-
-        } finally {
-            log.info(
-                    "TourAPI areaBasedList2 elapsed={}ms, lDongRegnCd={}, lDongSignguCd={}",
-                    System.currentTimeMillis() - start,
-                    lDongRegnCd,
-                    lDongSignguCd
-            );
         }
     }
 
