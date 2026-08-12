@@ -56,9 +56,11 @@ public class TourApiPlaceClient {
 
             if (!response.isSuccess()) {
                 log.warn(
-                        "TourAPI areaBasedList2 failed. lDongRegnCd={}, lDongSignguCd={}",
+                        "TourAPI areaBasedList2 failed. lDongRegnCd={}, lDongSignguCd={}, resultCode={}, resultMsg={}",
                         lDongRegnCd,
-                        lDongSignguCd
+                        lDongSignguCd,
+                        response.getResultCode(),
+                        response.getResultMsg()
                 );
                 return List.of();
             }
@@ -126,10 +128,12 @@ public class TourApiPlaceClient {
 
             if (!response.isSuccess()) {
                 log.warn(
-                        "TourAPI searchKeyword2 failed. keyword={}, lDongRegnCd={}, lDongSignguCd={}",
+                        "TourAPI searchKeyword2 failed. keyword={}, lDongRegnCd={}, lDongSignguCd={}, resultCode={}, resultMsg={}",
                         keyword,
                         lDongRegnCd,
-                        lDongSignguCd
+                        lDongSignguCd,
+                        response.getResultCode(),
+                        response.getResultMsg()
                 );
                 return List.of();
             }
@@ -193,8 +197,10 @@ public class TourApiPlaceClient {
 
             if (!response.isSuccess()) {
                 log.warn(
-                        "TourAPI detailCommon2 failed. contentId={}",
-                        contentId
+                        "TourAPI detailCommon2 failed. contentId={}, resultCode={}, resultMsg={}",
+                        contentId,
+                        response.getResultCode(),
+                        response.getResultMsg()
                 );
                 return null;
             }

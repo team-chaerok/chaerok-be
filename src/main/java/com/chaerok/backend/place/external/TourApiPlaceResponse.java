@@ -29,6 +29,22 @@ public record TourApiPlaceResponse(
                 && "0000".equals(response.header().resultCode());
     }
 
+    public String getResultCode() {
+        if (response == null || response.header() == null) {
+            return null;
+        }
+
+        return response.header().resultCode();
+    }
+
+    public String getResultMsg() {
+        if (response == null || response.header() == null) {
+            return null;
+        }
+
+        return response.header().resultMsg();
+    }
+
     public record Response(
             @JsonProperty("header")
             Header header,
