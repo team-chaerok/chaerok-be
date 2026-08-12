@@ -31,6 +31,8 @@ public class TourApiPlaceClient {
             String lDongRegnCd,
             String lDongSignguCd
     ) {
+        long start = System.currentTimeMillis();
+
         try {
             TourApiPlaceResponse response = webClientBuilder
                     .baseUrl(BASE_URL)
@@ -64,16 +66,27 @@ public class TourApiPlaceClient {
             }
 
             return response.getItems();
+
         } catch (WebClientResponseException e) {
             log.warn("TourAPI areaBasedList2 response error. status={}, body={}",
                     e.getStatusCode(), e.getResponseBodyAsString());
             return List.of();
+
         } catch (WebClientRequestException e) {
             log.warn("TourAPI areaBasedList2 request error. message={}", e.getMessage());
             return List.of();
+
         } catch (RuntimeException e) {
             log.error("TourAPI areaBasedList2 unexpected error. message={}", e.getMessage(), e);
             return List.of();
+
+        } finally {
+            log.info(
+                    "TourAPI areaBasedList2 elapsed={}ms, lDongRegnCd={}, lDongSignguCd={}",
+                    System.currentTimeMillis() - start,
+                    lDongRegnCd,
+                    lDongSignguCd
+            );
         }
     }
 
