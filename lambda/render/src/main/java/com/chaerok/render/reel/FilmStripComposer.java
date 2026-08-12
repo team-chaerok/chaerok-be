@@ -15,6 +15,8 @@ import java.util.List;
 public final class FilmStripComposer {
 
     private static final int MAX_PHOTO_COUNT = 24;
+    private static final Color EMPTY_SLOT_COLOR =
+            new Color(218, 196, 155);
 
     public FilmStrip compose(
             List<Path> orderedPhotos,
@@ -29,8 +31,12 @@ public final class FilmStripComposer {
                 destination
         );
 
-        int naturalHeight = calculateNaturalHeight(
+        int panelCount = calculatePanelCount(
                 orderedPhotos.size(),
+                template.photosPerPanel()
+        );
+        int naturalHeight = calculateNaturalHeight(
+                panelCount,
                 template
         );
         int stripHeight = Math.max(
@@ -40,7 +46,7 @@ public final class FilmStripComposer {
         int verticalOffset = (stripHeight - naturalHeight) / 2;
 
         BufferedImage strip = new BufferedImage(
-                template.cellWidth(),
+                template.panelWidth(),
                 stripHeight,
                 BufferedImage.TYPE_3BYTE_BGR
         );
@@ -56,16 +62,18 @@ public final class FilmStripComposer {
                     strip.getHeight()
             );
 
-            int cellY = verticalOffset + template.topPadding();
-            for (Path photoPath : orderedPhotos) {
-                drawCell(
+            for (int panelIndex = 0;
+                 panelIndex < panelCount;
+                 panelIndex++) {
+                drawPanel(
                         graphics,
-                        photoPath,
+                        orderedPhotos,
                         template,
                         overlay,
-                        cellY
+                        panelIndex,
+                        verticalOffset
+                                + panelIndex * template.panelHeight()
                 );
-                cellY += template.cellHeight();
             }
         } finally {
             graphics.dispose();
@@ -81,37 +89,67 @@ public final class FilmStripComposer {
         );
     }
 
-    private void drawCell(
+    private void drawPanel(
             Graphics2D stripGraphics,
-            Path photoPath,
+            List<Path> orderedPhotos,
             ReelTemplate template,
             BufferedImage overlay,
-            int cellY
+            int panelIndex,
+            int panelY
     ) {
-        BufferedImage photo = readImage(photoPath);
-        BufferedImage cell = new BufferedImage(
-                template.cellWidth(),
-                template.cellHeight(),
-                BufferedImage.TYPE_INT_ARGB
+        BufferedImage panel = new BufferedImage(
+                template.panelWidth(),
+                template.panelHeight(),
+                BufferedImage.TYPE_3BYTE_BGR
         );
 
-        Graphics2D cellGraphics = cell.createGraphics();
+        Graphics2D panelGraphics = panel.createGraphics();
         try {
-            configure(cellGraphics);
-            cellGraphics.setColor(Color.BLACK);
-            cellGraphics.fillRect(
+            configure(panelGraphics);
+            panelGraphics.setColor(Color.BLACK);
+            panelGraphics.fillRect(
                     0,
                     0,
-                    cell.getWidth(),
-                    cell.getHeight()
+                    panel.getWidth(),
+                    panel.getHeight()
             );
-            drawPhoto(cellGraphics, photo, template.photoSlot());
-            cellGraphics.drawImage(overlay, 0, 0, null);
+
+            for (PhotoSlot slot : template.photoSlots()) {
+                panelGraphics.setColor(EMPTY_SLOT_COLOR);
+                panelGraphics.fillRect(
+                        slot.x(),
+                        slot.y(),
+                        slot.width(),
+                        slot.height()
+                );
+            }
+
+            int firstPhotoIndex =
+                    panelIndex * template.photosPerPanel();
+            for (int slotIndex = 0;
+                 slotIndex < template.photosPerPanel();
+                 slotIndex++) {
+                int photoIndex = firstPhotoIndex + slotIndex;
+                if (photoIndex >= orderedPhotos.size()) {
+                    break;
+                }
+
+                BufferedImage photo = readImage(
+                        orderedPhotos.get(photoIndex)
+                );
+                drawPhoto(
+                        panelGraphics,
+                        photo,
+                        template.photoSlots().get(slotIndex)
+                );
+            }
+
+            panelGraphics.drawImage(overlay, 0, 0, null);
         } finally {
-            cellGraphics.dispose();
+            panelGraphics.dispose();
         }
 
-        stripGraphics.drawImage(cell, 0, cellY, null);
+        stripGraphics.drawImage(panel, 0, panelY, null);
     }
 
     private void drawPhoto(
@@ -194,13 +232,18 @@ public final class FilmStripComposer {
         }
     }
 
-    private int calculateNaturalHeight(
+    private int calculatePanelCount(
             int photoCount,
+            int photosPerPanel
+    ) {
+        return (photoCount + photosPerPanel - 1) / photosPerPanel;
+    }
+
+    private int calculateNaturalHeight(
+            int panelCount,
             ReelTemplate template
     ) {
-        long height = (long) template.topPadding()
-                + (long) template.cellHeight() * photoCount
-                + template.bottomPadding();
+        long height = (long) template.panelHeight() * panelCount;
 
         if (height > Integer.MAX_VALUE) {
             throw new IllegalArgumentException(
@@ -242,10 +285,10 @@ public final class FilmStripComposer {
         if (destination == null) {
             throw new IllegalArgumentException("destination is required.");
         }
-        if (overlay.getWidth() != template.cellWidth()
-                || overlay.getHeight() != template.cellHeight()) {
+        if (overlay.getWidth() != template.panelWidth()
+                || overlay.getHeight() != template.panelHeight()) {
             throw new IllegalArgumentException(
-                    "Overlay dimensions must match reel cell dimensions."
+                    "Overlay dimensions must match reel panel dimensions."
             );
         }
     }

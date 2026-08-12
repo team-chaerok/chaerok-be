@@ -1,14 +1,14 @@
 package com.chaerok.render.reel;
 
+import java.util.List;
+
 public record ReelTemplate(
         String templateId,
         int canvasWidth,
         int canvasHeight,
-        int cellWidth,
-        int cellHeight,
-        PhotoSlot photoSlot,
-        int topPadding,
-        int bottomPadding,
+        int panelWidth,
+        int panelHeight,
+        List<PhotoSlot> photoSlots,
         double startHoldSeconds,
         double endHoldSeconds,
         double baseDurationSeconds,
@@ -22,21 +22,24 @@ public record ReelTemplate(
         requireText(overlayResource, "overlayResource");
         requirePositive(canvasWidth, "canvasWidth");
         requirePositive(canvasHeight, "canvasHeight");
-        requirePositive(cellWidth, "cellWidth");
-        requirePositive(cellHeight, "cellHeight");
-        if (photoSlot == null) {
-            throw new IllegalArgumentException("photoSlot is required.");
+        requirePositive(panelWidth, "panelWidth");
+        requirePositive(panelHeight, "panelHeight");
+        if (photoSlots == null || photoSlots.isEmpty()) {
+            throw new IllegalArgumentException("photoSlots are required.");
         }
-        if (photoSlot.x() + photoSlot.width() > cellWidth
-                || photoSlot.y() + photoSlot.height() > cellHeight) {
-            throw new IllegalArgumentException(
-                    "Photo slot must fit inside the reel cell."
-            );
-        }
-        if (topPadding < 0 || bottomPadding < 0) {
-            throw new IllegalArgumentException(
-                    "Reel padding must be non-negative."
-            );
+        photoSlots = List.copyOf(photoSlots);
+        for (PhotoSlot slot : photoSlots) {
+            if (slot == null) {
+                throw new IllegalArgumentException(
+                        "Photo slot is required."
+                );
+            }
+            if (slot.x() + slot.width() > panelWidth
+                    || slot.y() + slot.height() > panelHeight) {
+                throw new IllegalArgumentException(
+                        "Photo slot must fit inside the reel panel."
+                );
+            }
         }
         if (startHoldSeconds < 0.0
                 || endHoldSeconds < 0.0
@@ -48,6 +51,10 @@ public record ReelTemplate(
                     "Reel duration configuration is invalid."
             );
         }
+    }
+
+    public int photosPerPanel() {
+        return photoSlots.size();
     }
 
     private static void requirePositive(int value, String name) {

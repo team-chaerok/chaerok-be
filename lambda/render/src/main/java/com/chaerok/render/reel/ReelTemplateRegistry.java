@@ -1,5 +1,6 @@
 package com.chaerok.render.reel;
 
+import java.util.List;
 import java.util.Map;
 
 public final class ReelTemplateRegistry {
@@ -16,16 +17,19 @@ public final class ReelTemplateRegistry {
                         1080,
                         1920,
                         1080,
-                        700,
-                        new PhotoSlot(120, 70, 840, 560),
-                        260,
-                        360,
+                        2276,
+                        List.of(
+                                new PhotoSlot(170, 76, 774, 516),
+                                new PhotoSlot(170, 606, 774, 516),
+                                new PhotoSlot(170, 1133, 774, 516),
+                                new PhotoSlot(170, 1659, 774, 516)
+                        ),
                         0.8,
                         1.2,
                         10.0,
                         0.9,
                         32.0,
-                        "reel/templates/gongju/film-cell-v1.png"
+                        "reel/templates/gongju/film-panel-4cut-v1.png"
                 )
         );
     }

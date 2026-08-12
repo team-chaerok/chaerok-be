@@ -3,6 +3,8 @@ package com.chaerok.render.reel;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -12,7 +14,7 @@ class ReelTemplateRegistryTest {
             new ReelTemplateRegistry();
 
     @Test
-    @DisplayName("공주 릴스 템플릿은 3대2 사진 슬롯 규격을 제공한다")
+    @DisplayName("공주 릴스 템플릿은 3대2 사진 슬롯 네 개를 제공한다")
     void providesGongjuTemplate() {
         ReelTemplate template = registry.require(
                 ReelTemplateRegistry.GONGJU_V1
@@ -21,14 +23,24 @@ class ReelTemplateRegistryTest {
         assertThat(template.templateId()).isEqualTo("gongju-v1");
         assertThat(template.canvasWidth()).isEqualTo(1080);
         assertThat(template.canvasHeight()).isEqualTo(1920);
-        assertThat(template.cellWidth()).isEqualTo(1080);
-        assertThat(template.cellHeight()).isEqualTo(700);
-        assertThat(template.photoSlot())
-                .isEqualTo(new PhotoSlot(120, 70, 840, 560));
-        assertThat(template.photoSlot().width() * 2)
-                .isEqualTo(template.photoSlot().height() * 3);
+        assertThat(template.panelWidth()).isEqualTo(1080);
+        assertThat(template.panelHeight()).isEqualTo(2276);
+        assertThat(template.photosPerPanel()).isEqualTo(4);
+        assertThat(template.photoSlots()).containsExactlyElementsOf(
+                List.of(
+                        new PhotoSlot(170, 76, 774, 516),
+                        new PhotoSlot(170, 606, 774, 516),
+                        new PhotoSlot(170, 1133, 774, 516),
+                        new PhotoSlot(170, 1659, 774, 516)
+                )
+        );
+        assertThat(template.photoSlots())
+                .allSatisfy(slot -> assertThat(slot.width() * 2)
+                        .isEqualTo(slot.height() * 3));
         assertThat(template.overlayResource())
-                .isEqualTo("reel/templates/gongju/film-cell-v1.png");
+                .isEqualTo(
+                        "reel/templates/gongju/film-panel-4cut-v1.png"
+                );
     }
 
     @Test

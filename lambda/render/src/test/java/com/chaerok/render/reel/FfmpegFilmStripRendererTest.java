@@ -23,8 +23,8 @@ class FfmpegFilmStripRendererTest {
         FilmStrip strip = new FilmStrip(
                 Path.of("film-strip.png"),
                 1080,
-                2720,
-                3
+                2276,
+                4
         );
         ScrollReelPlan plan =
                 ScrollReelPlan.calculate(strip, template);
@@ -46,9 +46,9 @@ class FfmpegFilmStripRendererTest {
         assertThat(filter)
                 .contains("crop=1080:1920:0:")
                 .contains("lt(t,0.800)")
-                .contains("lt(t,11.500)")
+                .contains("lt(t,12.400)")
                 .contains("(ih-1920)")
-                .contains("/10.700");
+                .contains("/11.600");
     }
 
     @Test
