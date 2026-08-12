@@ -1,0 +1,25 @@
+{
+  "templateId": "gongju-moving-film-strip-v3",
+  "panelWidth": 1080,
+  "panelHeight": 2276,
+  "movingStrip": {
+    "width": 1080,
+    "photoX": 170,
+    "photoWidth": 774,
+    "photoHeight": 516,
+    "photoPitch": 534,
+    "photoGap": 18,
+    "topMargin": 76,
+    "bottomMargin": 81
+  },
+  "rail": {
+    "leftFrameNumber": true,
+    "leftVerticalLabel": "CHAEROK 400",
+    "rightTriangleMarker": true
+  },
+  "notes": [
+    "The full film strip moves downward as one object.",
+    "Photos, separators, frame numbers, side labels and right markers move together.",
+    "The old PNG overlay remains only as a template resource and is not fixed over the video."
+  ]
+}

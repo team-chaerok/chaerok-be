@@ -129,8 +129,8 @@ public final class RenderPipeline {
             safeLogger.accept("Rendering 9:16 MP4 with FFmpeg.");
             try {
                 reelRenderer.render(
-                        workspace.filteredDirectory(),
-                        filteredFiles.size(),
+                        message.filterId(),
+                        filteredFiles,
                         workspace.reelFile()
                 );
             } catch (RuntimeException exception) {

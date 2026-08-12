@@ -29,6 +29,7 @@ sourceSets {
         resources {
             srcDir '../../src/main/resources'
             include 'filter/overlays/**'
+            include 'reel/**'
         }
     }
 }
