@@ -6,7 +6,7 @@ import com.chaerok.backend.filter.analysis.ImageSceneAnalyzer;
 import com.chaerok.backend.filter.engine.FilmFilterEngine;
 import com.chaerok.backend.filter.preset.FilmFilterPresetProvider;
 import com.chaerok.backend.filter.processor.OverlayImageCache;
-import com.chaerok.render.media.FfmpegReelRenderer;
+import com.chaerok.render.reel.FilmStripReelRenderer;
 import com.chaerok.render.media.FilteredPhotoZipWriter;
 import com.chaerok.render.media.JpegImageWriter;
 import com.chaerok.render.pipeline.RenderPipeline;
@@ -57,7 +57,7 @@ final class RenderRuntimeFactory {
                 filmFilterEngine,
                 new JpegImageWriter(),
                 new FilteredPhotoZipWriter(),
-                new FfmpegReelRenderer(ffmpegPath),
+                new FilmStripReelRenderer(ffmpegPath),
                 objectMapper,
                 Clock.systemUTC()
         );

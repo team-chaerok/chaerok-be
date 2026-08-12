@@ -17,7 +17,10 @@ public final class FilterTemplateSelector {
         }
 
         return switch (filterId) {
-            case "gongju" -> registry.require(
+            case "gongju",
+                 "buyeo",
+                 "seosan",
+                 "yesan" -> registry.require(
                     ReelTemplateRegistry.GONGJU_V1
             );
             default -> throw new IllegalArgumentException(
