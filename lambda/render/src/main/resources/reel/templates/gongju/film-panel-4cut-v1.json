@@ -1,39 +1,25 @@
 {
-  "templateId": "gongju-film-panel-4cut-v1",
+  "templateId": "gongju-moving-film-strip-v3",
   "panelWidth": 1080,
   "panelHeight": 2276,
-  "photosPerPanel": 4,
-  "photoAspectRatio": "3:2",
-  "photoSlots": [
-    {
-      "x": 170,
-      "y": 76,
-      "width": 774,
-      "height": 516
-    },
-    {
-      "x": 170,
-      "y": 606,
-      "width": 774,
-      "height": 516
-    },
-    {
-      "x": 170,
-      "y": 1133,
-      "width": 774,
-      "height": 516
-    },
-    {
-      "x": 170,
-      "y": 1659,
-      "width": 774,
-      "height": 516
-    }
-  ],
-  "overlayImage": "chaerok_film_panel_4cut_v1.png",
+  "movingStrip": {
+    "width": 1080,
+    "photoX": 170,
+    "photoWidth": 774,
+    "photoHeight": 516,
+    "photoPitch": 534,
+    "photoGap": 18,
+    "topMargin": 76,
+    "bottomMargin": 81
+  },
+  "rail": {
+    "leftFrameNumber": true,
+    "leftVerticalLabel": "CHAEROK 400",
+    "rightTriangleMarker": true
+  },
   "notes": [
-    "All four photo slots are fully transparent (alpha 0).",
-    "Place each 3:2 photo behind the overlay at the matching slot coordinates.",
-    "The surrounding vintage film artwork remains opaque."
+    "The full film strip moves downward as one object.",
+    "Photos, separators, frame numbers, side labels and right markers move together.",
+    "The old PNG overlay remains only as a template resource and is not fixed over the video."
   ]
 }

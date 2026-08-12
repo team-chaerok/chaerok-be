@@ -1,26 +1,25 @@
 package com.chaerok.render.reel;
 
-import com.chaerok.render.media.MediaGenerationException;
 import com.chaerok.render.media.ReelRenderer;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.List;
 
 public final class FilmStripReelRenderer implements ReelRenderer {
 
     private final FilterTemplateSelector templateSelector;
-    private final FilmStripComposer filmStripComposer;
-    private final FfmpegFilmStripRenderer ffmpegRenderer;
+    private final PhotoStreamComposer photoStreamComposer;
+    private final FfmpegPhotoStreamRenderer ffmpegRenderer;
 
     public FilmStripReelRenderer(String ffmpegPath) {
-        ReelTemplateRegistry registry = new ReelTemplateRegistry();
-        this.templateSelector = new FilterTemplateSelector(registry);
-        this.filmStripComposer = new FilmStripComposer();
-        this.ffmpegRenderer = new FfmpegFilmStripRenderer(ffmpegPath);
+        ReelTemplateRegistry registry =
+                new ReelTemplateRegistry();
+        this.templateSelector =
+                new FilterTemplateSelector(registry);
+        this.photoStreamComposer =
+                new PhotoStreamComposer();
+        this.ffmpegRenderer =
+                new FfmpegPhotoStreamRenderer(ffmpegPath);
     }
 
     @Override
@@ -31,7 +30,7 @@ public final class FilmStripReelRenderer implements ReelRenderer {
     ) {
         throw new UnsupportedOperationException(
                 "filterId and ordered photo paths are required "
-                        + "for film strip reel rendering."
+                        + "for moving full film strip rendering."
         );
     }
 
@@ -52,58 +51,25 @@ public final class FilmStripReelRenderer implements ReelRenderer {
             );
         }
 
-        ReelTemplate template = templateSelector.select(filterId);
-        BufferedImage overlay = loadOverlay(template.overlayResource());
+        ReelTemplate template =
+                templateSelector.select(filterId);
 
-        Path filmStripPath = destination.resolveSibling(
+        Path streamPath = destination.resolveSibling(
                 destination.getFileName().toString()
-                        + ".film-strip.png"
+                        + ".moving-film-strip.png"
         );
 
-        FilmStrip filmStrip = filmStripComposer.compose(
-                List.copyOf(orderedPhotos),
-                template,
-                overlay,
-                filmStripPath
-        );
+        PhotoStream stream =
+                photoStreamComposer.compose(
+                        List.copyOf(orderedPhotos),
+                        template,
+                        streamPath
+                );
 
         ffmpegRenderer.render(
-                filmStrip,
+                stream,
                 template,
                 destination
         );
-    }
-
-    private BufferedImage loadOverlay(String resourcePath) {
-        ClassLoader classLoader = Thread.currentThread()
-                .getContextClassLoader();
-        if (classLoader == null) {
-            classLoader = FilmStripReelRenderer.class.getClassLoader();
-        }
-
-        try (InputStream input =
-                     classLoader.getResourceAsStream(resourcePath)) {
-            if (input == null) {
-                throw new MediaGenerationException(
-                        "Reel overlay resource was not found: "
-                                + resourcePath
-                );
-            }
-
-            BufferedImage overlay = ImageIO.read(input);
-            if (overlay == null) {
-                throw new MediaGenerationException(
-                        "Reel overlay resource is not a readable image: "
-                                + resourcePath
-                );
-            }
-            return overlay;
-        } catch (IOException exception) {
-            throw new MediaGenerationException(
-                    "Failed to load reel overlay resource: "
-                            + resourcePath,
-                    exception
-            );
-        }
     }
 }
