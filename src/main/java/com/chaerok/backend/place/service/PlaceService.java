@@ -11,11 +11,13 @@ import com.chaerok.backend.place.repository.PlaceRepository;
 import com.chaerok.backend.region.entity.Region;
 import com.chaerok.backend.region.repository.RegionRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -26,16 +28,33 @@ public class PlaceService {
     private final TourApiPlaceClient tourApiPlaceClient;
 
     public List<PlaceListResponse> getPlacesByRegion(Long regionId) {
-        if (!regionRepository.existsById(regionId)) {
-            throw new RegionNotFoundException();
+        long start = System.currentTimeMillis();
+
+        try {
+            if (!regionRepository.existsById(regionId)) {
+                throw new RegionNotFoundException();
+            }
+
+            List<Place> representativePlaces =
+                    placeRepository.findByRegionIdAndRepresentativeTrue(regionId);
+
+            log.info(
+                    "Place list representative count={}, regionId={}",
+                    representativePlaces.size(),
+                    regionId
+            );
+
+            return representativePlaces.stream()
+                    .map(this::toPlaceListResponseWithTourApi)
+                    .toList();
+
+        } finally {
+            log.info(
+                    "Place list elapsed={}ms, regionId={}",
+                    System.currentTimeMillis() - start,
+                    regionId
+            );
         }
-
-        List<Place> representativePlaces =
-                placeRepository.findByRegionIdAndRepresentativeTrue(regionId);
-
-        return representativePlaces.stream()
-                .map(this::toPlaceListResponseWithTourApi)
-                .toList();
     }
 
     public List<PlaceListResponse> getExternalPlaces(Long regionId) {
