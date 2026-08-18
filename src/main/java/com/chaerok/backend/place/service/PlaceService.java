@@ -28,30 +28,63 @@ public class PlaceService {
     private final TourApiPlaceClient tourApiPlaceClient;
 
     public List<PlaceListResponse> getPlacesByRegion(Long regionId) {
-        long start = System.currentTimeMillis();
+        long totalStart = System.currentTimeMillis();
 
         try {
+            long regionCheckStart = System.currentTimeMillis();
+
             if (!regionRepository.existsById(regionId)) {
                 throw new RegionNotFoundException();
             }
+
+            log.info(
+                    "Place list region check elapsed={}ms, regionId={}",
+                    System.currentTimeMillis() - regionCheckStart,
+                    regionId
+            );
+
+            long placeQueryStart = System.currentTimeMillis();
 
             List<Place> representativePlaces =
                     placeRepository.findByRegionIdAndRepresentativeTrue(regionId);
 
             log.info(
-                    "Place list representative count={}, regionId={}",
+                    "Place list DB query elapsed={}ms, representativeCount={}, regionId={}",
+                    System.currentTimeMillis() - placeQueryStart,
                     representativePlaces.size(),
                     regionId
             );
 
-            return representativePlaces.stream()
+            long tourApiTargetCount = representativePlaces.stream()
+                    .filter(place -> place.getTourContentId() != null)
+                    .filter(place -> !place.getTourContentId().isBlank())
+                    .count();
+
+            log.info(
+                    "Place list TourAPI target count={}, totalCount={}, regionId={}",
+                    tourApiTargetCount,
+                    representativePlaces.size(),
+                    regionId
+            );
+
+            long tourApiStart = System.currentTimeMillis();
+
+            List<PlaceListResponse> result = representativePlaces.stream()
                     .map(this::toPlaceListResponseWithTourApi)
                     .toList();
 
+            log.info(
+                    "Place list TourAPI total elapsed={}ms, regionId={}",
+                    System.currentTimeMillis() - tourApiStart,
+                    regionId
+            );
+
+            return result;
+
         } finally {
             log.info(
-                    "Place list elapsed={}ms, regionId={}",
-                    System.currentTimeMillis() - start,
+                    "Place list total elapsed={}ms, regionId={}",
+                    System.currentTimeMillis() - totalStart,
                     regionId
             );
         }
