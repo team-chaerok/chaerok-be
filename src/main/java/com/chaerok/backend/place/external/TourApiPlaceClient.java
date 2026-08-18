@@ -9,7 +9,11 @@ import org.springframework.web.reactive.function.client.WebClientRequestExceptio
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Component
@@ -19,7 +23,9 @@ public class TourApiPlaceClient {
     private static final String AREA_BASED_LIST_PATH = "/areaBasedList2";
     private static final String SEARCH_KEYWORD_PATH = "/searchKeyword2";
     private static final String DETAIL_COMMON_PATH = "/detailCommon2";
+
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
+    private static final int AREA_PAGE_SIZE = 50;
 
     private final WebClient tourApiWebClient;
 
@@ -31,24 +37,11 @@ public class TourApiPlaceClient {
             String lDongSignguCd
     ) {
         try {
-            TourApiPlaceResponse response = tourApiWebClient
-                    .get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path(AREA_BASED_LIST_PATH)
-                            .queryParam("serviceKey", serviceKey)
-                            .queryParam("MobileOS", "ETC")
-                            .queryParam("MobileApp", "Chaerok")
-                            .queryParam("_type", "json")
-                            .queryParam("numOfRows", 50)
-                            .queryParam("pageNo", 1)
-                            .queryParam("arrange", "A")
-                            .queryParam("lDongRegnCd", lDongRegnCd)
-                            .queryParam("lDongSignguCd", lDongSignguCd)
-                            .build())
-                    .retrieve()
-                    .bodyToMono(TourApiPlaceResponse.class)
-                    .timeout(REQUEST_TIMEOUT)
-                    .block();
+            TourApiPlaceResponse response = requestPlacesByRegionPage(
+                    lDongRegnCd,
+                    lDongSignguCd,
+                    1
+            );
 
             if (response == null) {
                 return List.of();
@@ -90,6 +83,119 @@ public class TourApiPlaceClient {
             );
             return List.of();
         }
+    }
+
+    public Map<String, TourApiPlaceItem> getPlacesByContentIds(
+            String lDongRegnCd,
+            String lDongSignguCd,
+            Set<String> targetContentIds
+    ) {
+        if (targetContentIds == null || targetContentIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<String, TourApiPlaceItem> matchedPlaces = new HashMap<>();
+        Set<String> remainingContentIds = new HashSet<>(targetContentIds);
+
+        int pageNo = 1;
+
+        try {
+            while (!remainingContentIds.isEmpty()) {
+                TourApiPlaceResponse response = requestPlacesByRegionPage(
+                        lDongRegnCd,
+                        lDongSignguCd,
+                        pageNo
+                );
+
+                if (response == null) {
+                    break;
+                }
+
+                if (!response.isSuccess()) {
+                    log.warn(
+                            "TourAPI areaBasedList2 failed while matching. pageNo={}, resultCode={}, resultMsg={}",
+                            pageNo,
+                            response.getResultCode(),
+                            response.getResultMsg()
+                    );
+                    break;
+                }
+
+                List<TourApiPlaceItem> items = response.getItems();
+
+                for (TourApiPlaceItem item : items) {
+                    if (item.contentId() == null) {
+                        continue;
+                    }
+
+                    if (remainingContentIds.remove(item.contentId())) {
+                        matchedPlaces.put(item.contentId(), item);
+                    }
+                }
+
+                if (remainingContentIds.isEmpty()) {
+                    break;
+                }
+
+                int totalCount = response.getTotalCount();
+
+                if (items.isEmpty() || totalCount <= pageNo * AREA_PAGE_SIZE) {
+                    break;
+                }
+
+                pageNo++;
+            }
+
+            return matchedPlaces;
+
+        } catch (WebClientResponseException e) {
+            log.warn(
+                    "TourAPI areaBasedList2 matching response error. status={}, body={}",
+                    e.getStatusCode(),
+                    e.getResponseBodyAsString()
+            );
+            return matchedPlaces;
+
+        } catch (WebClientRequestException e) {
+            log.warn(
+                    "TourAPI areaBasedList2 matching request error. message={}",
+                    e.getMessage()
+            );
+            return matchedPlaces;
+
+        } catch (RuntimeException e) {
+            log.error(
+                    "TourAPI areaBasedList2 matching unexpected error. message={}",
+                    e.getMessage(),
+                    e
+            );
+            return matchedPlaces;
+        }
+    }
+
+    private TourApiPlaceResponse requestPlacesByRegionPage(
+            String lDongRegnCd,
+            String lDongSignguCd,
+            int pageNo
+    ) {
+        return tourApiWebClient
+                .get()
+                .uri(uriBuilder -> uriBuilder
+                        .path(AREA_BASED_LIST_PATH)
+                        .queryParam("serviceKey", serviceKey)
+                        .queryParam("MobileOS", "ETC")
+                        .queryParam("MobileApp", "Chaerok")
+                        .queryParam("_type", "json")
+                        .queryParam("numOfRows", AREA_PAGE_SIZE)
+                        .queryParam("pageNo", pageNo)
+                        .queryParam("arrange", "A")
+                        .queryParam("lDongRegnCd", lDongRegnCd)
+                        .queryParam("lDongSignguCd", lDongSignguCd)
+                        .build())
+                .retrieve()
+                .bodyToMono(TourApiPlaceResponse.class)
+                .timeout(REQUEST_TIMEOUT)
+                .block();
     }
 
     public List<TourApiPlaceItem> searchPlacesByKeyword(

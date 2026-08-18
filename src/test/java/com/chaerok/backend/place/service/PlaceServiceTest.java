@@ -22,7 +22,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -65,60 +67,107 @@ class PlaceServiceTest {
         // given
         Long regionId = 1L;
 
-        when(regionRepository.existsById(regionId)).thenReturn(true);
-        when(placeRepository.findByRegionIdAndRepresentativeTrue(regionId)).thenReturn(List.of(place));
+        when(regionRepository.findById(regionId)).thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("150");
+
+        when(placeRepository.findByRegionIdAndRepresentativeTrue(regionId))
+                .thenReturn(List.of(place));
+
         mockPlaceForListResponse();
 
         TourApiPlaceItem tourApiItem = createTourApiPlaceItem();
-        when(tourApiPlaceClient.getPlaceDetail("1001")).thenReturn(tourApiItem);
+
+        when(tourApiPlaceClient.getPlacesByContentIds(
+                "44",
+                "150",
+                Set.of("1001")
+        )).thenReturn(Map.of(
+                "1001",
+                tourApiItem
+        ));
 
         // when
-        List<PlaceListResponse> responses = placeService.getPlacesByRegion(regionId);
+        List<PlaceListResponse> responses =
+                placeService.getPlacesByRegion(regionId);
 
         // then
         assertThat(responses).hasSize(1);
         assertThat(responses.get(0).id()).isEqualTo(1L);
         assertThat(responses.get(0).tourContentId()).isEqualTo("1001");
         assertThat(responses.get(0).title()).isEqualTo("TourAPI 공산성");
-        assertThat(responses.get(0).address()).isEqualTo("TourAPI 충청남도 공주시 웅진로 280");
-        assertThat(responses.get(0).latitude()).isEqualByComparingTo(new BigDecimal("36.4623000"));
-        assertThat(responses.get(0).longitude()).isEqualByComparingTo(new BigDecimal("127.1248000"));
-        assertThat(responses.get(0).firstImageUrl()).isEqualTo("https://tour-api.example.com/image.jpg");
-        assertThat(responses.get(0).categoryGroup()).isEqualTo(PlaceCategoryGroup.TOURISM);
-        assertThat(responses.get(0).categoryDetail()).isEqualTo(PlaceCategoryDetail.HERITAGE);
+        assertThat(responses.get(0).address())
+                .isEqualTo("TourAPI 충청남도 공주시 웅진로 280");
+        assertThat(responses.get(0).latitude())
+                .isEqualByComparingTo(new BigDecimal("36.4623000"));
+        assertThat(responses.get(0).longitude())
+                .isEqualByComparingTo(new BigDecimal("127.1248000"));
+        assertThat(responses.get(0).firstImageUrl())
+                .isEqualTo("https://tour-api.example.com/image.jpg");
+        assertThat(responses.get(0).categoryGroup())
+                .isEqualTo(PlaceCategoryGroup.TOURISM);
+        assertThat(responses.get(0).categoryDetail())
+                .isEqualTo(PlaceCategoryDetail.HERITAGE);
 
-        verify(regionRepository).existsById(regionId);
-        verify(placeRepository).findByRegionIdAndRepresentativeTrue(regionId);
-        verify(tourApiPlaceClient).getPlaceDetail("1001");
+        verify(regionRepository).findById(regionId);
+        verify(placeRepository)
+                .findByRegionIdAndRepresentativeTrue(regionId);
+
+        verify(tourApiPlaceClient).getPlacesByContentIds(
+                "44",
+                "150",
+                Set.of("1001")
+        );
     }
 
     @Test
-    @DisplayName("TourAPI 상세 조회 결과가 없으면 DB 장소 정보로 대표 장소 목록을 반환한다")
+    @DisplayName("TourAPI 매칭 결과가 없으면 DB 장소 정보로 대표 장소 목록을 반환한다")
     void getPlacesByRegionWithTourApiFallback() {
         // given
         Long regionId = 1L;
 
-        when(regionRepository.existsById(regionId)).thenReturn(true);
-        when(placeRepository.findByRegionIdAndRepresentativeTrue(regionId)).thenReturn(List.of(place));
+        when(regionRepository.findById(regionId)).thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("150");
+
+        when(placeRepository.findByRegionIdAndRepresentativeTrue(regionId))
+                .thenReturn(List.of(place));
+
         mockPlaceForListResponse();
-        when(tourApiPlaceClient.getPlaceDetail("1001")).thenReturn(null);
+
+        when(tourApiPlaceClient.getPlacesByContentIds(
+                "44",
+                "150",
+                Set.of("1001")
+        )).thenReturn(Map.of());
 
         // when
-        List<PlaceListResponse> responses = placeService.getPlacesByRegion(regionId);
+        List<PlaceListResponse> responses =
+                placeService.getPlacesByRegion(regionId);
 
         // then
         assertThat(responses).hasSize(1);
         assertThat(responses.get(0).id()).isEqualTo(1L);
         assertThat(responses.get(0).tourContentId()).isEqualTo("1001");
         assertThat(responses.get(0).title()).isEqualTo("공산성");
-        assertThat(responses.get(0).address()).isEqualTo("충청남도 공주시 웅진로 280");
-        assertThat(responses.get(0).firstImageUrl()).isEqualTo("https://example.com/image.jpg");
-        assertThat(responses.get(0).categoryGroup()).isEqualTo(PlaceCategoryGroup.TOURISM);
-        assertThat(responses.get(0).categoryDetail()).isEqualTo(PlaceCategoryDetail.HERITAGE);
+        assertThat(responses.get(0).address())
+                .isEqualTo("충청남도 공주시 웅진로 280");
+        assertThat(responses.get(0).firstImageUrl())
+                .isEqualTo("https://example.com/image.jpg");
+        assertThat(responses.get(0).categoryGroup())
+                .isEqualTo(PlaceCategoryGroup.TOURISM);
+        assertThat(responses.get(0).categoryDetail())
+                .isEqualTo(PlaceCategoryDetail.HERITAGE);
 
-        verify(regionRepository).existsById(regionId);
-        verify(placeRepository).findByRegionIdAndRepresentativeTrue(regionId);
-        verify(tourApiPlaceClient).getPlaceDetail("1001");
+        verify(regionRepository).findById(regionId);
+        verify(placeRepository)
+                .findByRegionIdAndRepresentativeTrue(regionId);
+
+        verify(tourApiPlaceClient).getPlacesByContentIds(
+                "44",
+                "150",
+                Set.of("1001")
+        );
     }
 
     @Test
@@ -127,14 +176,15 @@ class PlaceServiceTest {
         // given
         Long regionId = 999L;
 
-        when(regionRepository.existsById(regionId)).thenReturn(false);
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> placeService.getPlacesByRegion(regionId))
                 .isInstanceOf(RegionNotFoundException.class)
                 .hasMessage("지역을 찾을 수 없습니다.");
 
-        verify(regionRepository).existsById(regionId);
+        verify(regionRepository).findById(regionId);
         verifyNoInteractions(placeRepository);
         verifyNoInteractions(tourApiPlaceClient);
     }
@@ -145,26 +195,37 @@ class PlaceServiceTest {
         // given
         Long placeId = 1L;
 
-        when(placeRepository.findById(placeId)).thenReturn(Optional.of(place));
+        when(placeRepository.findById(placeId))
+                .thenReturn(Optional.of(place));
+
         mockPlaceForDetailResponse();
 
         TourApiPlaceItem tourApiItem = createTourApiPlaceItem();
-        when(tourApiPlaceClient.getPlaceDetail("1001")).thenReturn(tourApiItem);
+
+        when(tourApiPlaceClient.getPlaceDetail("1001"))
+                .thenReturn(tourApiItem);
 
         // when
-        PlaceDetailResponse response = placeService.getPlace(placeId);
+        PlaceDetailResponse response =
+                placeService.getPlace(placeId);
 
         // then
         assertThat(response.id()).isEqualTo(1L);
         assertThat(response.regionId()).isEqualTo(1L);
         assertThat(response.tourContentId()).isEqualTo("1001");
         assertThat(response.title()).isEqualTo("TourAPI 공산성");
-        assertThat(response.address()).isEqualTo("TourAPI 충청남도 공주시 웅진로 280");
-        assertThat(response.firstImageUrl()).isEqualTo("https://tour-api.example.com/image.jpg");
-        assertThat(response.overview()).isEqualTo("TourAPI 공산성 소개 문구입니다.");
-        assertThat(response.categoryGroup()).isEqualTo(PlaceCategoryGroup.TOURISM);
-        assertThat(response.categoryDetail()).isEqualTo(PlaceCategoryDetail.HERITAGE);
-        assertThat(response.source()).isEqualTo(PlaceSource.TOUR_API);
+        assertThat(response.address())
+                .isEqualTo("TourAPI 충청남도 공주시 웅진로 280");
+        assertThat(response.firstImageUrl())
+                .isEqualTo("https://tour-api.example.com/image.jpg");
+        assertThat(response.overview())
+                .isEqualTo("TourAPI 공산성 소개 문구입니다.");
+        assertThat(response.categoryGroup())
+                .isEqualTo(PlaceCategoryGroup.TOURISM);
+        assertThat(response.categoryDetail())
+                .isEqualTo(PlaceCategoryDetail.HERITAGE);
+        assertThat(response.source())
+                .isEqualTo(PlaceSource.TOUR_API);
         assertThat(response.isRepresentative()).isFalse();
 
         verify(placeRepository).findById(placeId);
@@ -177,23 +238,32 @@ class PlaceServiceTest {
         // given
         Long placeId = 1L;
 
-        when(placeRepository.findById(placeId)).thenReturn(Optional.of(place));
+        when(placeRepository.findById(placeId))
+                .thenReturn(Optional.of(place));
+
         mockPlaceForDetailResponse();
-        when(tourApiPlaceClient.getPlaceDetail("1001")).thenReturn(null);
+
+        when(tourApiPlaceClient.getPlaceDetail("1001"))
+                .thenReturn(null);
 
         // when
-        PlaceDetailResponse response = placeService.getPlace(placeId);
+        PlaceDetailResponse response =
+                placeService.getPlace(placeId);
 
         // then
         assertThat(response.id()).isEqualTo(1L);
         assertThat(response.regionId()).isEqualTo(1L);
         assertThat(response.tourContentId()).isEqualTo("1001");
         assertThat(response.title()).isEqualTo("공산성");
-        assertThat(response.address()).isEqualTo("충청남도 공주시 웅진로 280");
+        assertThat(response.address())
+                .isEqualTo("충청남도 공주시 웅진로 280");
         assertThat(response.overview()).isNull();
-        assertThat(response.categoryGroup()).isEqualTo(PlaceCategoryGroup.TOURISM);
-        assertThat(response.categoryDetail()).isEqualTo(PlaceCategoryDetail.HERITAGE);
-        assertThat(response.source()).isEqualTo(PlaceSource.TOUR_API);
+        assertThat(response.categoryGroup())
+                .isEqualTo(PlaceCategoryGroup.TOURISM);
+        assertThat(response.categoryDetail())
+                .isEqualTo(PlaceCategoryDetail.HERITAGE);
+        assertThat(response.source())
+                .isEqualTo(PlaceSource.TOUR_API);
         assertThat(response.isRepresentative()).isFalse();
 
         verify(placeRepository).findById(placeId);
@@ -206,7 +276,8 @@ class PlaceServiceTest {
         // given
         Long placeId = 999L;
 
-        when(placeRepository.findById(placeId)).thenReturn(Optional.empty());
+        when(placeRepository.findById(placeId))
+                .thenReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> placeService.getPlace(placeId))
@@ -217,16 +288,40 @@ class PlaceServiceTest {
         verifyNoInteractions(tourApiPlaceClient);
     }
 
+    @Test
+    @DisplayName("존재하지 않는 regionId로 추가 추천 장소를 조회하면 예외가 발생한다")
+    void getExternalPlacesWithInvalidRegion() {
+        // given
+        Long regionId = 999L;
+
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> placeService.getExternalPlaces(regionId))
+                .isInstanceOf(RegionNotFoundException.class)
+                .hasMessage("지역을 찾을 수 없습니다.");
+
+        verify(regionRepository).findById(regionId);
+        verifyNoInteractions(tourApiPlaceClient);
+    }
+
     private void mockPlaceForListResponse() {
         when(place.getId()).thenReturn(1L);
         when(place.getTourContentId()).thenReturn("1001");
         when(place.getTitle()).thenReturn("공산성");
-        when(place.getAddress()).thenReturn("충청남도 공주시 웅진로 280");
-        when(place.getLatitude()).thenReturn(new BigDecimal("36.4623000"));
-        when(place.getLongitude()).thenReturn(new BigDecimal("127.1248000"));
-        when(place.getFirstImageUrl()).thenReturn("https://example.com/image.jpg");
-        when(place.getCategoryGroup()).thenReturn(PlaceCategoryGroup.TOURISM);
-        when(place.getCategoryDetail()).thenReturn(PlaceCategoryDetail.HERITAGE);
+        when(place.getAddress())
+                .thenReturn("충청남도 공주시 웅진로 280");
+        when(place.getLatitude())
+                .thenReturn(new BigDecimal("36.4623000"));
+        when(place.getLongitude())
+                .thenReturn(new BigDecimal("127.1248000"));
+        when(place.getFirstImageUrl())
+                .thenReturn("https://example.com/image.jpg");
+        when(place.getCategoryGroup())
+                .thenReturn(PlaceCategoryGroup.TOURISM);
+        when(place.getCategoryDetail())
+                .thenReturn(PlaceCategoryDetail.HERITAGE);
         when(place.isRepresentative()).thenReturn(false);
     }
 
@@ -259,22 +354,5 @@ class PlaceServiceTest {
                 "HS010100",
                 "TourAPI 공산성 소개 문구입니다."
         );
-    }
-
-    @Test
-    @DisplayName("존재하지 않는 regionId로 추가 추천 장소를 조회하면 예외가 발생한다")
-    void getExternalPlacesWithInvalidRegion() {
-        // given
-        Long regionId = 999L;
-
-        when(regionRepository.findById(regionId)).thenReturn(Optional.empty());
-
-        // when & then
-        assertThatThrownBy(() -> placeService.getExternalPlaces(regionId))
-                .isInstanceOf(RegionNotFoundException.class)
-                .hasMessage("지역을 찾을 수 없습니다.");
-
-        verify(regionRepository).findById(regionId);
-        verifyNoInteractions(tourApiPlaceClient);
     }
 }

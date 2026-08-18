@@ -15,6 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,15 +29,29 @@ public class PlaceService {
     private final TourApiPlaceClient tourApiPlaceClient;
 
     public List<PlaceListResponse> getPlacesByRegion(Long regionId) {
-        if (!regionRepository.existsById(regionId)) {
-            throw new RegionNotFoundException();
-        }
+        Region region = regionRepository.findById(regionId)
+                .orElseThrow(RegionNotFoundException::new);
 
         List<Place> representativePlaces =
                 placeRepository.findByRegionIdAndRepresentativeTrue(regionId);
 
+        Set<String> targetContentIds = representativePlaces.stream()
+                .map(Place::getTourContentId)
+                .filter(contentId -> contentId != null && !contentId.isBlank())
+                .collect(Collectors.toSet());
+
+        Map<String, TourApiPlaceItem> tourApiPlaces =
+                tourApiPlaceClient.getPlacesByContentIds(
+                        region.getLdongRegnCd(),
+                        region.getLdongSignguCd(),
+                        targetContentIds
+                );
+
         return representativePlaces.stream()
-                .map(this::toPlaceListResponseWithTourApi)
+                .map(place -> toPlaceListResponse(
+                        place,
+                        tourApiPlaces.get(place.getTourContentId())
+                ))
                 .toList();
     }
 
@@ -50,9 +67,10 @@ public class PlaceService {
                 .toList();
     }
 
-    private PlaceListResponse toPlaceListResponseWithTourApi(Place place) {
-        TourApiPlaceItem tourApiItem = tourApiPlaceClient.getPlaceDetail(place.getTourContentId());
-
+    private PlaceListResponse toPlaceListResponse(
+            Place place,
+            TourApiPlaceItem tourApiItem
+    ) {
         if (tourApiItem == null) {
             return PlaceListResponse.from(place);
         }
@@ -64,7 +82,8 @@ public class PlaceService {
         Place place = placeRepository.findById(placeId)
                 .orElseThrow(PlaceNotFoundException::new);
 
-        TourApiPlaceItem tourApiItem = tourApiPlaceClient.getPlaceDetail(place.getTourContentId());
+        TourApiPlaceItem tourApiItem =
+                tourApiPlaceClient.getPlaceDetail(place.getTourContentId());
 
         if (tourApiItem == null) {
             return PlaceDetailResponse.from(place);
