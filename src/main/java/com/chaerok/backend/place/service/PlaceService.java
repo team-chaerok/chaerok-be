@@ -11,7 +11,6 @@ import com.chaerok.backend.place.repository.PlaceRepository;
 import com.chaerok.backend.region.entity.Region;
 import com.chaerok.backend.region.repository.RegionRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,7 +19,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -31,75 +29,30 @@ public class PlaceService {
     private final TourApiPlaceClient tourApiPlaceClient;
 
     public List<PlaceListResponse> getPlacesByRegion(Long regionId) {
-        long totalStart = System.currentTimeMillis();
+        Region region = regionRepository.findById(regionId)
+                .orElseThrow(RegionNotFoundException::new);
 
-        try {
-            long regionStart = System.currentTimeMillis();
+        List<Place> representativePlaces =
+                placeRepository.findByRegionIdAndRepresentativeTrue(regionId);
 
-            Region region = regionRepository.findById(regionId)
-                    .orElseThrow(RegionNotFoundException::new);
+        Set<String> targetContentIds = representativePlaces.stream()
+                .map(Place::getTourContentId)
+                .filter(contentId -> contentId != null && !contentId.isBlank())
+                .collect(Collectors.toSet());
 
-            log.info(
-                    "Place list region query elapsed={}ms, regionId={}",
-                    System.currentTimeMillis() - regionStart,
-                    regionId
-            );
+        Map<String, TourApiPlaceItem> tourApiPlaces =
+                tourApiPlaceClient.getPlacesByContentIds(
+                        region.getLdongRegnCd(),
+                        region.getLdongSignguCd(),
+                        targetContentIds
+                );
 
-            long placeQueryStart = System.currentTimeMillis();
-
-            List<Place> representativePlaces =
-                    placeRepository.findByRegionIdAndRepresentativeTrue(regionId);
-
-            log.info(
-                    "Place list DB query elapsed={}ms, representativeCount={}, regionId={}",
-                    System.currentTimeMillis() - placeQueryStart,
-                    representativePlaces.size(),
-                    regionId
-            );
-
-            Set<String> targetContentIds = representativePlaces.stream()
-                    .map(Place::getTourContentId)
-                    .filter(contentId -> contentId != null && !contentId.isBlank())
-                    .collect(Collectors.toSet());
-
-            log.info(
-                    "Place list TourAPI target count={}, totalCount={}, regionId={}",
-                    targetContentIds.size(),
-                    representativePlaces.size(),
-                    regionId
-            );
-
-            long tourApiStart = System.currentTimeMillis();
-
-            Map<String, TourApiPlaceItem> tourApiPlaces =
-                    tourApiPlaceClient.getPlacesByContentIds(
-                            region.getLdongRegnCd(),
-                            region.getLdongSignguCd(),
-                            targetContentIds
-                    );
-
-            log.info(
-                    "Place list TourAPI matching elapsed={}ms, targetCount={}, matchedCount={}, regionId={}",
-                    System.currentTimeMillis() - tourApiStart,
-                    targetContentIds.size(),
-                    tourApiPlaces.size(),
-                    regionId
-            );
-
-            return representativePlaces.stream()
-                    .map(place -> toPlaceListResponse(
-                            place,
-                            tourApiPlaces.get(place.getTourContentId())
-                    ))
-                    .toList();
-
-        } finally {
-            log.info(
-                    "Place list total elapsed={}ms, regionId={}",
-                    System.currentTimeMillis() - totalStart,
-                    regionId
-            );
-        }
+        return representativePlaces.stream()
+                .map(place -> toPlaceListResponse(
+                        place,
+                        tourApiPlaces.get(place.getTourContentId())
+                ))
+                .toList();
     }
 
     public List<PlaceListResponse> getExternalPlaces(Long regionId) {

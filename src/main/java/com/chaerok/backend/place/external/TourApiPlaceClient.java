@@ -25,7 +25,6 @@ public class TourApiPlaceClient {
     private static final String DETAIL_COMMON_PATH = "/detailCommon2";
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
-
     private static final int AREA_PAGE_SIZE = 50;
 
     private final WebClient tourApiWebClient;
@@ -95,8 +94,6 @@ public class TourApiPlaceClient {
             return Map.of();
         }
 
-        long start = System.currentTimeMillis();
-
         Map<String, TourApiPlaceItem> matchedPlaces = new HashMap<>();
         Set<String> remainingContentIds = new HashSet<>(targetContentIds);
 
@@ -104,8 +101,6 @@ public class TourApiPlaceClient {
 
         try {
             while (!remainingContentIds.isEmpty()) {
-                long pageStart = System.currentTimeMillis();
-
                 TourApiPlaceResponse response = requestPlacesByRegionPage(
                         lDongRegnCd,
                         lDongSignguCd,
@@ -137,14 +132,6 @@ public class TourApiPlaceClient {
                         matchedPlaces.put(item.contentId(), item);
                     }
                 }
-
-                log.info(
-                        "TourAPI areaBasedList2 page elapsed={}ms, pageNo={}, matchedCount={}, remainingCount={}",
-                        System.currentTimeMillis() - pageStart,
-                        pageNo,
-                        matchedPlaces.size(),
-                        remainingContentIds.size()
-                );
 
                 if (remainingContentIds.isEmpty()) {
                     break;
@@ -183,15 +170,6 @@ public class TourApiPlaceClient {
                     e
             );
             return matchedPlaces;
-
-        } finally {
-            log.info(
-                    "TourAPI representative matching elapsed={}ms, targetCount={}, matchedCount={}, pages={}",
-                    System.currentTimeMillis() - start,
-                    targetContentIds.size(),
-                    matchedPlaces.size(),
-                    pageNo
-            );
         }
     }
 
