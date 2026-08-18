@@ -173,6 +173,8 @@ public class TourApiPlaceClient {
             return null;
         }
 
+        long start = System.currentTimeMillis();
+
         try {
             TourApiPlaceResponse response = tourApiWebClient
                     .get()
@@ -234,6 +236,13 @@ public class TourApiPlaceClient {
                     e
             );
             return null;
+
+        } finally {
+            log.info(
+                    "TourAPI detailCommon2 elapsed={}ms, contentId={}",
+                    System.currentTimeMillis() - start,
+                    contentId
+            );
         }
     }
 }
