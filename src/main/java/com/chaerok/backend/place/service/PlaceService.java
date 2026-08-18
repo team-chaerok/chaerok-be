@@ -16,6 +16,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -31,15 +34,14 @@ public class PlaceService {
         long totalStart = System.currentTimeMillis();
 
         try {
-            long regionCheckStart = System.currentTimeMillis();
+            long regionStart = System.currentTimeMillis();
 
-            if (!regionRepository.existsById(regionId)) {
-                throw new RegionNotFoundException();
-            }
+            Region region = regionRepository.findById(regionId)
+                    .orElseThrow(RegionNotFoundException::new);
 
             log.info(
-                    "Place list region check elapsed={}ms, regionId={}",
-                    System.currentTimeMillis() - regionCheckStart,
+                    "Place list region query elapsed={}ms, regionId={}",
+                    System.currentTimeMillis() - regionStart,
                     regionId
             );
 
@@ -55,31 +57,41 @@ public class PlaceService {
                     regionId
             );
 
-            long tourApiTargetCount = representativePlaces.stream()
-                    .filter(place -> place.getTourContentId() != null)
-                    .filter(place -> !place.getTourContentId().isBlank())
-                    .count();
+            Set<String> targetContentIds = representativePlaces.stream()
+                    .map(Place::getTourContentId)
+                    .filter(contentId -> contentId != null && !contentId.isBlank())
+                    .collect(Collectors.toSet());
 
             log.info(
                     "Place list TourAPI target count={}, totalCount={}, regionId={}",
-                    tourApiTargetCount,
+                    targetContentIds.size(),
                     representativePlaces.size(),
                     regionId
             );
 
             long tourApiStart = System.currentTimeMillis();
 
-            List<PlaceListResponse> result = representativePlaces.stream()
-                    .map(this::toPlaceListResponseWithTourApi)
-                    .toList();
+            Map<String, TourApiPlaceItem> tourApiPlaces =
+                    tourApiPlaceClient.getPlacesByContentIds(
+                            region.getLdongRegnCd(),
+                            region.getLdongSignguCd(),
+                            targetContentIds
+                    );
 
             log.info(
-                    "Place list TourAPI total elapsed={}ms, regionId={}",
+                    "Place list TourAPI matching elapsed={}ms, targetCount={}, matchedCount={}, regionId={}",
                     System.currentTimeMillis() - tourApiStart,
+                    targetContentIds.size(),
+                    tourApiPlaces.size(),
                     regionId
             );
 
-            return result;
+            return representativePlaces.stream()
+                    .map(place -> toPlaceListResponse(
+                            place,
+                            tourApiPlaces.get(place.getTourContentId())
+                    ))
+                    .toList();
 
         } finally {
             log.info(
@@ -102,9 +114,10 @@ public class PlaceService {
                 .toList();
     }
 
-    private PlaceListResponse toPlaceListResponseWithTourApi(Place place) {
-        TourApiPlaceItem tourApiItem = tourApiPlaceClient.getPlaceDetail(place.getTourContentId());
-
+    private PlaceListResponse toPlaceListResponse(
+            Place place,
+            TourApiPlaceItem tourApiItem
+    ) {
         if (tourApiItem == null) {
             return PlaceListResponse.from(place);
         }
@@ -116,7 +129,8 @@ public class PlaceService {
         Place place = placeRepository.findById(placeId)
                 .orElseThrow(PlaceNotFoundException::new);
 
-        TourApiPlaceItem tourApiItem = tourApiPlaceClient.getPlaceDetail(place.getTourContentId());
+        TourApiPlaceItem tourApiItem =
+                tourApiPlaceClient.getPlaceDetail(place.getTourContentId());
 
         if (tourApiItem == null) {
             return PlaceDetailResponse.from(place);

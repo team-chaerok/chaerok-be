@@ -45,6 +45,16 @@ public record TourApiPlaceResponse(
         return response.header().resultMsg();
     }
 
+    public int getTotalCount() {
+        if (response == null
+                || response.body() == null
+                || response.body().totalCount() == null) {
+            return 0;
+        }
+
+        return response.body().totalCount();
+    }
+
     public record Response(
             @JsonProperty("header")
             Header header,
