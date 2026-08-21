@@ -149,6 +149,38 @@ public class Photo {
         clearError();
     }
 
+    public void markProcessingFromResult() {
+        if (status != PhotoStatus.UPLOADED
+                && status != PhotoStatus.PROCESSING) {
+            throw new IllegalStateException(
+                    "현재 사진 상태에는 처리 시작 결과를 적용할 수 없습니다. status="
+                            + status
+            );
+        }
+
+        this.status = PhotoStatus.PROCESSING;
+        clearError();
+    }
+
+    public void resetAfterRenderFailure() {
+        if (status == PhotoStatus.UPLOADED) {
+            clearProcessingResult();
+            clearError();
+            return;
+        }
+
+        if (status != PhotoStatus.PROCESSING) {
+            throw new IllegalStateException(
+                    "현재 사진 상태에는 렌더링 실패 복구를 적용할 수 없습니다. status="
+                            + status
+            );
+        }
+
+        this.status = PhotoStatus.UPLOADED;
+        clearProcessingResult();
+        clearError();
+    }
+
     public void complete(
             String filteredObjectKey,
             LocalDateTime processedAt
@@ -218,6 +250,11 @@ public class Photo {
                             + status
             );
         }
+    }
+
+    private void clearProcessingResult() {
+        this.filteredObjectKey = null;
+        this.processedAt = null;
     }
 
     private void clearError() {

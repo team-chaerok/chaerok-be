@@ -29,6 +29,7 @@ public record RenderResultMessage(
         String errorMessage
 ) {
     public static final int CURRENT_SCHEMA_VERSION = 1;
+    public static final String EVENT_STARTED = "CHAEROK_RENDER_STARTED";
     public static final String EVENT_COMPLETED = "CHAEROK_RENDER_COMPLETED";
     public static final String EVENT_FAILED = "CHAEROK_RENDER_FAILED";
 
@@ -36,6 +37,11 @@ public record RenderResultMessage(
         filteredPhotos = filteredPhotos == null
                 ? List.of()
                 : List.copyOf(filteredPhotos);
+    }
+
+    @JsonIgnore
+    public boolean isStarted() {
+        return EVENT_STARTED.equals(eventType);
     }
 
     @JsonIgnore

@@ -139,27 +139,44 @@ public class RenderHandler
         );
         int attempt = receiveCount(record);
 
-        RenderOutput output;
-
         try {
             validator.validate(message);
-
-            log(
-                    context,
-                    "Render started: messageId="
-                            + record.getMessageId()
-                            + ", renderJobId="
-                            + message.renderJobId()
-                            + ", filmRollId="
-                            + message.filmRollId()
-                            + ", photoCount="
-                            + message.photos().size()
-                            + ", filterId="
-                            + message.filterId()
-                            + ", attempt="
-                            + attempt
+        } catch (Exception exception) {
+            handleRenderFailure(
+                    message,
+                    record.getMessageId(),
+                    attempt,
+                    exception,
+                    context
             );
+            return;
+        }
 
+        publishStarted(
+                message,
+                record.getMessageId(),
+                attempt,
+                context
+        );
+
+        log(
+                context,
+                "Render started: messageId="
+                        + record.getMessageId()
+                        + ", renderJobId="
+                        + message.renderJobId()
+                        + ", filmRollId="
+                        + message.filmRollId()
+                        + ", photoCount="
+                        + message.photos().size()
+                        + ", filterId="
+                        + message.filterId()
+                        + ", attempt="
+                        + attempt
+        );
+
+        RenderOutput output;
+        try {
             output = renderPipeline.execute(
                     message,
                     detail -> log(
@@ -203,6 +220,32 @@ public class RenderHandler
                         + output.manifestObjectKey()
                         + ", resultMessageId="
                         + resultMessageId
+        );
+    }
+
+    private void publishStarted(
+            RenderQueueMessage message,
+            String requestMessageId,
+            int attempt,
+            Context context
+    ) {
+        RenderResultMessage started = RenderResultMessage.started(
+                message,
+                requestMessageId,
+                attempt,
+                Instant.now(clock)
+        );
+
+        String resultMessageId = resultPublisher.publish(started);
+
+        log(
+                context,
+                "PROCESSING result published: renderJobId="
+                        + message.renderJobId()
+                        + ", resultMessageId="
+                        + resultMessageId
+                        + ", attempt="
+                        + started.attempt()
         );
     }
 

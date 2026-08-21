@@ -232,6 +232,20 @@ public class FilmRoll {
         status = FilmRollStatus.PROCESSING;
     }
 
+    public void markProcessingFromResult() {
+        if (status != FilmRollStatus.READY
+                && status != FilmRollStatus.QUEUED
+                && status != FilmRollStatus.PROCESSING) {
+            throw new IllegalStateException(
+                    "현재 필름 롤 상태에는 처리 시작 결과를 적용할 수 없습니다. status="
+                            + status
+            );
+        }
+
+        status = FilmRollStatus.PROCESSING;
+        clearError();
+    }
+
     public void updateProcessedPhotoCount(int processedPhotoCount) {
         requireStatus(FilmRollStatus.PROCESSING);
 

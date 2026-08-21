@@ -79,6 +79,14 @@ public class RenderResultProcessor {
             return RenderResultProcessingOutcome.STALE_IGNORED;
         }
 
+        if (message.isStarted()) {
+            return applyStarted(
+                    message,
+                    renderJob,
+                    filmRoll
+            );
+        }
+
         if (message.isCompleted()) {
             List<Photo> photos = photoRepository
                     .findAllByFilmRollIdOrderBySequenceAscForUpdate(
@@ -100,6 +108,61 @@ public class RenderResultProcessor {
                 renderJob,
                 filmRoll
         );
+    }
+
+    private RenderResultProcessingOutcome applyStarted(
+            RenderResultMessage message,
+            RenderJob renderJob,
+            FilmRoll filmRoll
+    ) {
+        LocalDateTime occurredAt =
+                toApplicationDateTime(message);
+
+        boolean renderCompleted =
+                renderJob.getStatus() == RenderJobStatus.COMPLETED;
+        boolean renderFailed =
+                renderJob.getStatus() == RenderJobStatus.FAILED;
+        boolean filmRollCompleted =
+                filmRoll.getStatus() == FilmRollStatus.COMPLETED
+                        || filmRoll.getStatus() == FilmRollStatus.EXPIRED;
+        boolean filmRollFailed =
+                filmRoll.getStatus() == FilmRollStatus.FAILED;
+
+        if (renderCompleted || renderFailed
+                || filmRollCompleted || filmRollFailed) {
+            boolean completedPair = renderCompleted && filmRollCompleted;
+            boolean failedPair = renderFailed && filmRollFailed;
+
+            if (!completedPair && !failedPair) {
+                throw conflict(
+                        "렌더링 작업과 필름 롤의 종료 상태가 일치하지 않습니다."
+                );
+            }
+
+            renderJob.markProcessingFromResult(
+                    message.attempt(),
+                    message.requestMessageId(),
+                    occurredAt
+            );
+            return RenderResultProcessingOutcome.APPLIED;
+        }
+
+        List<Photo> photos = photoRepository
+                .findAllByFilmRollIdOrderBySequenceAscForUpdate(
+                        message.filmRollId()
+                );
+
+        validateProcessingPhotos(filmRoll, photos);
+
+        renderJob.markProcessingFromResult(
+                message.attempt(),
+                message.requestMessageId(),
+                occurredAt
+        );
+        filmRoll.markProcessingFromResult();
+        photos.forEach(Photo::markProcessingFromResult);
+
+        return RenderResultProcessingOutcome.APPLIED;
     }
 
     private RenderResultProcessingOutcome applyCompleted(
@@ -199,6 +262,13 @@ public class RenderResultProcessor {
             return RenderResultProcessingOutcome.DUPLICATE;
         }
 
+        List<Photo> photos = photoRepository
+                .findAllByFilmRollIdOrderBySequenceAscForUpdate(
+                        message.filmRollId()
+                );
+        validateFailureResetPhotos(filmRoll, photos);
+        photos.forEach(Photo::resetAfterRenderFailure);
+
         LocalDateTime occurredAt =
                 toApplicationDateTime(message);
 
@@ -252,6 +322,38 @@ public class RenderResultProcessor {
 
         if (!message.bucket().equals(awsProperties.getS3().getBucket())) {
             throw conflict("메시지의 S3 버킷이 서버 설정과 다릅니다.");
+        }
+    }
+
+    private void validateProcessingPhotos(
+            FilmRoll filmRoll,
+            List<Photo> photos
+    ) {
+        if (photos.size() != filmRoll.getTotalPhotoCount()) {
+            throw conflict("처리 시작 사진 수가 필름 롤의 사진 수와 다릅니다.");
+        }
+
+        for (Photo photo : photos) {
+            if (photo.getStatus() != PhotoStatus.UPLOADED
+                    && photo.getStatus() != PhotoStatus.PROCESSING) {
+                throw conflict("현재 사진 상태에는 처리를 시작할 수 없습니다.");
+            }
+        }
+    }
+
+    private void validateFailureResetPhotos(
+            FilmRoll filmRoll,
+            List<Photo> photos
+    ) {
+        if (photos.size() != filmRoll.getTotalPhotoCount()) {
+            throw conflict("실패 복구 사진 수가 필름 롤의 사진 수와 다릅니다.");
+        }
+
+        for (Photo photo : photos) {
+            if (photo.getStatus() != PhotoStatus.UPLOADED
+                    && photo.getStatus() != PhotoStatus.PROCESSING) {
+                throw conflict("현재 사진 상태에는 렌더링 실패 복구를 적용할 수 없습니다.");
+            }
         }
     }
 

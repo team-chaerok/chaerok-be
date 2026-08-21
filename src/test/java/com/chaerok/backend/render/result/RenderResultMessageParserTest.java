@@ -33,6 +33,39 @@ class RenderResultMessageParserTest {
     }
 
     @Test
+    @DisplayName("Lambda 처리 시작 결과 JSON을 파싱하고 검증한다")
+    void parseStartedMessage() throws Exception {
+        RenderResultMessage expected = new RenderResultMessage(
+                1,
+                RenderResultMessage.EVENT_STARTED,
+                "request-1",
+                UUID.randomUUID(),
+                2L,
+                3L,
+                1L,
+                "bucket",
+                "PROCESSING",
+                2,
+                false,
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                Instant.parse("2026-08-05T03:40:00Z"),
+                null,
+                null
+        );
+
+        String body = objectMapper.writeValueAsString(expected);
+        RenderResultMessage actual = parser.parse(body);
+
+        assertThat(actual).isEqualTo(expected);
+        assertThat(actual.isStarted()).isTrue();
+    }
+
+    @Test
     @DisplayName("완료 이벤트의 사진 ID가 중복되면 거부한다")
     void rejectDuplicatedPhotoId() {
         UUID renderJobId = UUID.randomUUID();

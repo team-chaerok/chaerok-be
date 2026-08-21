@@ -117,6 +117,33 @@ class PhotoTest {
     }
 
     @Test
+    @DisplayName("처리 시작 결과는 업로드 완료 사진을 PROCESSING으로 바꾸고 중복 적용할 수 있다")
+    void markProcessingFromResultIsIdempotent() {
+        Photo photo = createPhoto(1);
+        photo.markUploaded(LocalDateTime.now());
+
+        photo.markProcessingFromResult();
+        photo.markProcessingFromResult();
+
+        assertThat(photo.getStatus())
+                .isEqualTo(PhotoStatus.PROCESSING);
+    }
+
+    @Test
+    @DisplayName("렌더링 최종 실패 후 사진은 원본 업로드 완료 상태로 복구한다")
+    void resetAfterRenderFailureForRetry() {
+        Photo photo = createPhoto(1);
+        photo.markUploaded(LocalDateTime.now());
+        photo.markProcessingFromResult();
+
+        photo.resetAfterRenderFailure();
+
+        assertThat(photo.getStatus()).isEqualTo(PhotoStatus.UPLOADED);
+        assertThat(photo.getFilteredObjectKey()).isNull();
+        assertThat(photo.getProcessedAt()).isNull();
+    }
+
+    @Test
     @DisplayName("완료된 사진은 만료 상태로 전환할 수 있다")
     void expireCompletedPhoto() {
         Photo photo = createPhoto(1);

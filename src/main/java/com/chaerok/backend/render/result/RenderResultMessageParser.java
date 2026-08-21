@@ -62,6 +62,11 @@ public class RenderResultMessageParser {
             throw invalid("attempt는 1 이상이어야 합니다.");
         }
 
+        if (message.isStarted()) {
+            validateStarted(message);
+            return;
+        }
+
         if (message.isCompleted()) {
             validateCompleted(message);
             return;
@@ -73,6 +78,30 @@ public class RenderResultMessageParser {
         }
 
         throw invalid("지원하지 않는 eventType입니다.");
+    }
+
+    private void validateStarted(RenderResultMessage message) {
+        if (!"PROCESSING".equals(message.status())) {
+            throw invalid("시작 이벤트의 status는 PROCESSING이어야 합니다.");
+        }
+
+        if (message.retryable()) {
+            throw invalid("시작 이벤트는 retryable일 수 없습니다.");
+        }
+
+        if (!message.filteredPhotos().isEmpty()
+                || message.zipObjectKey() != null
+                || message.zipFileSize() != null
+                || message.reelObjectKey() != null
+                || message.reelFileSize() != null
+                || message.manifestObjectKey() != null) {
+            throw invalid("시작 이벤트에는 완료 결과 경로가 없어야 합니다.");
+        }
+
+        if (message.errorCode() != null
+                || message.errorMessage() != null) {
+            throw invalid("시작 이벤트에는 오류 정보가 없어야 합니다.");
+        }
     }
 
     private void validateCompleted(RenderResultMessage message) {

@@ -150,6 +150,20 @@ class FilmRollTest {
     }
 
     @Test
+    @DisplayName("처리 시작 결과는 READY에서도 PROCESSING을 반영하고 중복 적용할 수 있다")
+    void markProcessingFromResultIsRaceSafeAndIdempotent() {
+        FilmRoll filmRoll = newFilmRoll();
+        filmRoll.increasePhotoCount();
+        filmRoll.markReady();
+
+        filmRoll.markProcessingFromResult();
+        filmRoll.markProcessingFromResult();
+
+        assertThat(filmRoll.getStatus())
+                .isEqualTo(FilmRollStatus.PROCESSING);
+    }
+
+    @Test
     @DisplayName("처리 완료 사진 수는 전체 사진 수를 넘을 수 없다")
     void processedPhotoCountCannotExceedTotalCount() {
         FilmRoll filmRoll = newFilmRoll();

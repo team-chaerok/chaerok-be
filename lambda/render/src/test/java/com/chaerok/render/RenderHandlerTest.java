@@ -89,8 +89,20 @@ class RenderHandlerTest {
                                 + "\"2026-08-04T13:00:00Z\""
                 );
 
-        assertThat(publisher.messages()).hasSize(1);
-        RenderResultMessage result = publisher.messages().get(0);
+        assertThat(publisher.messages()).hasSize(2);
+        RenderResultMessage started = messageByEvent(
+                publisher.messages(),
+                RenderResultMessage.EVENT_STARTED
+        );
+        assertThat(started.status()).isEqualTo("PROCESSING");
+        assertThat(started.requestMessageId()).isEqualTo("message-1");
+        assertThat(started.attempt()).isEqualTo(2);
+        assertThat(started.occurredAt()).isEqualTo(FIXED_NOW);
+
+        RenderResultMessage result = messageByEvent(
+                publisher.messages(),
+                RenderResultMessage.EVENT_COMPLETED
+        );
         assertThat(result.eventType())
                 .isEqualTo(RenderResultMessage.EVENT_COMPLETED);
         assertThat(result.status()).isEqualTo("COMPLETED");
@@ -121,7 +133,10 @@ class RenderHandlerTest {
         assertThat(response.getBatchItemFailures()).isEmpty();
 
         assertThat(publisher.messages()).hasSize(1);
-        RenderResultMessage result = publisher.messages().get(0);
+        RenderResultMessage result = messageByEvent(
+                publisher.messages(),
+                RenderResultMessage.EVENT_FAILED
+        );
         assertThat(result.eventType())
                 .isEqualTo(RenderResultMessage.EVENT_FAILED);
         assertThat(result.status()).isEqualTo("FAILED");
@@ -152,9 +167,12 @@ class RenderHandlerTest {
         );
 
         assertThat(response.getBatchItemFailures()).isEmpty();
-        assertThat(publisher.messages()).hasSize(1);
+        assertThat(publisher.messages()).hasSize(2);
 
-        RenderResultMessage result = publisher.messages().get(0);
+        RenderResultMessage result = messageByEvent(
+                publisher.messages(),
+                RenderResultMessage.EVENT_FAILED
+        );
         assertThat(result.errorCode()).isEqualTo("PHOTO_INVALID_IMAGE");
         assertThat(result.retryable()).isFalse();
         assertThat(result.errorMessage())
@@ -181,9 +199,12 @@ class RenderHandlerTest {
         );
 
         assertThat(response.getBatchItemFailures()).isEmpty();
-        assertThat(publisher.messages()).hasSize(1);
+        assertThat(publisher.messages()).hasSize(2);
 
-        RenderResultMessage result = publisher.messages().get(0);
+        RenderResultMessage result = messageByEvent(
+                publisher.messages(),
+                RenderResultMessage.EVENT_FAILED
+        );
         assertThat(result.errorCode()).isEqualTo("PHOTO_TOO_LARGE");
         assertThat(result.errorMessage())
                 .contains("width=5000")
@@ -214,9 +235,12 @@ class RenderHandlerTest {
         );
 
         assertThat(response.getBatchItemFailures()).isEmpty();
-        assertThat(publisher.messages()).hasSize(1);
+        assertThat(publisher.messages()).hasSize(2);
 
-        RenderResultMessage result = publisher.messages().get(0);
+        RenderResultMessage result = messageByEvent(
+                publisher.messages(),
+                RenderResultMessage.EVENT_FAILED
+        );
         assertThat(result.errorCode()).isEqualTo("PHOTO_FILTER_FAILED");
         assertThat(result.retryable()).isFalse();
         assertThat(result.errorMessage())
@@ -245,9 +269,11 @@ class RenderHandlerTest {
         );
 
         assertThat(response.getBatchItemFailures()).isEmpty();
-        assertThat(publisher.messages()).hasSize(1);
-        assertThat(publisher.messages().get(0).errorCode())
-                .isEqualTo("MANIFEST_INVALID");
+        assertThat(publisher.messages()).hasSize(2);
+        assertThat(messageByEvent(
+                publisher.messages(),
+                RenderResultMessage.EVENT_FAILED
+        ).errorCode()).isEqualTo("MANIFEST_INVALID");
     }
 
     @Test
@@ -271,7 +297,9 @@ class RenderHandlerTest {
                                 ::getItemIdentifier
                 )
                 .containsExactly("message-missing-input");
-        assertThat(publisher.messages()).isEmpty();
+        assertThat(publisher.messages()).hasSize(1);
+        assertThat(publisher.messages().get(0).eventType())
+                .isEqualTo(RenderResultMessage.EVENT_STARTED);
     }
 
     @Test
@@ -296,8 +324,11 @@ class RenderHandlerTest {
                 )
                 .containsExactly("message-final-failure");
 
-        assertThat(publisher.messages()).hasSize(1);
-        RenderResultMessage result = publisher.messages().get(0);
+        assertThat(publisher.messages()).hasSize(2);
+        RenderResultMessage result = messageByEvent(
+                publisher.messages(),
+                RenderResultMessage.EVENT_FAILED
+        );
         assertThat(result.status()).isEqualTo("FAILED");
         assertThat(result.retryable()).isFalse();
         assertThat(result.attempt()).isEqualTo(3);
@@ -343,9 +374,11 @@ class RenderHandlerTest {
                                 ::getItemIdentifier
                 )
                 .containsExactly("message-reel-fail");
-        assertThat(publisher.messages()).hasSize(1);
-        assertThat(publisher.messages().get(0).errorCode())
-                .isEqualTo("REEL_GENERATION_FAILED");
+        assertThat(publisher.messages()).hasSize(2);
+        assertThat(messageByEvent(
+                publisher.messages(),
+                RenderResultMessage.EVENT_FAILED
+        ).errorCode()).isEqualTo("REEL_GENERATION_FAILED");
     }
 
     @Test
@@ -372,9 +405,40 @@ class RenderHandlerTest {
                                 ::getItemIdentifier
                 )
                 .containsExactly("message-zip-upload-fail");
+        assertThat(publisher.messages()).hasSize(2);
+        assertThat(messageByEvent(
+                publisher.messages(),
+                RenderResultMessage.EVENT_FAILED
+        ).errorCode()).isEqualTo("ZIP_UPLOAD_FAILED");
+    }
+
+    @Test
+    @DisplayName("PROCESSING 결과 발행 실패 시 렌더링을 시작하지 않고 요청을 재시도한다")
+    void retriesBeforeRenderingWhenStartedPublishFails() throws Exception {
+        InMemoryObjectStorage storage = new InMemoryObjectStorage();
+        storage.put(
+                "users/6/rolls/2/original/photo.jpg",
+                createJpeg()
+        );
+        CapturingResultPublisher publisher =
+                new CapturingResultPublisher(true);
+        RenderHandler handler = createHandler(storage, publisher);
+
+        SQSBatchResponse response = handler.handleRequest(
+                event("message-start-publish-fail", validBody(), "1"),
+                new TestContext()
+        );
+
+        assertThat(response.getBatchItemFailures())
+                .extracting(
+                        SQSBatchResponse.BatchItemFailure
+                                ::getItemIdentifier
+                )
+                .containsExactly("message-start-publish-fail");
         assertThat(publisher.messages()).hasSize(1);
-        assertThat(publisher.messages().get(0).errorCode())
-                .isEqualTo("ZIP_UPLOAD_FAILED");
+        assertThat(publisher.messages().get(0).eventType())
+                .isEqualTo(RenderResultMessage.EVENT_STARTED);
+        assertThat(storage.uploadCount()).isZero();
     }
 
     @Test
@@ -386,8 +450,8 @@ class RenderHandlerTest {
                 "users/6/rolls/2/original/photo.jpg",
                 createJpeg()
         );
-        CapturingResultPublisher publisher =
-                new CapturingResultPublisher(true);
+        FailCompletedResultPublisher publisher =
+                new FailCompletedResultPublisher();
         RenderHandler handler = createHandler(storage, publisher);
 
         SQSBatchResponse response = handler.handleRequest(
@@ -401,9 +465,11 @@ class RenderHandlerTest {
                                 ::getItemIdentifier
                 )
                 .containsExactly("message-publish-fail");
-        assertThat(publisher.messages()).hasSize(1);
-        assertThat(publisher.messages().get(0).status())
-                .isEqualTo("COMPLETED");
+        assertThat(publisher.messages()).hasSize(2);
+        assertThat(messageByEvent(
+                publisher.messages(),
+                RenderResultMessage.EVENT_COMPLETED
+        ).status()).isEqualTo("COMPLETED");
     }
 
     @Test
@@ -435,9 +501,19 @@ class RenderHandlerTest {
         assertThat(uploadsAfterFirstAttempt).isEqualTo(4);
         assertThat(storage.uploadCount())
                 .isEqualTo(uploadsAfterFirstAttempt);
-        assertThat(publisher.messages()).hasSize(2);
-        assertThat(publisher.messages())
-                .allMatch(message -> "COMPLETED".equals(message.status()));
+        assertThat(publisher.messages()).hasSize(4);
+        assertThat(publisher.messages().stream()
+                .filter(message -> RenderResultMessage.EVENT_STARTED.equals(
+                        message.eventType()
+                ))
+                .toList())
+                .hasSize(2);
+        assertThat(publisher.messages().stream()
+                .filter(message -> RenderResultMessage.EVENT_COMPLETED.equals(
+                        message.eventType()
+                ))
+                .toList())
+                .hasSize(2);
     }
 
     @Test
@@ -461,6 +537,18 @@ class RenderHandlerTest {
 
         assertThat(response.getBatchItemFailures()).hasSize(1);
         assertThat(publisher.messages()).isEmpty();
+    }
+
+    private RenderResultMessage messageByEvent(
+            List<RenderResultMessage> messages,
+            String eventType
+    ) {
+        return messages.stream()
+                .filter(message -> eventType.equals(message.eventType()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "Missing result event: " + eventType
+                ));
     }
 
     private RenderHandler createHandler(
@@ -670,6 +758,30 @@ class RenderHandlerTest {
         }
     }
 
+    private static final class FailCompletedResultPublisher
+            implements RenderResultPublisher {
+
+        private final List<RenderResultMessage> messages =
+                new ArrayList<>();
+
+        @Override
+        public String publish(RenderResultMessage message) {
+            messages.add(message);
+            if (RenderResultMessage.EVENT_COMPLETED.equals(
+                    message.eventType()
+            )) {
+                throw new IllegalStateException(
+                        "fake completed result publish failure"
+                );
+            }
+            return "result-message-started";
+        }
+
+        List<RenderResultMessage> messages() {
+            return List.copyOf(messages);
+        }
+    }
+
     private static final class FailOnceResultPublisher
             implements RenderResultPublisher {
 
@@ -680,10 +792,12 @@ class RenderHandlerTest {
         @Override
         public String publish(RenderResultMessage message) {
             messages.add(message);
-            if (!failedOnce) {
+            if (RenderResultMessage.EVENT_COMPLETED.equals(
+                    message.eventType()
+            ) && !failedOnce) {
                 failedOnce = true;
                 throw new IllegalStateException(
-                        "fake first result publish failure"
+                        "fake first completed result publish failure"
                 );
             }
             return "result-message-success";

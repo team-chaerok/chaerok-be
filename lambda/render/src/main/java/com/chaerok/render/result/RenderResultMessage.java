@@ -32,6 +32,8 @@ public record RenderResultMessage(
 ) {
 
     public static final int CURRENT_SCHEMA_VERSION = 1;
+    public static final String EVENT_STARTED =
+            "CHAEROK_RENDER_STARTED";
     public static final String EVENT_COMPLETED =
             "CHAEROK_RENDER_COMPLETED";
     public static final String EVENT_FAILED =
@@ -41,6 +43,36 @@ public record RenderResultMessage(
         filteredPhotos = filteredPhotos == null
                 ? List.of()
                 : List.copyOf(filteredPhotos);
+    }
+
+    public static RenderResultMessage started(
+            RenderQueueMessage request,
+            String requestMessageId,
+            int attempt,
+            Instant occurredAt
+    ) {
+        return new RenderResultMessage(
+                CURRENT_SCHEMA_VERSION,
+                EVENT_STARTED,
+                requestMessageId,
+                request.renderJobId(),
+                request.filmRollId(),
+                request.userId(),
+                request.regionId(),
+                request.bucket(),
+                "PROCESSING",
+                normalizeAttempt(attempt),
+                false,
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                occurredAt,
+                null,
+                null
+        );
     }
 
     public static RenderResultMessage completed(
