@@ -75,6 +75,42 @@ class RenderJobStateServiceTest {
     }
 
     @Test
+    @DisplayName("PROCESSING 결과가 큐 상태 기록보다 먼저 도착해도 QUEUED로 되돌리지 않는다")
+    void keepProcessingStateWhenStartedResultArrivesFirst() {
+        UUID renderJobId = UUID.randomUUID();
+        RenderQueuePublishResult publishResult =
+                new RenderQueuePublishResult("request-message");
+
+        when(renderJobRepository.findByIdForUpdate(renderJobId))
+                .thenReturn(Optional.of(renderJob));
+        when(filmRollRepository.findByIdAndUserIdForUpdate(2L, 3L))
+                .thenReturn(Optional.of(filmRoll));
+        when(renderJob.getStatus())
+                .thenReturn(RenderJobStatus.PROCESSING);
+        when(filmRoll.getStatus())
+                .thenReturn(FilmRollStatus.PROCESSING);
+        when(renderJob.getFilmRoll()).thenReturn(filmRoll);
+        when(filmRoll.getId()).thenReturn(2L);
+
+        RenderJobStateService service = new RenderJobStateService(
+                renderJobRepository,
+                filmRollRepository
+        );
+
+        RenderRequestResponse response = service.markQueued(
+                renderJobId,
+                2L,
+                3L,
+                publishResult
+        );
+
+        assertThat(response.renderJobStatus()).isEqualTo("PROCESSING");
+        assertThat(response.filmRollStatus()).isEqualTo("PROCESSING");
+        verify(renderJob, never()).markQueued(any());
+        verify(filmRoll, never()).markQueued(any());
+    }
+
+    @Test
     @DisplayName("결과가 이미 반영된 작업에는 뒤늦은 큐 실패 상태를 덮어쓰지 않는다")
     void doNotOverwriteCompletedJobWithQueueFailure() {
         UUID renderJobId = UUID.randomUUID();

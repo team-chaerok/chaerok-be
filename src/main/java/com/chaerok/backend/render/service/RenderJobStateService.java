@@ -54,9 +54,9 @@ public class RenderJobStateService {
                 )
                 .orElseThrow(FilmRollNotFoundException::new);
 
-        if (isTerminal(renderJob, filmRoll)) {
+        if (isAlreadyAdvanced(renderJob, filmRoll)) {
             log.info(
-                    "큐 전송 성공 기록 전에 결과가 먼저 반영됨: renderJobId={}, renderJobStatus={}, filmRollStatus={}",
+                    "큐 전송 성공 기록 전에 처리 상태가 먼저 반영됨: renderJobId={}, renderJobStatus={}, filmRollStatus={}",
                     renderJobId,
                     renderJob.getStatus(),
                     filmRoll.getStatus()
@@ -112,10 +112,14 @@ public class RenderJobStateService {
                 });
     }
 
-    private boolean isTerminal(
+    private boolean isAlreadyAdvanced(
             RenderJob renderJob,
             FilmRoll filmRoll
     ) {
+        boolean bothProcessing =
+                renderJob.getStatus() == RenderJobStatus.PROCESSING
+                        && filmRoll.getStatus() == FilmRollStatus.PROCESSING;
+
         boolean renderTerminal =
                 renderJob.getStatus() == RenderJobStatus.COMPLETED
                         || renderJob.getStatus() == RenderJobStatus.FAILED;
@@ -125,7 +129,7 @@ public class RenderJobStateService {
                         || filmRoll.getStatus() == FilmRollStatus.FAILED
                         || filmRoll.getStatus() == FilmRollStatus.EXPIRED;
 
-        return renderTerminal && filmRollTerminal;
+        return bothProcessing || (renderTerminal && filmRollTerminal);
     }
 
     private String summarize(RuntimeException cause) {

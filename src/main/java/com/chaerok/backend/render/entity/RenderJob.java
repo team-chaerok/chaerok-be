@@ -151,6 +151,47 @@ public class RenderJob {
         clearError();
     }
 
+    public void markProcessingFromResult(
+            int attempt,
+            String requestMessageId,
+            LocalDateTime startedAt
+    ) {
+        if (status != RenderJobStatus.CREATED
+                && status != RenderJobStatus.QUEUED
+                && status != RenderJobStatus.PROCESSING
+                && status != RenderJobStatus.QUEUE_FAILED
+                && status != RenderJobStatus.COMPLETED
+                && status != RenderJobStatus.FAILED) {
+            throw new IllegalStateException(
+                    "현재 렌더링 작업 상태에는 처리 시작 결과를 적용할 수 없습니다. status="
+                            + status
+            );
+        }
+
+        requirePositiveAttempt(attempt);
+        requireText(requestMessageId, "요청 메시지 ID");
+
+        if (startedAt == null) {
+            throw new IllegalArgumentException(
+                    "작업 시작 시각은 필수입니다."
+            );
+        }
+
+        this.attemptCount = Math.max(this.attemptCount, attempt);
+        this.requestMessageId = requestMessageId;
+
+        if (this.startedAt == null
+                || startedAt.isBefore(this.startedAt)) {
+            this.startedAt = startedAt;
+        }
+
+        if (status != RenderJobStatus.COMPLETED
+                && status != RenderJobStatus.FAILED) {
+            this.status = RenderJobStatus.PROCESSING;
+            clearError();
+        }
+    }
+
     public void complete(LocalDateTime completedAt) {
         requireStatus(RenderJobStatus.PROCESSING);
 

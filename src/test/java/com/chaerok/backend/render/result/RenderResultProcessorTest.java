@@ -136,16 +136,20 @@ class RenderResultProcessorTest {
     }
 
     @Test
-    @DisplayName("최종 실패 결과는 원본 사진 업로드 상태를 유지하고 작업과 필름 롤만 실패 처리한다")
-    void applyFailedResultWithoutChangingPhotos() {
+    @DisplayName("최종 실패 결과는 PROCESSING 사진을 업로드 완료 상태로 복구하고 재시도 가능하게 만든다")
+    void applyFailedResultResetsProcessingPhotos() {
         RenderResultMessage message = failedMessage();
         LocalDateTime occurredAt = LocalDateTime.ofInstant(
                 message.occurredAt(),
                 ZoneId.of("Asia/Seoul")
         );
 
-        when(renderJob.getStatus()).thenReturn(RenderJobStatus.CREATED);
-        when(filmRoll.getStatus()).thenReturn(FilmRollStatus.READY);
+        when(renderJob.getStatus()).thenReturn(RenderJobStatus.PROCESSING);
+        when(filmRoll.getStatus()).thenReturn(FilmRollStatus.PROCESSING);
+        when(filmRoll.getTotalPhotoCount()).thenReturn(1);
+        when(photoRepository.findAllByFilmRollIdOrderBySequenceAscForUpdate(2L))
+                .thenReturn(List.of(photo));
+        when(photo.getStatus()).thenReturn(PhotoStatus.PROCESSING);
 
         RenderResultProcessingOutcome outcome = processor.process(
                 message,
@@ -154,6 +158,7 @@ class RenderResultProcessorTest {
 
         assertThat(outcome).isEqualTo(RenderResultProcessingOutcome.APPLIED);
 
+        verify(photo).resetAfterRenderFailure();
         verify(filmRoll).failFromResult(
                 "MEDIA_GENERATION_FAILED",
                 "FFmpeg failed"
@@ -167,6 +172,63 @@ class RenderResultProcessorTest {
                 "FFmpeg failed",
                 occurredAt
         );
+    }
+
+    @Test
+    @DisplayName("처리 시작 결과는 RenderJob, FilmRoll, Photo를 PROCESSING으로 함께 전환한다")
+    void applyStartedResult() {
+        RenderResultMessage message = startedMessage(2);
+        LocalDateTime occurredAt = LocalDateTime.ofInstant(
+                message.occurredAt(),
+                ZoneId.of("Asia/Seoul")
+        );
+
+        when(renderJob.getStatus()).thenReturn(RenderJobStatus.QUEUED);
+        when(filmRoll.getStatus()).thenReturn(FilmRollStatus.QUEUED);
+        when(filmRoll.getTotalPhotoCount()).thenReturn(1);
+        when(photoRepository.findAllByFilmRollIdOrderBySequenceAscForUpdate(2L))
+                .thenReturn(List.of(photo));
+        when(photo.getStatus()).thenReturn(PhotoStatus.UPLOADED);
+
+        RenderResultProcessingOutcome outcome = processor.process(
+                message,
+                "started-result-message"
+        );
+
+        assertThat(outcome).isEqualTo(RenderResultProcessingOutcome.APPLIED);
+        verify(renderJob).markProcessingFromResult(
+                2,
+                "request-1",
+                occurredAt
+        );
+        verify(filmRoll).markProcessingFromResult();
+        verify(photo).markProcessingFromResult();
+    }
+
+    @Test
+    @DisplayName("완료 뒤 늦게 도착한 처리 시작 결과는 상태를 되돌리지 않고 RenderJob 시작 시각만 보완한다")
+    void applyLateStartedResultAfterCompletion() {
+        RenderResultMessage message = startedMessage(1);
+        LocalDateTime occurredAt = LocalDateTime.ofInstant(
+                message.occurredAt(),
+                ZoneId.of("Asia/Seoul")
+        );
+
+        when(renderJob.getStatus()).thenReturn(RenderJobStatus.COMPLETED);
+        when(filmRoll.getStatus()).thenReturn(FilmRollStatus.COMPLETED);
+
+        RenderResultProcessingOutcome outcome = processor.process(
+                message,
+                "late-started-result-message"
+        );
+
+        assertThat(outcome).isEqualTo(RenderResultProcessingOutcome.APPLIED);
+        verify(renderJob).markProcessingFromResult(
+                1,
+                "request-1",
+                occurredAt
+        );
+        verify(filmRoll, never()).markProcessingFromResult();
         verifyNoInteractions(photoRepository);
     }
 
@@ -264,6 +326,31 @@ class RenderResultProcessorTest {
                 any()
         );
         verify(filmRoll, never()).failFromResult(any(), any());
+    }
+
+    private RenderResultMessage startedMessage(int attempt) {
+        return new RenderResultMessage(
+                1,
+                RenderResultMessage.EVENT_STARTED,
+                "request-1",
+                renderJobId,
+                2L,
+                3L,
+                1L,
+                "bucket",
+                "PROCESSING",
+                attempt,
+                false,
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                Instant.parse("2026-08-05T03:40:00Z"),
+                null,
+                null
+        );
     }
 
     private RenderResultMessage completedMessage() {

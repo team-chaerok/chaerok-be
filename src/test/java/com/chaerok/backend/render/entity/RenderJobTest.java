@@ -95,6 +95,67 @@ class RenderJobTest {
     }
 
     @Test
+    @DisplayName("처리 시작 결과는 큐 상태 기록보다 먼저 도착해도 PROCESSING을 반영한다")
+    void startFromResultBeforeQueuedStateIsRecorded() {
+        RenderJob renderJob = RenderJob.create(filmRoll);
+        LocalDateTime firstStartedAt =
+                LocalDateTime.of(2026, 8, 12, 20, 10);
+        LocalDateTime earlierStartedAt =
+                firstStartedAt.minusSeconds(5);
+
+        renderJob.markProcessingFromResult(
+                2,
+                "request-message",
+                firstStartedAt
+        );
+        renderJob.markProcessingFromResult(
+                1,
+                "request-message",
+                earlierStartedAt
+        );
+
+        assertThat(renderJob.getStatus())
+                .isEqualTo(RenderJobStatus.PROCESSING);
+        assertThat(renderJob.getAttemptCount()).isEqualTo(2);
+        assertThat(renderJob.getRequestMessageId())
+                .isEqualTo("request-message");
+        assertThat(renderJob.getStartedAt()).isEqualTo(earlierStartedAt);
+    }
+
+    @Test
+    @DisplayName("늦은 처리 시작 결과는 완료 상태를 되돌리지 않고 시작 시각만 보완한다")
+    void lateStartedResultDoesNotRegressCompletedJob() {
+        RenderJob renderJob = RenderJob.create(filmRoll);
+        LocalDateTime completedAt =
+                LocalDateTime.of(2026, 8, 12, 20, 20);
+        LocalDateTime startedAt = completedAt.minusMinutes(2);
+
+        renderJob.completeFromResult(
+                1,
+                "request-message",
+                "result-message",
+                "bucket",
+                "result.zip",
+                100L,
+                "result.mp4",
+                200L,
+                "manifest.json",
+                completedAt
+        );
+
+        renderJob.markProcessingFromResult(
+                1,
+                "request-message",
+                startedAt
+        );
+
+        assertThat(renderJob.getStatus())
+                .isEqualTo(RenderJobStatus.COMPLETED);
+        assertThat(renderJob.getStartedAt()).isEqualTo(startedAt);
+        assertThat(renderJob.getCompletedAt()).isEqualTo(completedAt);
+    }
+
+    @Test
     @DisplayName("처리 중 작업을 실패 처리하면 실패 정보가 저장된다")
     void failProcessingJob() {
         RenderJob renderJob = RenderJob.create(filmRoll);
