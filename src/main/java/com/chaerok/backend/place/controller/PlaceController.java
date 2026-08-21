@@ -47,7 +47,10 @@ public class PlaceController {
     }
 
     @GetMapping("/external")
-    @Operation(summary = "TourAPI 기반 지역 장소 조회", description = "regionId를 기준으로 TourAPI에서 해당 지역의 장소 목록을 실시간 조회한다. 조회 결과는 DB에 저장하지 않는다.")
+    @Operation(
+            summary = "지역 추가 장소 조회",
+            description = "TourAPI를 우선 조회하고, 음식점·카페가 부족하면 Kakao Local API로 보완한다."
+    )
     public ResponseEntity<List<PlaceListResponse>> getExternalPlaces(
             @RequestParam Long regionId
     ) {

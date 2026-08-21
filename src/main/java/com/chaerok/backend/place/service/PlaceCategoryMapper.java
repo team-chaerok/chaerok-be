@@ -6,7 +6,6 @@ import com.chaerok.backend.place.entity.PlaceCategoryGroup;
 public class PlaceCategoryMapper {
 
     private static final String CAFE_CODE = "FD05";
-    private static final String MARKET_CODE = "SH06";
 
     private static final String KAKAO_FOOD_CODE = "FD6";
     private static final String KAKAO_CAFE_CODE = "CE7";
@@ -14,7 +13,26 @@ public class PlaceCategoryMapper {
     private PlaceCategoryMapper() {
     }
 
-    public static PlaceCategoryGroup toGroup(String lclsSystm1, String lclsSystm3) {
+    public static boolean isSupportedTourApiCategory(
+            String lclsSystm1,
+            String lclsSystm3
+    ) {
+        String code = resolveCode(lclsSystm1, lclsSystm3);
+
+        if (code == null) {
+            return false;
+        }
+
+        return isTourism(code)
+                || isMarket(code)
+                || isFood(code)
+                || isCafe(code);
+    }
+
+    public static PlaceCategoryGroup toGroup(
+            String lclsSystm1,
+            String lclsSystm3
+    ) {
         String code = resolveCode(lclsSystm1, lclsSystm3);
 
         if (code == null) {
@@ -32,11 +50,18 @@ public class PlaceCategoryMapper {
         return PlaceCategoryGroup.TOURISM;
     }
 
-    public static PlaceCategoryDetail toDetail(String lclsSystm1, String lclsSystm3) {
+    public static PlaceCategoryDetail toDetail(
+            String lclsSystm1,
+            String lclsSystm3
+    ) {
         String code = resolveCode(lclsSystm1, lclsSystm3);
 
         if (code == null) {
             return null;
+        }
+
+        if (isMarket(code)) {
+            return PlaceCategoryDetail.MARKET;
         }
 
         if (isCafe(code)) {
@@ -55,10 +80,6 @@ public class PlaceCategoryMapper {
             return PlaceCategoryDetail.NATURE;
         }
 
-        if (isMarket(code)) {
-            return PlaceCategoryDetail.MARKET;
-        }
-
         if (code.startsWith("VE")) {
             return PlaceCategoryDetail.MUSEUM;
         }
@@ -66,7 +87,10 @@ public class PlaceCategoryMapper {
         return PlaceCategoryDetail.EXPERIENCE;
     }
 
-    public static PlaceCategoryGroup toGroupFromKakao(String categoryGroupCode, String categoryName) {
+    public static PlaceCategoryGroup toGroupFromKakao(
+            String categoryGroupCode,
+            String categoryName
+    ) {
         if (isKakaoCafe(categoryGroupCode, categoryName)) {
             return PlaceCategoryGroup.CAFE_DESSERT;
         }
@@ -78,7 +102,10 @@ public class PlaceCategoryMapper {
         return PlaceCategoryGroup.TOURISM;
     }
 
-    public static PlaceCategoryDetail toDetailFromKakao(String categoryGroupCode, String categoryName) {
+    public static PlaceCategoryDetail toDetailFromKakao(
+            String categoryGroupCode,
+            String categoryName
+    ) {
         String name = normalize(categoryName);
 
         if (containsAny(name, "문구", "생활용품", "인테리어", "소품", "잡화", "공방")) {
@@ -120,7 +147,10 @@ public class PlaceCategoryMapper {
         return PlaceCategoryDetail.EXPERIENCE;
     }
 
-    private static String resolveCode(String lclsSystm1, String lclsSystm3) {
+    private static String resolveCode(
+            String lclsSystm1,
+            String lclsSystm3
+    ) {
         if (lclsSystm3 != null && !lclsSystm3.isBlank()) {
             return lclsSystm3;
         }
@@ -132,26 +162,60 @@ public class PlaceCategoryMapper {
         return null;
     }
 
+    private static boolean isMarket(String code) {
+        return code.startsWith("SH06");
+    }
+
+    private static boolean isTourism(String code) {
+        return code.startsWith("EX")
+                || code.startsWith("EV")
+                || code.startsWith("HS")
+                || code.startsWith("LS")
+                || code.startsWith("NA")
+                || code.startsWith("VE");
+    }
+
     private static boolean isCafe(String code) {
         return code.startsWith(CAFE_CODE);
     }
 
     private static boolean isFood(String code) {
-        return code.startsWith("FD") && !isCafe(code);
+        return code.startsWith("FD01")
+                || code.startsWith("FD02")
+                || code.startsWith("FD03")
+                || code.startsWith("FD04");
     }
 
-    private static boolean isMarket(String code) {
-        return code.startsWith(MARKET_CODE);
-    }
-
-    private static boolean isKakaoCafe(String categoryGroupCode, String categoryName) {
+    private static boolean isKakaoCafe(
+            String categoryGroupCode,
+            String categoryName
+    ) {
         return KAKAO_CAFE_CODE.equals(categoryGroupCode)
-                || containsAny(normalize(categoryName), "카페", "커피", "디저트", "베이커리", "찻집");
+                || containsAny(
+                normalize(categoryName),
+                "카페",
+                "커피",
+                "디저트",
+                "베이커리",
+                "찻집"
+        );
     }
 
-    private static boolean isKakaoFood(String categoryGroupCode, String categoryName) {
+    private static boolean isKakaoFood(
+            String categoryGroupCode,
+            String categoryName
+    ) {
         return KAKAO_FOOD_CODE.equals(categoryGroupCode)
-                || containsAny(normalize(categoryName), "음식점", "한식", "중식", "일식", "양식", "분식", "식당");
+                || containsAny(
+                normalize(categoryName),
+                "음식점",
+                "한식",
+                "중식",
+                "일식",
+                "양식",
+                "분식",
+                "식당"
+        );
     }
 
     private static String normalize(String value) {
@@ -162,7 +226,10 @@ public class PlaceCategoryMapper {
         return value.trim();
     }
 
-    private static boolean containsAny(String value, String... keywords) {
+    private static boolean containsAny(
+            String value,
+            String... keywords
+    ) {
         for (String keyword : keywords) {
             if (value.contains(keyword)) {
                 return true;

@@ -9,11 +9,7 @@ import org.springframework.web.reactive.function.client.WebClientRequestExceptio
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 @Slf4j
 @Component
@@ -25,6 +21,7 @@ public class TourApiPlaceClient {
     private static final String DETAIL_COMMON_PATH = "/detailCommon2";
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration AREA_TOTAL_TIMEOUT = Duration.ofSeconds(10);
     private static final int AREA_PAGE_SIZE = 50;
 
     private final WebClient tourApiWebClient;
@@ -36,29 +33,70 @@ public class TourApiPlaceClient {
             String lDongRegnCd,
             String lDongSignguCd
     ) {
+        List<TourApiPlaceItem> allItems = new ArrayList<>();
+        int pageNo = 1;
+
+        long deadlineNanos =
+                System.nanoTime() + AREA_TOTAL_TIMEOUT.toNanos();
+
         try {
-            TourApiPlaceResponse response = requestPlacesByRegionPage(
-                    lDongRegnCd,
-                    lDongSignguCd,
-                    1
-            );
+            while (true) {
+                if (System.nanoTime() >= deadlineNanos) {
+                    log.warn(
+                            "TourAPI areaBasedList2 total timeout. " +
+                                    "pageNo={}, collectedItems={}, " +
+                                    "lDongRegnCd={}, lDongSignguCd={}",
+                            pageNo,
+                            allItems.size(),
+                            lDongRegnCd,
+                            lDongSignguCd
+                    );
+                    break;
+                }
 
-            if (response == null) {
-                return List.of();
+                TourApiPlaceResponse response =
+                        requestPlacesByRegionPage(
+                                lDongRegnCd,
+                                lDongSignguCd,
+                                pageNo
+                        );
+
+                if (response == null) {
+                    break;
+                }
+
+                if (!response.isSuccess()) {
+                    log.warn(
+                            "TourAPI areaBasedList2 failed. " +
+                                    "pageNo={}, lDongRegnCd={}, lDongSignguCd={}, " +
+                                    "resultCode={}, resultMsg={}",
+                            pageNo,
+                            lDongRegnCd,
+                            lDongSignguCd,
+                            response.getResultCode(),
+                            response.getResultMsg()
+                    );
+                    break;
+                }
+
+                List<TourApiPlaceItem> items = response.getItems();
+
+                if (items.isEmpty()) {
+                    break;
+                }
+
+                allItems.addAll(items);
+
+                int totalCount = response.getTotalCount();
+
+                if (totalCount <= pageNo * AREA_PAGE_SIZE) {
+                    break;
+                }
+
+                pageNo++;
             }
 
-            if (!response.isSuccess()) {
-                log.warn(
-                        "TourAPI areaBasedList2 failed. lDongRegnCd={}, lDongSignguCd={}, resultCode={}, resultMsg={}",
-                        lDongRegnCd,
-                        lDongSignguCd,
-                        response.getResultCode(),
-                        response.getResultMsg()
-                );
-                return List.of();
-            }
-
-            return response.getItems();
+            return allItems;
 
         } catch (WebClientResponseException e) {
             log.warn(
@@ -66,14 +104,14 @@ public class TourApiPlaceClient {
                     e.getStatusCode(),
                     e.getResponseBodyAsString()
             );
-            return List.of();
+            return allItems;
 
         } catch (WebClientRequestException e) {
             log.warn(
                     "TourAPI areaBasedList2 request error. message={}",
                     e.getMessage()
             );
-            return List.of();
+            return allItems;
 
         } catch (RuntimeException e) {
             log.error(
@@ -81,7 +119,7 @@ public class TourApiPlaceClient {
                     e.getMessage(),
                     e
             );
-            return List.of();
+            return allItems;
         }
     }
 
