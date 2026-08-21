@@ -4,6 +4,7 @@ import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryDetail;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
 import com.chaerok.backend.place.entity.PlaceSource;
+import com.chaerok.backend.place.external.KakaoPlaceItem;
 import com.chaerok.backend.place.external.TourApiPlaceItem;
 import com.chaerok.backend.place.service.PlaceCategoryMapper;
 
@@ -76,6 +77,31 @@ public record PlaceListResponse(
                 PlaceCategoryMapper.toDetail(item.lclsSystm1(), item.lclsSystm3()),
                 false,
                 PlaceSource.TOUR_API
+        );
+    }
+
+    public static PlaceListResponse fromKakao(KakaoPlaceItem item) {
+        return new PlaceListResponse(
+                null,
+                null,
+                item.id(),
+                item.placeName(),
+                item.roadAddressName() == null || item.roadAddressName().isBlank()
+                        ? item.addressName()
+                        : item.roadAddressName(),
+                toBigDecimal(item.y()),
+                toBigDecimal(item.x()),
+                null,
+                PlaceCategoryMapper.toGroupFromKakao(
+                        item.categoryGroupCode(),
+                        item.categoryName()
+                ),
+                PlaceCategoryMapper.toDetailFromKakao(
+                        item.categoryGroupCode(),
+                        item.categoryName()
+                ),
+                false,
+                PlaceSource.KAKAO_LOCAL
         );
     }
 }

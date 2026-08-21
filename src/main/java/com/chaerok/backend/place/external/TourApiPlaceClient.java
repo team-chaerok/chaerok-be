@@ -9,11 +9,7 @@ import org.springframework.web.reactive.function.client.WebClientRequestExceptio
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 @Slf4j
 @Component
@@ -36,29 +32,52 @@ public class TourApiPlaceClient {
             String lDongRegnCd,
             String lDongSignguCd
     ) {
+        List<TourApiPlaceItem> allItems = new ArrayList<>();
+
+        int pageNo = 1;
+
         try {
-            TourApiPlaceResponse response = requestPlacesByRegionPage(
-                    lDongRegnCd,
-                    lDongSignguCd,
-                    1
-            );
-
-            if (response == null) {
-                return List.of();
-            }
-
-            if (!response.isSuccess()) {
-                log.warn(
-                        "TourAPI areaBasedList2 failed. lDongRegnCd={}, lDongSignguCd={}, resultCode={}, resultMsg={}",
+            while (true) {
+                TourApiPlaceResponse response = requestPlacesByRegionPage(
                         lDongRegnCd,
                         lDongSignguCd,
-                        response.getResultCode(),
-                        response.getResultMsg()
+                        pageNo
                 );
-                return List.of();
+
+                if (response == null) {
+                    break;
+                }
+
+                if (!response.isSuccess()) {
+                    log.warn(
+                            "TourAPI areaBasedList2 failed. pageNo={}, lDongRegnCd={}, lDongSignguCd={}, resultCode={}, resultMsg={}",
+                            pageNo,
+                            lDongRegnCd,
+                            lDongSignguCd,
+                            response.getResultCode(),
+                            response.getResultMsg()
+                    );
+                    break;
+                }
+
+                List<TourApiPlaceItem> items = response.getItems();
+
+                if (items.isEmpty()) {
+                    break;
+                }
+
+                allItems.addAll(items);
+
+                int totalCount = response.getTotalCount();
+
+                if (totalCount <= pageNo * AREA_PAGE_SIZE) {
+                    break;
+                }
+
+                pageNo++;
             }
 
-            return response.getItems();
+            return allItems;
 
         } catch (WebClientResponseException e) {
             log.warn(
@@ -66,14 +85,14 @@ public class TourApiPlaceClient {
                     e.getStatusCode(),
                     e.getResponseBodyAsString()
             );
-            return List.of();
+            return allItems;
 
         } catch (WebClientRequestException e) {
             log.warn(
                     "TourAPI areaBasedList2 request error. message={}",
                     e.getMessage()
             );
-            return List.of();
+            return allItems;
 
         } catch (RuntimeException e) {
             log.error(
@@ -81,7 +100,7 @@ public class TourApiPlaceClient {
                     e.getMessage(),
                     e
             );
-            return List.of();
+            return allItems;
         }
     }
 

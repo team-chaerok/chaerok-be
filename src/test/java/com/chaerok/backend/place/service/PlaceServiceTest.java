@@ -8,6 +8,8 @@ import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryDetail;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
 import com.chaerok.backend.place.entity.PlaceSource;
+import com.chaerok.backend.place.external.KakaoLocalClient;
+import com.chaerok.backend.place.external.KakaoPlaceItem;
 import com.chaerok.backend.place.external.TourApiPlaceClient;
 import com.chaerok.backend.place.external.TourApiPlaceItem;
 import com.chaerok.backend.place.repository.PlaceRepository;
@@ -45,6 +47,12 @@ class PlaceServiceTest {
     private TourApiPlaceClient tourApiPlaceClient;
 
     @Mock
+    private KakaoLocalClient kakaoLocalClient;
+
+    @Mock
+    private RegionCenterProvider regionCenterProvider;
+
+    @Mock
     private Region region;
 
     @Mock
@@ -57,7 +65,9 @@ class PlaceServiceTest {
         placeService = new PlaceService(
                 placeRepository,
                 regionRepository,
-                tourApiPlaceClient
+                tourApiPlaceClient,
+                kakaoLocalClient,
+                regionCenterProvider
         );
     }
 
@@ -67,7 +77,8 @@ class PlaceServiceTest {
         // given
         Long regionId = 1L;
 
-        when(regionRepository.findById(regionId)).thenReturn(Optional.of(region));
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.of(region));
         when(region.getLdongRegnCd()).thenReturn("44");
         when(region.getLdongSignguCd()).thenReturn("150");
 
@@ -126,7 +137,8 @@ class PlaceServiceTest {
         // given
         Long regionId = 1L;
 
-        when(regionRepository.findById(regionId)).thenReturn(Optional.of(region));
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.of(region));
         when(region.getLdongRegnCd()).thenReturn("44");
         when(region.getLdongSignguCd()).thenReturn("150");
 
@@ -187,6 +199,336 @@ class PlaceServiceTest {
         verify(regionRepository).findById(regionId);
         verifyNoInteractions(placeRepository);
         verifyNoInteractions(tourApiPlaceClient);
+        verifyNoInteractions(kakaoLocalClient);
+        verifyNoInteractions(regionCenterProvider);
+    }
+
+    @Test
+    @DisplayName("추가 장소 조회 시 TourAPI 결과에서 카테고리별 장소를 반환한다")
+    void getExternalPlaces() {
+        // given
+        Long regionId = 1L;
+
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("150");
+
+        List<TourApiPlaceItem> items = List.of(
+                createTourismItem(),
+                createFoodItem(),
+                createCafeItem()
+        );
+
+        when(tourApiPlaceClient.getPlacesByRegion("44", "150"))
+                .thenReturn(items);
+
+        RegionCenterProvider.RegionCenter center =
+                new RegionCenterProvider.RegionCenter(
+                        new BigDecimal("127.1190"),
+                        new BigDecimal("36.4465")
+                );
+
+        when(regionCenterProvider.getCenter(region))
+                .thenReturn(center);
+
+        when(kakaoLocalClient.searchPlacesByCategory(
+                "FD6",
+                center.longitude(),
+                center.latitude(),
+                20000
+        )).thenReturn(List.of());
+
+        when(kakaoLocalClient.searchPlacesByCategory(
+                "CE7",
+                center.longitude(),
+                center.latitude(),
+                20000
+        )).thenReturn(List.of());
+
+        // when
+        List<PlaceListResponse> responses =
+                placeService.getExternalPlaces(regionId);
+
+        // then
+        assertThat(responses).hasSize(3);
+
+        assertThat(responses)
+                .extracting(PlaceListResponse::categoryGroup)
+                .containsExactly(
+                        PlaceCategoryGroup.TOURISM,
+                        PlaceCategoryGroup.FOOD,
+                        PlaceCategoryGroup.CAFE_DESSERT
+                );
+
+        verify(tourApiPlaceClient)
+                .getPlacesByRegion("44", "150");
+    }
+
+    @Test
+    @DisplayName("TourAPI 음식점과 카페가 부족하면 Kakao Local 결과로 보완한다")
+    void getExternalPlacesWithKakaoFallback() {
+        // given
+        Long regionId = 1L;
+
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("150");
+        when(region.getCityCountyName()).thenReturn("공주시");
+
+        when(tourApiPlaceClient.getPlacesByRegion("44", "150"))
+                .thenReturn(List.of(createTourismItem()));
+
+        RegionCenterProvider.RegionCenter center =
+                new RegionCenterProvider.RegionCenter(
+                        new BigDecimal("127.1190"),
+                        new BigDecimal("36.4465")
+                );
+
+        when(regionCenterProvider.getCenter(region))
+                .thenReturn(center);
+
+        KakaoPlaceItem food = new KakaoPlaceItem(
+                "kakao-food-1",
+                "공주 맛집",
+                "음식점 > 한식",
+                "FD6",
+                "음식점",
+                "충청남도 공주시 중동 1",
+                "충청남도 공주시 웅진로 1",
+                "127.1200",
+                "36.4500",
+                "https://place.map.kakao.com/1"
+        );
+
+        KakaoPlaceItem cafe = new KakaoPlaceItem(
+                "kakao-cafe-1",
+                "공주 카페",
+                "음식점 > 카페",
+                "CE7",
+                "카페",
+                "충청남도 공주시 중동 2",
+                "충청남도 공주시 웅진로 2",
+                "127.1210",
+                "36.4510",
+                "https://place.map.kakao.com/2"
+        );
+
+        when(kakaoLocalClient.searchPlacesByCategory(
+                "FD6",
+                center.longitude(),
+                center.latitude(),
+                20000
+        )).thenReturn(List.of(food));
+
+        when(kakaoLocalClient.searchPlacesByCategory(
+                "CE7",
+                center.longitude(),
+                center.latitude(),
+                20000
+        )).thenReturn(List.of(cafe));
+
+        // when
+        List<PlaceListResponse> responses =
+                placeService.getExternalPlaces(regionId);
+
+        // then
+        assertThat(responses).hasSize(3);
+
+        assertThat(responses)
+                .extracting(PlaceListResponse::source)
+                .contains(
+                        PlaceSource.TOUR_API,
+                        PlaceSource.KAKAO_LOCAL
+                );
+
+        assertThat(responses)
+                .extracting(PlaceListResponse::title)
+                .contains(
+                        "공산성",
+                        "공주 맛집",
+                        "공주 카페"
+                );
+    }
+
+    @Test
+    @DisplayName("다른 시군의 Kakao 장소는 추가 장소 결과에서 제외한다")
+    void getExternalPlacesExcludesKakaoPlacesOutsideRegion() {
+        // given
+        Long regionId = 1L;
+
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("150");
+        when(region.getCityCountyName()).thenReturn("공주시");
+
+        when(tourApiPlaceClient.getPlacesByRegion("44", "150"))
+                .thenReturn(List.of());
+
+        RegionCenterProvider.RegionCenter center =
+                new RegionCenterProvider.RegionCenter(
+                        new BigDecimal("127.1190"),
+                        new BigDecimal("36.4465")
+                );
+
+        when(regionCenterProvider.getCenter(region))
+                .thenReturn(center);
+
+        KakaoPlaceItem outsideFood = new KakaoPlaceItem(
+                "kakao-food-outside",
+                "논산 식당",
+                "음식점 > 한식",
+                "FD6",
+                "음식점",
+                "충청남도 논산시 취암동",
+                "충청남도 논산시 시민로 1",
+                "127.0000",
+                "36.2000",
+                "https://place.map.kakao.com/3"
+        );
+
+        when(kakaoLocalClient.searchPlacesByCategory(
+                "FD6",
+                center.longitude(),
+                center.latitude(),
+                20000
+        )).thenReturn(List.of(outsideFood));
+
+        when(kakaoLocalClient.searchPlacesByCategory(
+                "CE7",
+                center.longitude(),
+                center.latitude(),
+                20000
+        )).thenReturn(List.of());
+
+        // when
+        List<PlaceListResponse> responses =
+                placeService.getExternalPlaces(regionId);
+
+        // then
+        assertThat(responses).isEmpty();
+    }
+
+    @Test
+    @DisplayName("지원하지 않는 TourAPI 분류 장소는 추가 장소 결과에서 제외한다")
+    void getExternalPlacesExcludesUnsupportedTourApiCategory() {
+        // given
+        Long regionId = 1L;
+
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("150");
+
+        TourApiPlaceItem unsupportedItem = new TourApiPlaceItem(
+                "3001",
+                "일반 쇼핑 매장",
+                "충청남도 공주시",
+                "36.4500000",
+                "127.1200000",
+                null,
+                "44",
+                "150",
+                "SH",
+                "SH01",
+                "SH010100",
+                null
+        );
+
+        when(tourApiPlaceClient.getPlacesByRegion("44", "150"))
+                .thenReturn(List.of(unsupportedItem));
+
+        RegionCenterProvider.RegionCenter center =
+                new RegionCenterProvider.RegionCenter(
+                        new BigDecimal("127.1190"),
+                        new BigDecimal("36.4465")
+                );
+
+        when(regionCenterProvider.getCenter(region))
+                .thenReturn(center);
+
+        when(kakaoLocalClient.searchPlacesByCategory(
+                "FD6",
+                center.longitude(),
+                center.latitude(),
+                20000
+        )).thenReturn(List.of());
+
+        when(kakaoLocalClient.searchPlacesByCategory(
+                "CE7",
+                center.longitude(),
+                center.latitude(),
+                20000
+        )).thenReturn(List.of());
+
+        // when
+        List<PlaceListResponse> responses =
+                placeService.getExternalPlaces(regionId);
+
+        // then
+        assertThat(responses).isEmpty();
+    }
+
+    @Test
+    @DisplayName("관광지 제외 키워드가 포함된 장소는 추가 장소 결과에서 제외한다")
+    void getExternalPlacesExcludesTourismKeyword() {
+        // given
+        Long regionId = 1L;
+
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("150");
+
+        TourApiPlaceItem resort = new TourApiPlaceItem(
+                "3002",
+                "공주리조트",
+                "충청남도 공주시",
+                "36.4500000",
+                "127.1200000",
+                null,
+                "44",
+                "150",
+                "VE",
+                "VE01",
+                "VE010100",
+                null
+        );
+
+        when(tourApiPlaceClient.getPlacesByRegion("44", "150"))
+                .thenReturn(List.of(resort));
+
+        RegionCenterProvider.RegionCenter center =
+                new RegionCenterProvider.RegionCenter(
+                        new BigDecimal("127.1190"),
+                        new BigDecimal("36.4465")
+                );
+
+        when(regionCenterProvider.getCenter(region))
+                .thenReturn(center);
+
+        when(kakaoLocalClient.searchPlacesByCategory(
+                "FD6",
+                center.longitude(),
+                center.latitude(),
+                20000
+        )).thenReturn(List.of());
+
+        when(kakaoLocalClient.searchPlacesByCategory(
+                "CE7",
+                center.longitude(),
+                center.latitude(),
+                20000
+        )).thenReturn(List.of());
+
+        // when
+        List<PlaceListResponse> responses =
+                placeService.getExternalPlaces(regionId);
+
+        // then
+        assertThat(responses).isEmpty();
     }
 
     @Test
@@ -289,7 +631,7 @@ class PlaceServiceTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 regionId로 추가 추천 장소를 조회하면 예외가 발생한다")
+    @DisplayName("존재하지 않는 regionId로 추가 장소를 조회하면 예외가 발생한다")
     void getExternalPlacesWithInvalidRegion() {
         // given
         Long regionId = 999L;
@@ -304,6 +646,8 @@ class PlaceServiceTest {
 
         verify(regionRepository).findById(regionId);
         verifyNoInteractions(tourApiPlaceClient);
+        verifyNoInteractions(kakaoLocalClient);
+        verifyNoInteractions(regionCenterProvider);
     }
 
     private void mockPlaceForListResponse() {
@@ -353,6 +697,57 @@ class PlaceServiceTest {
                 "HS01",
                 "HS010100",
                 "TourAPI 공산성 소개 문구입니다."
+        );
+    }
+
+    private TourApiPlaceItem createTourismItem() {
+        return new TourApiPlaceItem(
+                "2001",
+                "공산성",
+                "충청남도 공주시 웅진로 280",
+                "36.4623000",
+                "127.1248000",
+                "https://example.com/tourism.jpg",
+                "44",
+                "150",
+                "HS",
+                "HS01",
+                "HS010100",
+                null
+        );
+    }
+
+    private TourApiPlaceItem createFoodItem() {
+        return new TourApiPlaceItem(
+                "2002",
+                "공주 음식점",
+                "충청남도 공주시 중동",
+                "36.4500000",
+                "127.1200000",
+                null,
+                "44",
+                "150",
+                "FD",
+                "FD01",
+                "FD010100",
+                null
+        );
+    }
+
+    private TourApiPlaceItem createCafeItem() {
+        return new TourApiPlaceItem(
+                "2003",
+                "공주 카페",
+                "충청남도 공주시 중동",
+                "36.4510000",
+                "127.1210000",
+                null,
+                "44",
+                "150",
+                "FD",
+                "FD05",
+                "FD050100",
+                null
         );
     }
 }
