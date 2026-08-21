@@ -21,6 +21,7 @@ public class TourApiPlaceClient {
     private static final String DETAIL_COMMON_PATH = "/detailCommon2";
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration AREA_TOTAL_TIMEOUT = Duration.ofSeconds(10);
     private static final int AREA_PAGE_SIZE = 50;
 
     private final WebClient tourApiWebClient;
@@ -33,16 +34,32 @@ public class TourApiPlaceClient {
             String lDongSignguCd
     ) {
         List<TourApiPlaceItem> allItems = new ArrayList<>();
-
         int pageNo = 1;
+
+        long deadlineNanos =
+                System.nanoTime() + AREA_TOTAL_TIMEOUT.toNanos();
 
         try {
             while (true) {
-                TourApiPlaceResponse response = requestPlacesByRegionPage(
-                        lDongRegnCd,
-                        lDongSignguCd,
-                        pageNo
-                );
+                if (System.nanoTime() >= deadlineNanos) {
+                    log.warn(
+                            "TourAPI areaBasedList2 total timeout. " +
+                                    "pageNo={}, collectedItems={}, " +
+                                    "lDongRegnCd={}, lDongSignguCd={}",
+                            pageNo,
+                            allItems.size(),
+                            lDongRegnCd,
+                            lDongSignguCd
+                    );
+                    break;
+                }
+
+                TourApiPlaceResponse response =
+                        requestPlacesByRegionPage(
+                                lDongRegnCd,
+                                lDongSignguCd,
+                                pageNo
+                        );
 
                 if (response == null) {
                     break;
@@ -50,7 +67,9 @@ public class TourApiPlaceClient {
 
                 if (!response.isSuccess()) {
                     log.warn(
-                            "TourAPI areaBasedList2 failed. pageNo={}, lDongRegnCd={}, lDongSignguCd={}, resultCode={}, resultMsg={}",
+                            "TourAPI areaBasedList2 failed. " +
+                                    "pageNo={}, lDongRegnCd={}, lDongSignguCd={}, " +
+                                    "resultCode={}, resultMsg={}",
                             pageNo,
                             lDongRegnCd,
                             lDongSignguCd,

@@ -31,10 +31,7 @@ public class RegionCenterProvider {
                     new BigDecimal("126.8447"),
                     new BigDecimal("36.6829")
             );
-            default -> new RegionCenter(
-                    new BigDecimal("126.8000"),
-                    new BigDecimal("36.5000")
-            );
+            default -> null;
         };
     }
 

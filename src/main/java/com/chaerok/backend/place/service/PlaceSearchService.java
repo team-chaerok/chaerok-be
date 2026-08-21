@@ -61,6 +61,10 @@ public class PlaceSearchService {
         RegionCenterProvider.RegionCenter center =
                 regionCenterProvider.getCenter(region);
 
+        if (center == null) {
+            return List.of();
+        }
+
         List<KakaoPlaceItem> items = kakaoLocalClient.searchPlacesByKeyword(
                 keyword,
                 center.longitude(),

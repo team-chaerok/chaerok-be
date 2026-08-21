@@ -412,6 +412,34 @@ class PlaceServiceTest {
     }
 
     @Test
+    @DisplayName("지원하지 않는 지역이면 Kakao 보완 없이 TourAPI 결과만 반환한다")
+    void getExternalPlacesSkipsKakaoWhenRegionCenterIsMissing() {
+        // given
+        Long regionId = 1L;
+
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("999");
+
+        when(tourApiPlaceClient.getPlacesByRegion("44", "999"))
+                .thenReturn(List.of(createTourismItem()));
+
+        when(regionCenterProvider.getCenter(region))
+                .thenReturn(null);
+
+        // when
+        List<PlaceListResponse> responses =
+                placeService.getExternalPlaces(regionId);
+
+        // then
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).title()).isEqualTo("공산성");
+
+        verifyNoInteractions(kakaoLocalClient);
+    }
+
+    @Test
     @DisplayName("지원하지 않는 TourAPI 분류 장소는 추가 장소 결과에서 제외한다")
     void getExternalPlacesExcludesUnsupportedTourApiCategory() {
         // given

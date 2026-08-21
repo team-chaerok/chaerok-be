@@ -117,6 +117,10 @@ public class PlaceService {
         RegionCenterProvider.RegionCenter center =
                 regionCenterProvider.getCenter(region);
 
+        if (center == null) {
+            return results;
+        }
+
         if (foodShortage > 0) {
             List<KakaoPlaceItem> kakaoFoods =
                     kakaoLocalClient.searchPlacesByCategory(
