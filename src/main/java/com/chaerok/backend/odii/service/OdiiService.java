@@ -130,8 +130,7 @@ public class OdiiService {
 
         return themes.stream()
                 .filter(theme -> containsKeyword(theme.title(), keyword))
-                .findFirst()
-                .or(() -> themes.stream().findFirst());
+                .findFirst();
     }
 
     private Optional<OdiiStoryItem> selectRepresentativeStory(
@@ -146,8 +145,7 @@ public class OdiiService {
                 .filter(story ->
                         isRepresentativeTitle(story.title(), keyword)
                 )
-                .findFirst()
-                .or(() -> stories.stream().findFirst());
+                .findFirst();
     }
 
     private boolean isRepresentativeTitle(
