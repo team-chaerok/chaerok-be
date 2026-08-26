@@ -97,6 +97,20 @@ class FilmRollCommandServiceTest {
         org.mockito.Mockito.lenient()
                 .when(region.isServiceEnabled())
                 .thenReturn(true);
+
+        org.mockito.Mockito.lenient()
+                .when(userRepository.findByIdForUpdate(1L))
+                .thenReturn(Optional.of(user));
+
+        org.mockito.Mockito.lenient()
+                .when(filmRollRepository
+                        .findByUserIdAndClientFilmRollId(
+                                org.mockito.ArgumentMatchers.eq(1L),
+                                org.mockito.ArgumentMatchers.any(
+                                        java.util.UUID.class
+                                )
+                        ))
+                .thenReturn(Optional.empty());
     }
 
     @Test
@@ -104,18 +118,17 @@ class FilmRollCommandServiceTest {
     void createFilmRoll() {
         FilmRollCreateRequest request =
                 new FilmRollCreateRequest(
+                        java.util.UUID.randomUUID(),
                         10L,
                         "gongju",
                         0.8
                 );
 
-        when(filmRollRepository.existsByUserIdAndStatusIn(
+        when(filmRollRepository.existsByUserIdAndStatusAndExitedAtIsNull(
                 1L,
-                FilmRollStatus.incompleteStatuses()
+                FilmRollStatus.CAPTURING
         )).thenReturn(false);
 
-        when(userRepository.findById(1L))
-                .thenReturn(Optional.of(user));
 
         when(regionRepository.findById(10L))
                 .thenReturn(Optional.of(region));
@@ -143,6 +156,8 @@ class FilmRollCommandServiceTest {
                 );
 
         assertThat(response.filmRollId()).isEqualTo(100L);
+        assertThat(response.clientFilmRollId())
+                .isEqualTo(request.clientFilmRollId());
         assertThat(response.regionId()).isEqualTo(10L);
         assertThat(response.status())
                 .isEqualTo(FilmRollStatus.CAPTURING.name());
@@ -155,21 +170,82 @@ class FilmRollCommandServiceTest {
     }
 
     @Test
+    @DisplayName("같은 clientFilmRollId 재요청은 기존 서버 필름 롤을 반환한다")
+    void returnExistingFilmRollForSameClientFilmRollId() {
+        java.util.UUID clientFilmRollId =
+                java.util.UUID.fromString(
+                        "1b8dba58-2503-4b8c-bff8-7445fab9a6d7"
+                );
+        FilmRollCreateRequest request =
+                new FilmRollCreateRequest(
+                        clientFilmRollId,
+                        10L,
+                        "gongju",
+                        0.8
+                );
+
+        FilmRoll existingFilmRoll = FilmRoll.create(
+                user,
+                region,
+                clientFilmRollId,
+                "gongju",
+                0.8,
+                1
+        );
+        ReflectionTestUtils.setField(
+                existingFilmRoll,
+                "id",
+                100L
+        );
+
+        when(filmRollRepository
+                .findByUserIdAndClientFilmRollId(
+                        1L,
+                        clientFilmRollId
+                ))
+                .thenReturn(Optional.of(existingFilmRoll));
+
+        FilmRollResponse response =
+                service.createFilmRoll(
+                        1L,
+                        request
+                );
+
+        assertThat(response.filmRollId()).isEqualTo(100L);
+        assertThat(response.clientFilmRollId())
+                .isEqualTo(clientFilmRollId);
+
+        verify(userRepository).findByIdForUpdate(1L);
+        verify(filmRollRepository, never())
+                .existsByUserIdAndStatusAndExitedAtIsNull(
+                        1L,
+                        FilmRollStatus.CAPTURING
+                );
+        verify(filmRollRepository, never())
+                .saveAndFlush(any(FilmRoll.class));
+        verifyNoInteractions(
+                regionRepository,
+                filterPresetProvider,
+                regionFilterPolicy,
+                visitRequirementService,
+                developmentTimingService
+        );
+    }
+    @Test
     @DisplayName("지역과 필터 조합이 맞지 않으면 필름 롤을 생성하지 않는다")
     void rejectMismatchedRegionFilter() {
         FilmRollCreateRequest request =
                 new FilmRollCreateRequest(
+                        java.util.UUID.randomUUID(),
                         10L,
                         "buyeo",
                         0.8
                 );
 
-        when(filmRollRepository.existsByUserIdAndStatusIn(
+        when(filmRollRepository.existsByUserIdAndStatusAndExitedAtIsNull(
                 1L,
-                FilmRollStatus.incompleteStatuses()
+                FilmRollStatus.CAPTURING
         )).thenReturn(false);
-        when(userRepository.findById(1L))
-                .thenReturn(Optional.of(user));
         when(regionRepository.findById(10L))
                 .thenReturn(Optional.of(region));
         when(filterPresetProvider.getByFilterId("buyeo"))
@@ -192,13 +268,14 @@ class FilmRollCommandServiceTest {
     @Test
     @DisplayName("활성 필름 롤이 있으면 새 필름 롤을 생성하지 않는다")
     void rejectDuplicateActiveFilmRoll() {
-        when(filmRollRepository.existsByUserIdAndStatusIn(
+        when(filmRollRepository.existsByUserIdAndStatusAndExitedAtIsNull(
                 1L,
-                FilmRollStatus.incompleteStatuses()
+                FilmRollStatus.CAPTURING
         )).thenReturn(true);
 
         FilmRollCreateRequest request =
                 new FilmRollCreateRequest(
+                        java.util.UUID.randomUUID(),
                         10L,
                         "gongju",
                         0.8
@@ -211,18 +288,13 @@ class FilmRollCommandServiceTest {
                 )
         ).isInstanceOf(ActiveFilmRollExistsException.class);
 
-        verify(filmRollRepository).existsByUserIdAndStatusIn(
-                1L,
-                List.of(
-                        FilmRollStatus.CAPTURING,
-                        FilmRollStatus.READY,
-                        FilmRollStatus.QUEUED,
-                        FilmRollStatus.PROCESSING,
-                        FilmRollStatus.FAILED
-                )
-        );
+        verify(filmRollRepository)
+                .existsByUserIdAndStatusAndExitedAtIsNull(
+                        1L,
+                        FilmRollStatus.CAPTURING
+                );
+        verify(userRepository).findByIdForUpdate(1L);
         verifyNoInteractions(
-                userRepository,
                 regionRepository,
                 filterPresetProvider,
                 regionFilterPolicy,

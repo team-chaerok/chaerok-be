@@ -5,7 +5,12 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+import java.util.UUID;
+
 public record FilmRollCreateRequest(
+
+        @NotNull(message = "클라이언트 필름 롤 ID는 필수입니다.")
+        UUID clientFilmRollId,
 
         @NotNull(message = "지역 ID는 필수입니다.")
         Long regionId,

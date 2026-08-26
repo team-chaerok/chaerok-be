@@ -46,19 +46,31 @@ public class FilmRollCommandService {
             Long userId,
             FilmRollCreateRequest request
     ) {
-        if (filmRollRepository.existsByUserIdAndStatusIn(
-                userId,
-                FilmRollStatus.incompleteStatuses()
-        )) {
-            throw new ActiveFilmRollExistsException();
-        }
-
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
                                 "사용자를 찾을 수 없습니다."
                         )
                 );
+
+        FilmRoll existingFilmRoll = filmRollRepository
+                .findByUserIdAndClientFilmRollId(
+                        userId,
+                        request.clientFilmRollId()
+                )
+                .orElse(null);
+
+        if (existingFilmRoll != null) {
+            return FilmRollResponse.from(existingFilmRoll);
+        }
+
+        if (filmRollRepository
+                .existsByUserIdAndStatusAndExitedAtIsNull(
+                        userId,
+                        FilmRollStatus.CAPTURING
+                )) {
+            throw new ActiveFilmRollExistsException();
+        }
 
         Region region = regionRepository.findById(request.regionId())
                 .orElseThrow(RegionNotFoundException::new);
@@ -75,6 +87,7 @@ public class FilmRollCommandService {
         FilmRoll filmRoll = FilmRoll.create(
                 user,
                 region,
+                request.clientFilmRollId(),
                 filterId,
                 request.filterStrength(),
                 CURRENT_FILTER_VERSION

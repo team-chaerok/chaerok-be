@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface FilmRollRepository
         extends JpaRepository<FilmRoll, Long> {
@@ -18,6 +19,11 @@ public interface FilmRollRepository
     Optional<FilmRoll> findByIdAndUserId(
             Long filmRollId,
             Long userId
+    );
+
+    Optional<FilmRoll> findByUserIdAndClientFilmRollId(
+            Long userId,
+            UUID clientFilmRollId
     );
 
     Optional<FilmRoll> findFirstByUserIdAndStatusInOrderByCreatedAtDesc(
@@ -41,9 +47,9 @@ public interface FilmRollRepository
             Long userId
     );
 
-    boolean existsByUserIdAndStatusIn(
+    boolean existsByUserIdAndStatusAndExitedAtIsNull(
             Long userId,
-            List<FilmRollStatus> statuses
+            FilmRollStatus status
     );
 
     @Query("""
