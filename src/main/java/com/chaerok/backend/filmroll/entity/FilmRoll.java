@@ -10,6 +10,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Getter
 @Entity
@@ -40,6 +41,9 @@ public class FilmRoll {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @Column(name = "client_film_roll_id", updatable = false)
+    private UUID clientFilmRollId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "region_id", nullable = false)
@@ -98,6 +102,31 @@ public class FilmRoll {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    public static FilmRoll create(
+            User user,
+            Region region,
+            UUID clientFilmRollId,
+            String filterId,
+            double filterStrength,
+            int filterVersion
+    ) {
+        if (clientFilmRollId == null) {
+            throw new IllegalArgumentException(
+                    "클라이언트 필름 롤 ID는 필수입니다."
+            );
+        }
+
+        FilmRoll filmRoll = create(
+                user,
+                region,
+                filterId,
+                filterStrength,
+                filterVersion
+        );
+        filmRoll.clientFilmRollId = clientFilmRollId;
+        return filmRoll;
+    }
 
     public static FilmRoll create(
             User user,

@@ -48,6 +48,7 @@ class FilmRollControllerTest {
     void createFilmRoll() {
         FilmRollCreateRequest request =
                 new FilmRollCreateRequest(
+                        java.util.UUID.randomUUID(),
                         10L,
                         "gongju",
                         0.8
@@ -131,6 +132,7 @@ class FilmRollControllerTest {
     private FilmRollResponse response() {
         return new FilmRollResponse(
                 100L,
+                null,
                 10L,
                 "gongju",
                 0.8,

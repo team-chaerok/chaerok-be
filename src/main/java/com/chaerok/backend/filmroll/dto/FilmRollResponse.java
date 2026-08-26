@@ -3,9 +3,11 @@ package com.chaerok.backend.filmroll.dto;
 import com.chaerok.backend.filmroll.entity.FilmRoll;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public record FilmRollResponse(
         Long filmRollId,
+        UUID clientFilmRollId,
         Long regionId,
         String filterId,
         double filterStrength,
@@ -29,6 +31,7 @@ public record FilmRollResponse(
     public static FilmRollResponse from(FilmRoll filmRoll) {
         return new FilmRollResponse(
                 filmRoll.getId(),
+                filmRoll.getClientFilmRollId(),
                 filmRoll.getRegion().getId(),
                 filmRoll.getFilterId(),
                 filmRoll.getFilterStrength(),
