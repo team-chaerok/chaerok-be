@@ -4,6 +4,7 @@ import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.entity.FilmRollStatus;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.global.aws.AwsProperties;
+import com.chaerok.backend.notification.outbox.service.NotificationOutboxService;
 import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.photo.entity.PhotoStatus;
 import com.chaerok.backend.photo.repository.PhotoRepository;
@@ -38,6 +39,7 @@ public class RenderResultProcessor {
     private final RenderJobRepository renderJobRepository;
     private final FilmRollRepository filmRollRepository;
     private final PhotoRepository photoRepository;
+    private final NotificationOutboxService notificationOutboxService;
     private final AwsProperties awsProperties;
 
     @Transactional
@@ -162,6 +164,13 @@ public class RenderResultProcessor {
         filmRoll.markProcessingFromResult();
         photos.forEach(Photo::markProcessingFromResult);
 
+        notificationOutboxService.enqueueRenderStarted(
+                message.userId(),
+                message.filmRollId(),
+                message.renderJobId(),
+                occurredAt
+        );
+
         return RenderResultProcessingOutcome.APPLIED;
     }
 
@@ -215,6 +224,13 @@ public class RenderResultProcessor {
                 message.reelObjectKey(),
                 message.reelFileSize(),
                 message.manifestObjectKey(),
+                occurredAt
+        );
+
+        notificationOutboxService.enqueueRenderCompleted(
+                message.userId(),
+                message.filmRollId(),
+                message.renderJobId(),
                 occurredAt
         );
 
@@ -284,6 +300,13 @@ public class RenderResultProcessor {
                 message.bucket(),
                 message.errorCode(),
                 message.errorMessage(),
+                occurredAt
+        );
+
+        notificationOutboxService.enqueueRenderFailed(
+                message.userId(),
+                message.filmRollId(),
+                message.renderJobId(),
                 occurredAt
         );
 

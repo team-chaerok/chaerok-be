@@ -4,6 +4,7 @@ import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.entity.FilmRollStatus;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.global.aws.AwsProperties;
+import com.chaerok.backend.notification.outbox.service.NotificationOutboxService;
 import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.photo.entity.PhotoStatus;
 import com.chaerok.backend.photo.repository.PhotoRepository;
@@ -46,6 +47,9 @@ class RenderResultProcessorTest {
     private PhotoRepository photoRepository;
 
     @Mock
+    private NotificationOutboxService notificationOutboxService;
+
+    @Mock
     private RenderJob renderJob;
 
     @Mock
@@ -72,6 +76,7 @@ class RenderResultProcessorTest {
                 renderJobRepository,
                 filmRollRepository,
                 photoRepository,
+                notificationOutboxService,
                 awsProperties
         );
 
@@ -133,6 +138,12 @@ class RenderResultProcessorTest {
                 "manifest.json",
                 occurredAt
         );
+        verify(notificationOutboxService).enqueueRenderCompleted(
+                3L,
+                2L,
+                renderJobId,
+                occurredAt
+        );
     }
 
     @Test
@@ -172,6 +183,12 @@ class RenderResultProcessorTest {
                 "FFmpeg failed",
                 occurredAt
         );
+        verify(notificationOutboxService).enqueueRenderFailed(
+                3L,
+                2L,
+                renderJobId,
+                occurredAt
+        );
     }
 
     @Test
@@ -203,6 +220,12 @@ class RenderResultProcessorTest {
         );
         verify(filmRoll).markProcessingFromResult();
         verify(photo).markProcessingFromResult();
+        verify(notificationOutboxService).enqueueRenderStarted(
+                3L,
+                2L,
+                renderJobId,
+                occurredAt
+        );
     }
 
     @Test
@@ -230,6 +253,13 @@ class RenderResultProcessorTest {
         );
         verify(filmRoll, never()).markProcessingFromResult();
         verifyNoInteractions(photoRepository);
+        verify(notificationOutboxService, never())
+                .enqueueRenderStarted(
+                        any(),
+                        any(),
+                        any(),
+                        any()
+                );
     }
 
     @Test
