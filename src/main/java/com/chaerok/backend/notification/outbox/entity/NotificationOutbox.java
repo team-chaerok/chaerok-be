@@ -39,6 +39,8 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class NotificationOutbox {
 
+    public static final int MAX_ATTEMPTS = 5;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -127,6 +129,90 @@ public class NotificationOutbox {
         outbox.attemptCount = 0;
         outbox.occurredAt = occurredAt;
         return outbox;
+    }
+
+    public boolean isPending() {
+        return status == NotificationStatus.PENDING;
+    }
+
+    public void markSent(LocalDateTime sentAt) {
+        requireTime(sentAt, "알림 전송 완료 시각");
+
+        this.status = NotificationStatus.SENT;
+        this.sentAt = sentAt;
+        this.nextAttemptAt = null;
+        this.lastErrorCode = null;
+        this.lastErrorMessage = null;
+    }
+
+    public void markRetry(
+            LocalDateTime failedAt,
+            String errorCode,
+            String errorMessage
+    ) {
+        requireTime(failedAt, "알림 전송 실패 시각");
+
+        this.attemptCount = this.attemptCount + 1;
+        this.lastErrorCode = normalizeErrorCode(errorCode);
+        this.lastErrorMessage = errorMessage;
+        this.sentAt = null;
+
+        if (this.attemptCount >= MAX_ATTEMPTS) {
+            this.status = NotificationStatus.FAILED;
+            this.nextAttemptAt = null;
+            return;
+        }
+
+        this.status = NotificationStatus.PENDING;
+        this.nextAttemptAt =
+                failedAt.plusSeconds(retryDelaySeconds(this.attemptCount));
+    }
+
+    public void markFailed(
+            LocalDateTime failedAt,
+            String errorCode,
+            String errorMessage
+    ) {
+        requireTime(failedAt, "알림 전송 실패 시각");
+
+        this.attemptCount = this.attemptCount + 1;
+        this.status = NotificationStatus.FAILED;
+        this.nextAttemptAt = null;
+        this.sentAt = null;
+        this.lastErrorCode = normalizeErrorCode(errorCode);
+        this.lastErrorMessage = errorMessage;
+    }
+
+    private static long retryDelaySeconds(int attemptCount) {
+        return switch (attemptCount) {
+            case 1 -> 30L;
+            case 2 -> 120L;
+            case 3 -> 600L;
+            default -> 1_800L;
+        };
+    }
+
+    private static String normalizeErrorCode(String errorCode) {
+        if (errorCode == null || errorCode.isBlank()) {
+            return null;
+        }
+
+        String normalized = errorCode.trim();
+        if (normalized.length() <= 100) {
+            return normalized;
+        }
+        return normalized.substring(0, 100);
+    }
+
+    private static void requireTime(
+            LocalDateTime value,
+            String fieldName
+    ) {
+        if (value == null) {
+            throw new IllegalArgumentException(
+                    fieldName + "은(는) 필수입니다."
+            );
+        }
     }
 
     private static void requireText(
