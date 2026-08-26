@@ -53,6 +53,10 @@ public class PlaceSearchService {
         );
 
         return items.stream()
+                .filter(item -> PlaceCategoryMapper.isSupportedTourApiCategory(
+                        item.lclsSystm1(),
+                        item.lclsSystm3()
+                ))
                 .map(PlaceSearchResponse::fromTourApi)
                 .toList();
     }

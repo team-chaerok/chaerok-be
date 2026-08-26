@@ -100,6 +100,71 @@ class PlaceSearchServiceTest {
     }
 
     @Test
+    @DisplayName("지원하지 않는 TourAPI 분류 장소는 검색 결과에서 제외한다")
+    void searchPlacesExcludesUnsupportedTourApiCategory() {
+        // given
+        Long regionId = 1L;
+        String keyword = "공주";
+
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("150");
+
+        TourApiPlaceItem supportedItem = createTourApiItem(
+                "1001",
+                "공산성"
+        );
+
+        TourApiPlaceItem unsupportedItem = new TourApiPlaceItem(
+                "1002",
+                "일반 쇼핑 매장",
+                "충청남도 공주시",
+                "36.4623",
+                "127.1248",
+                null,
+                "44",
+                "150",
+                "SH",
+                "SH01",
+                "SH010100",
+                null
+        );
+
+        when(tourApiPlaceClient.searchPlacesByKeyword(
+                keyword,
+                "44",
+                "150"
+        )).thenReturn(List.of(
+                supportedItem,
+                unsupportedItem
+        ));
+
+        RegionCenterProvider.RegionCenter center =
+                new RegionCenterProvider.RegionCenter(
+                        new BigDecimal("127.1190"),
+                        new BigDecimal("36.4465")
+                );
+
+        when(regionCenterProvider.getCenter(region))
+                .thenReturn(center);
+
+        when(kakaoLocalClient.searchPlacesByKeyword(
+                keyword,
+                center.longitude(),
+                center.latitude()
+        )).thenReturn(List.of());
+
+        // when
+        List<PlaceSearchResponse> responses =
+                placeSearchService.searchPlaces(regionId, keyword);
+
+        // then
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).title()).isEqualTo("공산성");
+    }
+
+    @Test
     @DisplayName("TourAPI 검색 결과가 부족하면 Kakao 검색 결과로 보완한다")
     void searchPlacesSupplementsWithKakao() {
         // given
