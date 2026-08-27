@@ -1,33 +1,29 @@
 package com.chaerok.backend.render.service;
 
-import com.chaerok.backend.render.dto.RenderRequestResponse;
 import com.chaerok.backend.render.queue.RenderQueueMessage;
 import com.chaerok.backend.render.queue.RenderQueuePublishResult;
 import com.chaerok.backend.render.queue.RenderQueuePublisher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class RenderRequestServiceTest {
+class RenderJobRecoveryServiceTest {
 
     @Mock
-    private RenderJobPreparationService preparationService;
+    private RenderJobRecoveryPreparationService preparationService;
 
     @Mock
     private RenderQueuePublisher queuePublisher;
@@ -36,24 +32,28 @@ class RenderRequestServiceTest {
     private RenderJobStateService stateService;
 
     @Test
-    @DisplayName("DB 준비 후 SQS 전송과 QUEUED 전환을 순서대로 수행한다")
-    void requestRender() {
+    @DisplayName("stale CREATED 작업을 같은 메시지로 재발행하고 QUEUED 처리한다")
+    void recoversCreatedJob() {
         UUID renderJobId = UUID.randomUUID();
 
-        RenderQueueMessage message = new RenderQueueMessage(
-                RenderQueueMessage.CURRENT_SCHEMA_VERSION,
-                renderJobId,
-                2L,
-                6L,
-                1L,
-                "bucket",
-                "gongju",
-                0.8,
-                1,
-                1,
-                LocalDateTime.now(),
-                List.of()
-        );
+        LocalDateTime cutoff =
+                LocalDateTime.of(2026, 8, 27, 15, 0);
+
+        RenderQueueMessage message =
+                new RenderQueueMessage(
+                        RenderQueueMessage.CURRENT_SCHEMA_VERSION,
+                        renderJobId,
+                        2L,
+                        6L,
+                        1L,
+                        "bucket",
+                        "gongju",
+                        0.8,
+                        1,
+                        1,
+                        cutoff.minusMinutes(10),
+                        List.of()
+                );
 
         PreparedRenderJob prepared =
                 new PreparedRenderJob(
@@ -65,50 +65,33 @@ class RenderRequestServiceTest {
 
         RenderQueuePublishResult publishResult =
                 new RenderQueuePublishResult(
-                        "message-123"
+                        "recovered-message-id"
                 );
 
-        RenderRequestResponse expected =
-                mock(RenderRequestResponse.class);
-
-        when(preparationService.prepare(6L, 2L))
-                .thenReturn(prepared);
+        when(preparationService.prepare(
+                renderJobId,
+                cutoff
+        )).thenReturn(Optional.of(prepared));
 
         when(queuePublisher.publish(message))
                 .thenReturn(publishResult);
 
-        when(stateService.markQueued(
-                renderJobId,
-                2L,
-                6L,
-                publishResult
-        )).thenReturn(expected);
-
-        RenderRequestService service =
-                new RenderRequestService(
+        RenderJobRecoveryService service =
+                new RenderJobRecoveryService(
                         preparationService,
                         queuePublisher,
                         stateService
                 );
 
-        RenderRequestResponse actual =
-                service.requestRender(6L, 2L);
-
-        assertThat(actual).isSameAs(expected);
-
-        InOrder inOrder = inOrder(
-                preparationService,
-                queuePublisher,
-                stateService
+        service.recover(
+                renderJobId,
+                cutoff
         );
 
-        inOrder.verify(preparationService)
-                .prepare(6L, 2L);
-
-        inOrder.verify(queuePublisher)
+        verify(queuePublisher)
                 .publish(message);
 
-        inOrder.verify(stateService)
+        verify(stateService)
                 .markQueued(
                         renderJobId,
                         2L,
@@ -124,24 +107,57 @@ class RenderRequestServiceTest {
     }
 
     @Test
-    @DisplayName("SQS 전송 실패 시 QUEUE_FAILED 상태 기록을 요청한다")
-    void markQueueFailedWhenPublishingFails() {
+    @DisplayName("복구 대상이 아니면 SQS를 호출하지 않는다")
+    void skipsWhenPreparationReturnsEmpty() {
+        UUID renderJobId = UUID.randomUUID();
+        LocalDateTime cutoff = LocalDateTime.now();
+
+        when(preparationService.prepare(
+                renderJobId,
+                cutoff
+        )).thenReturn(Optional.empty());
+
+        RenderJobRecoveryService service =
+                new RenderJobRecoveryService(
+                        preparationService,
+                        queuePublisher,
+                        stateService
+                );
+
+        service.recover(
+                renderJobId,
+                cutoff
+        );
+
+        verifyNoInteractions(
+                queuePublisher,
+                stateService
+        );
+    }
+
+    @Test
+    @DisplayName("복구 SQS 재발행 실패 시 QUEUE_FAILED를 기록한다")
+    void marksQueueFailedWhenRepublishFails() {
         UUID renderJobId = UUID.randomUUID();
 
-        RenderQueueMessage message = new RenderQueueMessage(
-                RenderQueueMessage.CURRENT_SCHEMA_VERSION,
-                renderJobId,
-                2L,
-                6L,
-                1L,
-                "bucket",
-                "gongju",
-                0.8,
-                1,
-                1,
-                LocalDateTime.now(),
-                List.of()
-        );
+        LocalDateTime cutoff =
+                LocalDateTime.of(2026, 8, 27, 15, 0);
+
+        RenderQueueMessage message =
+                new RenderQueueMessage(
+                        RenderQueueMessage.CURRENT_SCHEMA_VERSION,
+                        renderJobId,
+                        2L,
+                        6L,
+                        1L,
+                        "bucket",
+                        "gongju",
+                        0.8,
+                        1,
+                        1,
+                        cutoff.minusMinutes(10),
+                        List.of()
+                );
 
         PreparedRenderJob prepared =
                 new PreparedRenderJob(
@@ -152,24 +168,27 @@ class RenderRequestServiceTest {
                 );
 
         RuntimeException failure =
-                new RuntimeException("SQS failure");
+                new RuntimeException("SQS unavailable");
 
-        when(preparationService.prepare(6L, 2L))
-                .thenReturn(prepared);
+        when(preparationService.prepare(
+                renderJobId,
+                cutoff
+        )).thenReturn(Optional.of(prepared));
 
         when(queuePublisher.publish(message))
                 .thenThrow(failure);
 
-        RenderRequestService service =
-                new RenderRequestService(
+        RenderJobRecoveryService service =
+                new RenderJobRecoveryService(
                         preparationService,
                         queuePublisher,
                         stateService
                 );
 
-        assertThatThrownBy(() ->
-                service.requestRender(6L, 2L)
-        ).isSameAs(failure);
+        service.recover(
+                renderJobId,
+                cutoff
+        );
 
         verify(stateService)
                 .markQueueFailed(
@@ -187,9 +206,18 @@ class RenderRequestServiceTest {
     }
 
     @Test
-    @DisplayName("SQS 전송 성공 후 QUEUED 기록 실패는 QUEUE_FAILED로 오기록하지 않는다")
-    void doesNotMarkQueueFailedWhenQueuedWriteFails() {
+    @DisplayName("SQS 재발행 성공 후 QUEUED 기록 실패는 QUEUE_FAILED로 오기록하지 않는다")
+    void doesNotMarkQueueFailedWhenRecoveryQueuedWriteFails() {
         UUID renderJobId = UUID.randomUUID();
+
+        LocalDateTime cutoff =
+                LocalDateTime.of(
+                        2026,
+                        8,
+                        27,
+                        15,
+                        0
+                );
 
         RenderQueueMessage message =
                 new RenderQueueMessage(
@@ -203,7 +231,7 @@ class RenderRequestServiceTest {
                         0.8,
                         1,
                         1,
-                        LocalDateTime.now(),
+                        cutoff.minusMinutes(10),
                         List.of()
                 );
 
@@ -217,7 +245,7 @@ class RenderRequestServiceTest {
 
         RenderQueuePublishResult publishResult =
                 new RenderQueuePublishResult(
-                        "message-success"
+                        "recovery-message-success"
                 );
 
         RuntimeException dbFailure =
@@ -225,8 +253,12 @@ class RenderRequestServiceTest {
                         "QUEUED DB write failed"
                 );
 
-        when(preparationService.prepare(6L, 2L))
-                .thenReturn(prepared);
+        when(preparationService.prepare(
+                renderJobId,
+                cutoff
+        )).thenReturn(
+                Optional.of(prepared)
+        );
 
         when(queuePublisher.publish(message))
                 .thenReturn(publishResult);
@@ -238,16 +270,21 @@ class RenderRequestServiceTest {
                 publishResult
         )).thenThrow(dbFailure);
 
-        RenderRequestService service =
-                new RenderRequestService(
+        RenderJobRecoveryService service =
+                new RenderJobRecoveryService(
                         preparationService,
                         queuePublisher,
                         stateService
                 );
 
-        assertThatThrownBy(() ->
-                service.requestRender(6L, 2L)
-        ).isSameAs(dbFailure);
+        org.assertj.core.api.Assertions
+                .assertThatThrownBy(() ->
+                        service.recover(
+                                renderJobId,
+                                cutoff
+                        )
+                )
+                .isSameAs(dbFailure);
 
         verify(stateService, never())
                 .markQueueFailed(
