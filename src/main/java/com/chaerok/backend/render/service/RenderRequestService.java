@@ -23,29 +23,19 @@ public class RenderRequestService {
             Long userId,
             Long filmRollId
     ) {
-        /*
-         * 1) DB 트랜잭션을 먼저 커밋해 RenderJob(CREATED)을 보존합니다.
-         * 2) DB 트랜잭션 밖에서 SQS에 전송합니다.
-         * 3) 별도 트랜잭션으로 성공/실패 상태를 기록합니다.
-         */
         PreparedRenderJob prepared =
                 preparationService.prepare(
                         userId,
                         filmRollId
                 );
 
+        RenderQueuePublishResult publishResult;
+
         try {
-            RenderQueuePublishResult publishResult =
+            publishResult =
                     queuePublisher.publish(
                             prepared.message()
                     );
-
-            return stateService.markQueued(
-                    prepared.renderJobId(),
-                    prepared.filmRollId(),
-                    prepared.userId(),
-                    publishResult
-            );
         } catch (RuntimeException exception) {
             stateService.markQueueFailed(
                     prepared.renderJobId(),
@@ -54,5 +44,21 @@ public class RenderRequestService {
 
             throw exception;
         }
+
+        /*
+         * 여기까지 왔으면 SQS 전송은 이미 성공했습니다.
+         *
+         * 따라서 아래 QUEUED DB 기록이 실패하더라도
+         * SQS_SEND_FAILED로 기록하면 안 됩니다.
+         *
+         * CREATED로 남은 작업은 결과 메시지 또는
+         * CREATED recovery가 다시 처리할 수 있습니다.
+         */
+        return stateService.markQueued(
+                prepared.renderJobId(),
+                prepared.filmRollId(),
+                prepared.userId(),
+                publishResult
+        );
     }
 }
