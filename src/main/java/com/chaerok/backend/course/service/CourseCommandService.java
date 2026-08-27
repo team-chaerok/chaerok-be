@@ -281,6 +281,8 @@ public class CourseCommandService {
             Region region,
             CoursePlaceSaveRequest request
     ) {
+        validateKakaoPlaceRequest(region, request);
+
         PlaceCategoryGroup categoryGroup = toCategoryGroup(
                 request.categoryGroup()
         );
@@ -311,6 +313,117 @@ public class CourseCommandService {
         );
 
         return placeRepository.save(place);
+    }
+
+    private void validateKakaoPlaceRequest(
+            Region region,
+            CoursePlaceSaveRequest request
+    ) {
+        if (!hasText(request.title())) {
+            throw new IllegalArgumentException(
+                    "Kakao 장소명은 필수입니다."
+            );
+        }
+
+        if (!hasText(request.address())) {
+            throw new IllegalArgumentException(
+                    "Kakao 장소 주소는 필수입니다."
+            );
+        }
+
+        if (request.latitude() == null || request.longitude() == null) {
+            throw new IllegalArgumentException(
+                    "Kakao 장소 좌표는 필수입니다."
+            );
+        }
+
+        if (!isValidLatitude(request.latitude())
+                || !isValidLongitude(request.longitude())) {
+            throw new IllegalArgumentException(
+                    "Kakao 장소 좌표가 올바르지 않습니다."
+            );
+        }
+
+        if (!isAddressInRegion(request.address(), region)) {
+            throw new IllegalArgumentException(
+                    "Kakao 장소가 코스 지역과 일치하지 않습니다."
+            );
+        }
+
+        validateKakaoCategory(request);
+    }
+
+    private boolean isValidLatitude(BigDecimal latitude) {
+        return latitude.compareTo(new BigDecimal("-90")) >= 0
+                && latitude.compareTo(new BigDecimal("90")) <= 0;
+    }
+
+    private boolean isValidLongitude(BigDecimal longitude) {
+        return longitude.compareTo(new BigDecimal("-180")) >= 0
+                && longitude.compareTo(new BigDecimal("180")) <= 0;
+    }
+
+    private boolean isAddressInRegion(
+            String address,
+            Region region
+    ) {
+        if (!hasText(address)
+                || !hasText(region.getCityCountyName())) {
+            return false;
+        }
+
+        return address.contains(region.getCityCountyName());
+    }
+
+    private void validateKakaoCategory(
+            CoursePlaceSaveRequest request
+    ) {
+        PlaceCategoryGroup categoryGroup =
+                toCategoryGroup(request.categoryGroup());
+
+        if (!hasText(request.categoryDetail())) {
+            return;
+        }
+
+        PlaceCategoryDetail categoryDetail;
+
+        try {
+            categoryDetail = PlaceCategoryDetail.valueOf(
+                    request.categoryDetail()
+            );
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                    "지원하지 않는 장소 세부 유형입니다."
+            );
+        }
+
+        boolean valid = switch (categoryGroup) {
+            case TOURISM ->
+                    categoryDetail == PlaceCategoryDetail.EXPERIENCE
+                            || categoryDetail == PlaceCategoryDetail.HERITAGE
+                            || categoryDetail == PlaceCategoryDetail.NATURE
+                            || categoryDetail == PlaceCategoryDetail.MUSEUM
+                            || categoryDetail == PlaceCategoryDetail.MARKET
+                            || categoryDetail == PlaceCategoryDetail.SOUVENIR_SHOP;
+
+            case FOOD ->
+                    categoryDetail == PlaceCategoryDetail.RESTAURANT
+                            || categoryDetail == PlaceCategoryDetail.LOCAL_FOOD
+                            || categoryDetail == PlaceCategoryDetail.SNACK_MEAL
+                            || categoryDetail == PlaceCategoryDetail.SNACK;
+
+            case CAFE_DESSERT ->
+                    categoryDetail == PlaceCategoryDetail.CAFE
+                            || categoryDetail == PlaceCategoryDetail.DESSERT
+                            || categoryDetail == PlaceCategoryDetail.BAKERY
+                            || categoryDetail == PlaceCategoryDetail.TEA_HOUSE;
+        };
+
+        if (!valid) {
+            throw new IllegalArgumentException(
+                    "장소 유형과 세부 유형이 일치하지 않습니다."
+            );
+        }
     }
 
     private void validateCoursePlace(
