@@ -15,6 +15,7 @@ import com.chaerok.backend.region.repository.RegionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -157,23 +158,52 @@ public class CourseRecommendService {
             Place anchor,
             String categoryGroupCode
     ) {
-        List<KakaoPlaceItem> candidates = kakaoLocalClient.searchPlacesByCategory(
-                categoryGroupCode,
-                anchor.getLongitude(),
-                anchor.getLatitude(),
-                DEFAULT_SEARCH_RADIUS
+        List<KakaoPlaceItem> candidates = filterCandidatesByRegion(
+                kakaoLocalClient.searchPlacesByCategory(
+                        categoryGroupCode,
+                        anchor.getLongitude(),
+                        anchor.getLatitude(),
+                        DEFAULT_SEARCH_RADIUS
+                ),
+                anchor
         );
 
         if (!candidates.isEmpty()) {
             return candidates;
         }
 
-        return kakaoLocalClient.searchPlacesByCategory(
-                categoryGroupCode,
-                anchor.getLongitude(),
-                anchor.getLatitude(),
-                EXTENDED_SEARCH_RADIUS
+        return filterCandidatesByRegion(
+                kakaoLocalClient.searchPlacesByCategory(
+                        categoryGroupCode,
+                        anchor.getLongitude(),
+                        anchor.getLatitude(),
+                        EXTENDED_SEARCH_RADIUS
+                ),
+                anchor
         );
+    }
+
+    private List<KakaoPlaceItem> filterCandidatesByRegion(
+            List<KakaoPlaceItem> candidates,
+            Place anchor
+    ) {
+        String cityCountyName = anchor.getRegion().getCityCountyName();
+
+        if (!StringUtils.hasText(cityCountyName)) {
+            return List.of();
+        }
+
+        return candidates.stream()
+                .filter(candidate -> isSameRegion(candidate, cityCountyName))
+                .toList();
+    }
+
+    private boolean isSameRegion(
+            KakaoPlaceItem candidate,
+            String cityCountyName
+    ) {
+        return StringUtils.hasText(candidate.addressName())
+                && candidate.addressName().contains(cityCountyName);
     }
 
     private void addFallbackPlaces(
