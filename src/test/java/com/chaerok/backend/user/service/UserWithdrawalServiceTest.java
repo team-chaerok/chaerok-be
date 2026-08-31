@@ -1,7 +1,6 @@
 package com.chaerok.backend.user.service;
 
 import com.chaerok.backend.auth.oauth.unlink.KakaoOAuthUnlinkService;
-import com.chaerok.backend.auth.service.RefreshTokenService;
 import com.chaerok.backend.user.entity.OAuthProvider;
 import com.chaerok.backend.user.entity.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,10 +19,10 @@ class UserWithdrawalServiceTest {
     private UserService userService;
 
     @Mock
-    private RefreshTokenService refreshTokenService;
+    private KakaoOAuthUnlinkService kakaoOAuthUnlinkService;
 
     @Mock
-    private KakaoOAuthUnlinkService kakaoOAuthUnlinkService;
+    private UserWithdrawalPersistenceService persistenceService;
 
     @Mock
     private User user;
@@ -34,13 +33,13 @@ class UserWithdrawalServiceTest {
     void setUp() {
         userWithdrawalService = new UserWithdrawalService(
                 userService,
-                refreshTokenService,
-                kakaoOAuthUnlinkService
+                kakaoOAuthUnlinkService,
+                persistenceService
         );
     }
 
     @Test
-    void 카카오_사용자_탈퇴_시_연결을_해제하고_토큰과_사용자를_삭제한다() {
+    void 카카오_사용자_탈퇴_시_연결을_해제한_뒤_DB_삭제를_위임한다() {
         // given
         Long userId = 1L;
         String providerUserId = "123456789";
@@ -57,20 +56,21 @@ class UserWithdrawalServiceTest {
         InOrder inOrder = inOrder(
                 userService,
                 kakaoOAuthUnlinkService,
-                refreshTokenService
+                persistenceService
         );
 
-        inOrder.verify(userService).findById(userId);
+        inOrder.verify(userService)
+                .findById(userId);
+
         inOrder.verify(kakaoOAuthUnlinkService)
                 .unlink(providerUserId);
-        inOrder.verify(refreshTokenService)
-                .deleteAllByUserId(userId);
-        inOrder.verify(userService)
-                .deleteUser(userId);
+
+        inOrder.verify(persistenceService)
+                .deleteUserData(userId);
     }
 
     @Test
-    void 구글_사용자_탈퇴_시_카카오_연결_해제_없이_토큰과_사용자를_삭제한다() {
+    void 구글_사용자_탈퇴_시_카카오_연결_해제_없이_DB_삭제를_위임한다() {
         // given
         Long userId = 2L;
 
@@ -85,10 +85,7 @@ class UserWithdrawalServiceTest {
         verify(kakaoOAuthUnlinkService, never())
                 .unlink(anyString());
 
-        verify(refreshTokenService)
-                .deleteAllByUserId(userId);
-
-        verify(userService)
-                .deleteUser(userId);
+        verify(persistenceService)
+                .deleteUserData(userId);
     }
 }
