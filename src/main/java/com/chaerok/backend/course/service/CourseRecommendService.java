@@ -14,6 +14,7 @@ import com.chaerok.backend.place.repository.PlaceRepository;
 import com.chaerok.backend.region.repository.RegionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
@@ -23,6 +24,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class CourseRecommendService {
 
     private static final String RECOMMENDATION_TYPE_REGION = "REGION";
