@@ -49,6 +49,30 @@ public class VisitApiExceptionHandler {
         );
     }
 
+    @ExceptionHandler(VisitPhotoNotReadyException.class)
+    public ResponseEntity<ErrorResponse> handleVisitPhotoNotReady(
+            VisitPhotoNotReadyException exception,
+            HttpServletRequest request
+    ) {
+        return conflict(
+                "VISIT_PHOTO_NOT_READY",
+                exception,
+                request
+        );
+    }
+
+    @ExceptionHandler(VisitPhotoAlreadyUsedException.class)
+    public ResponseEntity<ErrorResponse> handleVisitPhotoAlreadyUsed(
+            VisitPhotoAlreadyUsedException exception,
+            HttpServletRequest request
+    ) {
+        return conflict(
+                "VISIT_PHOTO_ALREADY_USED",
+                exception,
+                request
+        );
+    }
+
     @ExceptionHandler(VisitRequirementNotMetException.class)
     public ResponseEntity<ErrorResponse> handleVisitRequirementNotMet(
             VisitRequirementNotMetException exception,

@@ -48,11 +48,13 @@ class VisitControllerTest {
     @Test
     @DisplayName("방문 등록 성공을 201로 반환한다")
     void createVisit() {
-        VisitCreateRequest request = new VisitCreateRequest(200L);
+        VisitCreateRequest request =
+                new VisitCreateRequest(200L, 400L);
         VisitCreateResponse expected = new VisitCreateResponse(
                 300L,
                 100L,
                 200L,
+                400L,
                 "공산성",
                 "TOURISM",
                 1,

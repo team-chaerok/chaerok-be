@@ -5,6 +5,8 @@ import com.chaerok.backend.visit.exception.FilmRollNotVisitableException;
 import com.chaerok.backend.visit.exception.PlaceRegionMismatchException;
 import com.chaerok.backend.visit.exception.VisitAlreadyExistsException;
 import com.chaerok.backend.visit.exception.VisitApiExceptionHandler;
+import com.chaerok.backend.visit.exception.VisitPhotoAlreadyUsedException;
+import com.chaerok.backend.visit.exception.VisitPhotoNotReadyException;
 import com.chaerok.backend.visit.exception.VisitRequirementNotMetException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -67,6 +69,30 @@ class VisitApiExceptionHandlerTest {
                         request
                 ),
                 "PLACE_REGION_MISMATCH"
+        );
+    }
+
+    @Test
+    @DisplayName("업로드 미완료 사진은 409 VISIT_PHOTO_NOT_READY로 반환한다")
+    void photoNotReady() {
+        assertConflict(
+                handler.handleVisitPhotoNotReady(
+                        new VisitPhotoNotReadyException(),
+                        request
+                ),
+                "VISIT_PHOTO_NOT_READY"
+        );
+    }
+
+    @Test
+    @DisplayName("이미 사용한 사진은 409 VISIT_PHOTO_ALREADY_USED로 반환한다")
+    void photoAlreadyUsed() {
+        assertConflict(
+                handler.handleVisitPhotoAlreadyUsed(
+                        new VisitPhotoAlreadyUsedException(),
+                        request
+                ),
+                "VISIT_PHOTO_ALREADY_USED"
         );
     }
 

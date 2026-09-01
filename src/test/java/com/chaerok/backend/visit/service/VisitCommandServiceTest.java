@@ -3,8 +3,12 @@ package com.chaerok.backend.visit.service;
 import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.entity.FilmRollStatus;
 import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
+import com.chaerok.backend.filmroll.exception.PhotoNotFoundException;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.global.exception.PlaceNotFoundException;
+import com.chaerok.backend.photo.entity.Photo;
+import com.chaerok.backend.photo.entity.PhotoStatus;
+import com.chaerok.backend.photo.repository.PhotoRepository;
 import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
 import com.chaerok.backend.place.repository.PlaceRepository;
@@ -15,6 +19,8 @@ import com.chaerok.backend.visit.entity.Visit;
 import com.chaerok.backend.visit.exception.FilmRollNotVisitableException;
 import com.chaerok.backend.visit.exception.PlaceRegionMismatchException;
 import com.chaerok.backend.visit.exception.VisitAlreadyExistsException;
+import com.chaerok.backend.visit.exception.VisitPhotoAlreadyUsedException;
+import com.chaerok.backend.visit.exception.VisitPhotoNotReadyException;
 import com.chaerok.backend.visit.repository.VisitRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +51,9 @@ class VisitCommandServiceTest {
     private PlaceRepository placeRepository;
 
     @Mock
+    private PhotoRepository photoRepository;
+
+    @Mock
     private VisitRepository visitRepository;
 
     @Mock
@@ -55,6 +64,9 @@ class VisitCommandServiceTest {
 
     @Mock
     private Place place;
+
+    @Mock
+    private Photo photo;
 
     @Mock
     private Region filmRollRegion;
@@ -70,11 +82,15 @@ class VisitCommandServiceTest {
         service = new VisitCommandService(
                 filmRollRepository,
                 placeRepository,
+                photoRepository,
                 visitRepository,
                 visitRequirementService
         );
 
-        request = new VisitCreateRequest(200L);
+        request = new VisitCreateRequest(
+                200L,
+                400L
+        );
 
         org.mockito.Mockito.lenient()
                 .when(filmRoll.getId())
@@ -104,16 +120,20 @@ class VisitCommandServiceTest {
         org.mockito.Mockito.lenient()
                 .when(placeRegion.getId())
                 .thenReturn(10L);
+
+        org.mockito.Mockito.lenient()
+                .when(photo.getId())
+                .thenReturn(400L);
+        org.mockito.Mockito.lenient()
+                .when(photo.getStatus())
+                .thenReturn(PhotoStatus.UPLOADED);
     }
 
     @Test
-    @DisplayName("GPS 검증이 끝난 placeId를 정상 방문 기록으로 저장한다")
+    @DisplayName("업로드 완료된 같은 FilmRoll의 Photo로 방문을 인증한다")
     void createVisit() {
-        stubOwnedFilmRollAndPlace();
-        when(visitRepository.existsByFilmRollIdAndPlaceId(
-                100L,
-                200L
-        )).thenReturn(false);
+        stubOwnedFilmRollPlaceAndPhoto();
+        stubUnusedPlaceAndPhoto();
 
         when(visitRepository.saveAndFlush(any(Visit.class)))
                 .thenAnswer(invocation -> {
@@ -140,6 +160,7 @@ class VisitCommandServiceTest {
         assertThat(response.visitId()).isEqualTo(300L);
         assertThat(response.filmRollId()).isEqualTo(100L);
         assertThat(response.placeId()).isEqualTo(200L);
+        assertThat(response.photoId()).isEqualTo(400L);
         assertThat(response.categoryGroup()).isEqualTo("FOOD");
         assertThat(response.visitedCategoryCount()).isEqualTo(1);
         assertThat(response.requiredCategoryCount()).isEqualTo(3);
@@ -159,15 +180,14 @@ class VisitCommandServiceTest {
         ).isInstanceOf(FilmRollNotFoundException.class);
 
         verify(placeRepository, never()).findById(any());
+        verify(photoRepository, never())
+                .findByIdAndFilmRollId(any(), any());
     }
 
     @Test
     @DisplayName("존재하지 않는 Place는 방문 인증하지 않는다")
     void rejectsMissingPlace() {
-        when(filmRollRepository.findByIdAndUserIdForUpdate(
-                100L,
-                1L
-        )).thenReturn(Optional.of(filmRoll));
+        stubOwnedFilmRoll();
         when(placeRepository.findById(200L))
                 .thenReturn(Optional.empty());
 
@@ -175,6 +195,8 @@ class VisitCommandServiceTest {
                 service.createVisit(1L, 100L, request)
         ).isInstanceOf(PlaceNotFoundException.class);
 
+        verify(photoRepository, never())
+                .findByIdAndFilmRollId(any(), any());
         verify(visitRepository, never())
                 .saveAndFlush(any(Visit.class));
     }
@@ -189,6 +211,8 @@ class VisitCommandServiceTest {
                 service.createVisit(1L, 100L, request)
         ).isInstanceOf(PlaceRegionMismatchException.class);
 
+        verify(photoRepository, never())
+                .findByIdAndFilmRollId(any(), any());
         verify(visitRepository, never())
                 .saveAndFlush(any(Visit.class));
     }
@@ -198,35 +222,30 @@ class VisitCommandServiceTest {
     void rejectsNonCapturingFilmRoll() {
         when(filmRoll.getStatus())
                 .thenReturn(FilmRollStatus.FAILED);
-        when(filmRollRepository.findByIdAndUserIdForUpdate(
-                100L,
-                1L
-        )).thenReturn(Optional.of(filmRoll));
+        stubOwnedFilmRoll();
 
         assertThatThrownBy(() ->
                 service.createVisit(1L, 100L, request)
         ).isInstanceOf(FilmRollNotVisitableException.class);
 
         verify(placeRepository, never()).findById(any());
-        verify(visitRepository, never())
-                .saveAndFlush(any(Visit.class));
+        verify(photoRepository, never())
+                .findByIdAndFilmRollId(any(), any());
     }
-
 
     @Test
     @DisplayName("지역 이탈이 확정된 뒤에는 새 방문을 추가하지 않는다")
     void rejectsVisitAfterExitConfirmation() {
         when(filmRoll.isExitConfirmed()).thenReturn(true);
-        when(filmRollRepository.findByIdAndUserIdForUpdate(
-                100L,
-                1L
-        )).thenReturn(Optional.of(filmRoll));
+        stubOwnedFilmRoll();
 
         assertThatThrownBy(() ->
                 service.createVisit(1L, 100L, request)
         ).isInstanceOf(FilmRollNotVisitableException.class);
 
         verify(placeRepository, never()).findById(any());
+        verify(photoRepository, never())
+                .findByIdAndFilmRollId(any(), any());
     }
 
     @Test
@@ -242,18 +261,75 @@ class VisitCommandServiceTest {
                 service.createVisit(1L, 100L, request)
         ).isInstanceOf(VisitAlreadyExistsException.class);
 
+        verify(photoRepository, never())
+                .findByIdAndFilmRollId(any(), any());
         verify(visitRepository, never())
                 .saveAndFlush(any(Visit.class));
     }
 
     @Test
-    @DisplayName("동시 중복 요청이 DB UNIQUE에 걸려도 중복 방문 예외로 처리한다")
-    void mapsDatabaseUniqueCollisionToDuplicateVisit() {
+    @DisplayName("같은 FilmRoll에 속하지 않은 Photo는 존재하지 않는 사진처럼 거부한다")
+    void rejectsPhotoFromDifferentFilmRoll() {
         stubOwnedFilmRollAndPlace();
         when(visitRepository.existsByFilmRollIdAndPlaceId(
                 100L,
                 200L
         )).thenReturn(false);
+        when(photoRepository.findByIdAndFilmRollId(
+                400L,
+                100L
+        )).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() ->
+                service.createVisit(1L, 100L, request)
+        ).isInstanceOf(PhotoNotFoundException.class);
+
+        verify(visitRepository, never())
+                .saveAndFlush(any(Visit.class));
+    }
+
+    @Test
+    @DisplayName("S3 업로드 완료 전 Photo는 방문 인증에 사용할 수 없다")
+    void rejectsUploadingPhoto() {
+        stubOwnedFilmRollPlaceAndPhoto();
+        when(visitRepository.existsByFilmRollIdAndPlaceId(
+                100L,
+                200L
+        )).thenReturn(false);
+        when(photo.getStatus()).thenReturn(PhotoStatus.UPLOADING);
+
+        assertThatThrownBy(() ->
+                service.createVisit(1L, 100L, request)
+        ).isInstanceOf(VisitPhotoNotReadyException.class);
+
+        verify(visitRepository, never())
+                .saveAndFlush(any(Visit.class));
+    }
+
+    @Test
+    @DisplayName("한 Photo를 두 방문 인증에 재사용할 수 없다")
+    void rejectsAlreadyUsedPhoto() {
+        stubOwnedFilmRollPlaceAndPhoto();
+        when(visitRepository.existsByFilmRollIdAndPlaceId(
+                100L,
+                200L
+        )).thenReturn(false);
+        when(visitRepository.existsByPhoto_Id(400L))
+                .thenReturn(true);
+
+        assertThatThrownBy(() ->
+                service.createVisit(1L, 100L, request)
+        ).isInstanceOf(VisitPhotoAlreadyUsedException.class);
+
+        verify(visitRepository, never())
+                .saveAndFlush(any(Visit.class));
+    }
+
+    @Test
+    @DisplayName("동시 중복 Place 요청이 DB UNIQUE에 걸려도 중복 방문 예외로 처리한다")
+    void mapsDatabasePlaceUniqueCollisionToDuplicateVisit() {
+        stubOwnedFilmRollPlaceAndPhoto();
+        stubUnusedPlaceAndPhoto();
         when(visitRepository.saveAndFlush(any(Visit.class)))
                 .thenThrow(new DataIntegrityViolationException(
                         "uk_visits_film_roll_place"
@@ -265,13 +341,25 @@ class VisitCommandServiceTest {
     }
 
     @Test
-    @DisplayName("중복 방문과 무관한 DB 오류는 중복으로 위장하지 않는다")
+    @DisplayName("동시 Photo 재사용이 DB UNIQUE에 걸리면 사진 재사용 예외로 처리한다")
+    void mapsDatabasePhotoUniqueCollisionToPhotoAlreadyUsed() {
+        stubOwnedFilmRollPlaceAndPhoto();
+        stubUnusedPlaceAndPhoto();
+        when(visitRepository.saveAndFlush(any(Visit.class)))
+                .thenThrow(new DataIntegrityViolationException(
+                        "uk_visits_photo"
+                ));
+
+        assertThatThrownBy(() ->
+                service.createVisit(1L, 100L, request)
+        ).isInstanceOf(VisitPhotoAlreadyUsedException.class);
+    }
+
+    @Test
+    @DisplayName("Visit UNIQUE와 무관한 DB 오류는 다른 예외로 위장하지 않는다")
     void rethrowsUnrelatedDatabaseViolation() {
-        stubOwnedFilmRollAndPlace();
-        when(visitRepository.existsByFilmRollIdAndPlaceId(
-                100L,
-                200L
-        )).thenReturn(false);
+        stubOwnedFilmRollPlaceAndPhoto();
+        stubUnusedPlaceAndPhoto();
         when(visitRepository.saveAndFlush(any(Visit.class)))
                 .thenThrow(new DataIntegrityViolationException(
                         "some_other_constraint"
@@ -280,15 +368,37 @@ class VisitCommandServiceTest {
         assertThatThrownBy(() ->
                 service.createVisit(1L, 100L, request)
         ).isInstanceOf(DataIntegrityViolationException.class)
-                .isNotInstanceOf(VisitAlreadyExistsException.class);
+                .isNotInstanceOf(VisitAlreadyExistsException.class)
+                .isNotInstanceOf(VisitPhotoAlreadyUsedException.class);
     }
 
-    private void stubOwnedFilmRollAndPlace() {
+    private void stubOwnedFilmRoll() {
         when(filmRollRepository.findByIdAndUserIdForUpdate(
                 100L,
                 1L
         )).thenReturn(Optional.of(filmRoll));
+    }
+
+    private void stubOwnedFilmRollAndPlace() {
+        stubOwnedFilmRoll();
         when(placeRepository.findById(200L))
                 .thenReturn(Optional.of(place));
+    }
+
+    private void stubOwnedFilmRollPlaceAndPhoto() {
+        stubOwnedFilmRollAndPlace();
+        when(photoRepository.findByIdAndFilmRollId(
+                400L,
+                100L
+        )).thenReturn(Optional.of(photo));
+    }
+
+    private void stubUnusedPlaceAndPhoto() {
+        when(visitRepository.existsByFilmRollIdAndPlaceId(
+                100L,
+                200L
+        )).thenReturn(false);
+        when(visitRepository.existsByPhoto_Id(400L))
+                .thenReturn(false);
     }
 }

@@ -15,6 +15,8 @@ public interface VisitRepository extends JpaRepository<Visit, Long> {
             Long placeId
     );
 
+    boolean existsByPhoto_Id(Long photoId);
+
     @Query("""
             select distinct visit.categoryGroup
             from Visit visit
@@ -28,6 +30,7 @@ public interface VisitRepository extends JpaRepository<Visit, Long> {
             select visit
             from Visit visit
             join fetch visit.place
+            left join fetch visit.photo
             where visit.filmRoll.id = :filmRollId
             order by visit.visitedAt asc, visit.id asc
             """)

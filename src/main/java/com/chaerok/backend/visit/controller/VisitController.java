@@ -35,9 +35,12 @@ public class VisitController {
     @Operation(
             summary = "방문 인증",
             description = """
-                    프론트가 GPS와 장소 간 거리를 검증한 뒤 placeId만 전달합니다.
+                    프론트가 GPS와 장소 간 거리를 검증하고 방문 사진을 촬영합니다.
+                    촬영한 사진을 해당 FilmRoll의 Photo로 업로드 완료한 뒤
+                    placeId와 photoId를 전달합니다.
                     백엔드는 GPS 좌표, 정확도, 거리, 이동 경로를 받거나 저장하지 않습니다.
-                    같은 필름 롤의 같은 장소는 한 번만 인증할 수 있습니다.
+                    같은 필름 롤의 같은 장소는 한 번만 인증할 수 있고,
+                    한 장의 사진은 하나의 방문 인증에만 사용할 수 있습니다.
                     """
     )
     @PostMapping
