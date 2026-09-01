@@ -14,7 +14,7 @@ public record OAuthLoginRequest(
         String idToken,
 
         @Schema(
-                description = "Apple 로그인 nonce. Kakao/Google에서는 사용하지 않습니다."
+                description = "Apple 로그인 요청에 사용한 SHA-256 해시 nonce. Kakao/Google에서는 사용하지 않습니다."
         )
         String nonce
 ) {
