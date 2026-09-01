@@ -62,29 +62,33 @@ public class AppleTokenVerifier implements OAuthTokenVerifier {
 
     @Override
     public OAuthUserInfo verify(String idToken, String nonce) {
-        try {
-            if (nonce == null || nonce.isBlank()) {
-                throw new InvalidTokenException(
-                        "Apple 로그인 nonce가 필요합니다."
-                );
-            }
-
-            Jwt jwt = jwtDecoder.decode(idToken);
-
-            String tokenNonce = jwt.getClaimAsString("nonce");
-
-            if (tokenNonce == null || !nonce.equals(tokenNonce)) {
-                throw new InvalidTokenException(
-                        "Apple ID Token의 nonce가 일치하지 않습니다."
-                );
-            }
-
-            return new OAuthUserInfo(
-                    OAuthProvider.APPLE,
-                    jwt.getSubject(),
-                    null,
-                    jwt.getClaimAsString("email")
+        if (nonce == null || nonce.isBlank()) {
+            throw new InvalidTokenException(
+                    "Apple 로그인 nonce가 필요합니다."
             );
+        }
+
+        Jwt jwt = decodeAndValidate(idToken);
+
+        String tokenNonce = jwt.getClaimAsString("nonce");
+
+        if (tokenNonce == null || !nonce.equals(tokenNonce)) {
+            throw new InvalidTokenException(
+                    "Apple ID Token의 nonce가 일치하지 않습니다."
+            );
+        }
+
+        return new OAuthUserInfo(
+                OAuthProvider.APPLE,
+                jwt.getSubject(),
+                null,
+                jwt.getClaimAsString("email")
+        );
+    }
+
+    public Jwt decodeAndValidate(String idToken) {
+        try {
+            return jwtDecoder.decode(idToken);
         } catch (JwtException exception) {
             throw new InvalidTokenException(
                     "유효하지 않은 Apple ID Token입니다.",

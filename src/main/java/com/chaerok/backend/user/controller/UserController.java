@@ -3,6 +3,7 @@ package com.chaerok.backend.user.controller;
 import com.chaerok.backend.auth.security.AuthenticatedUser;
 import com.chaerok.backend.user.dto.UpdateNicknameRequest;
 import com.chaerok.backend.user.dto.UserResponse;
+import com.chaerok.backend.user.dto.UserWithdrawalRequest;
 import com.chaerok.backend.user.entity.User;
 import com.chaerok.backend.user.service.UserService;
 import com.chaerok.backend.user.service.UserWithdrawalService;
@@ -59,14 +60,16 @@ public class UserController {
 
     @Operation(
             summary = "회원 탈퇴",
-            description = "인증된 사용자의 계정과 인증 관련 데이터를 삭제합니다."
+            description = "인증된 사용자의 계정을 삭제합니다. Apple 사용자는 재인증 authorizationCode가 필요합니다."
     )
     @DeleteMapping("/me")
     public ResponseEntity<Void> withdraw(
-            @AuthenticationPrincipal AuthenticatedUser authenticatedUser
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @RequestBody(required = false) UserWithdrawalRequest request
     ) {
         userWithdrawalService.withdraw(
-                authenticatedUser.userId()
+                authenticatedUser.userId(),
+                request != null ? request.authorizationCode() : null
         );
 
         return ResponseEntity.noContent().build();
