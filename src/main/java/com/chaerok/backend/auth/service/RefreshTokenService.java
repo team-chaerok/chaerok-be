@@ -1,9 +1,10 @@
 package com.chaerok.backend.auth.service;
 
 import com.chaerok.backend.auth.entity.RefreshToken;
+import com.chaerok.backend.auth.exception.AuthErrorCode;
 import com.chaerok.backend.auth.jwt.TokenHashUtil;
 import com.chaerok.backend.auth.repository.RefreshTokenRepository;
-import com.chaerok.backend.global.exception.InvalidTokenException;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -42,14 +43,14 @@ public class RefreshTokenService {
         RefreshToken refreshToken =
                 refreshTokenRepository.findByTokenHash(tokenHash)
                         .orElseThrow(() ->
-                                new InvalidTokenException(
-                                        "저장되지 않았거나 폐기된 Refresh Token입니다."
+                                new BusinessException(
+                                        AuthErrorCode.REFRESH_TOKEN_NOT_FOUND
                                 )
                         );
 
         if (refreshToken.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new InvalidTokenException(
-                    "만료된 Refresh Token입니다."
+            throw new BusinessException(
+                    AuthErrorCode.EXPIRED_REFRESH_TOKEN
             );
         }
 
@@ -62,14 +63,14 @@ public class RefreshTokenService {
         RefreshToken refreshToken =
                 refreshTokenRepository.findByTokenHashForUpdate(tokenHash)
                         .orElseThrow(() ->
-                                new InvalidTokenException(
-                                        "저장되지 않았거나 폐기된 Refresh Token입니다."
+                                new BusinessException(
+                                        AuthErrorCode.REFRESH_TOKEN_NOT_FOUND
                                 )
                         );
 
         if (refreshToken.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new InvalidTokenException(
-                    "만료된 Refresh Token입니다."
+            throw new BusinessException(
+                    AuthErrorCode.EXPIRED_REFRESH_TOKEN
             );
         }
 

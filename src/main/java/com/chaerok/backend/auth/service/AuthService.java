@@ -2,14 +2,15 @@ package com.chaerok.backend.auth.service;
 
 import com.chaerok.backend.auth.dto.*;
 import com.chaerok.backend.auth.entity.RefreshToken;
+import com.chaerok.backend.auth.exception.AuthErrorCode;
 import com.chaerok.backend.auth.jwt.JwtTokenProvider;
 import com.chaerok.backend.auth.jwt.SignupTokenInfo;
 import com.chaerok.backend.auth.oauth.dto.OAuthUserInfo;
 import com.chaerok.backend.auth.oauth.verifier.OAuthTokenVerifier;
 import com.chaerok.backend.auth.oauth.verifier.OAuthTokenVerifierResolver;
-import com.chaerok.backend.global.exception.DuplicateUserException;
-import com.chaerok.backend.global.exception.InvalidTokenException;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.user.entity.User;
+import com.chaerok.backend.user.exception.UserErrorCode;
 import com.chaerok.backend.user.service.UserService;
 import com.chaerok.backend.auth.constant.TermsVersion;
 import lombok.RequiredArgsConstructor;
@@ -98,8 +99,8 @@ public class AuthService {
                 );
 
         if (existingUser.isPresent()) {
-            throw new DuplicateUserException(
-                    "이미 가입된 사용자입니다."
+            throw new BusinessException(
+                    UserErrorCode.ALREADY_REGISTERED
             );
         }
 
@@ -152,8 +153,8 @@ public class AuthService {
         User user = savedToken.getUser();
 
         if (!user.getId().equals(tokenUserId)) {
-            throw new InvalidTokenException(
-                    "Refresh Token의 사용자 정보가 일치하지 않습니다."
+            throw new BusinessException(
+                    AuthErrorCode.REFRESH_TOKEN_USER_MISMATCH
             );
         }
 
@@ -198,8 +199,8 @@ public class AuthService {
                 );
 
         if (!savedToken.getUser().getId().equals(tokenUserId)) {
-            throw new InvalidTokenException(
-                    "Refresh Token의 사용자 정보가 일치하지 않습니다."
+            throw new BusinessException(
+                    AuthErrorCode.REFRESH_TOKEN_USER_MISMATCH
             );
         }
 

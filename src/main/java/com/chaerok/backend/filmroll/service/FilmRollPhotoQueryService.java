@@ -2,8 +2,9 @@ package com.chaerok.backend.filmroll.service;
 
 import com.chaerok.backend.filmroll.dto.FilmRollPhotoListResponse;
 import com.chaerok.backend.filmroll.entity.FilmRoll;
-import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
+import com.chaerok.backend.filmroll.exception.FilmRollErrorCode;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.photo.repository.PhotoRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +27,11 @@ public class FilmRollPhotoQueryService {
     ) {
         FilmRoll filmRoll = filmRollRepository
                 .findByIdAndUserId(filmRollId, userId)
-                .orElseThrow(FilmRollNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                FilmRollErrorCode.FILM_ROLL_NOT_FOUND
+                        )
+                );
 
         List<Photo> photos = photoRepository
                 .findAllByFilmRollIdOrderBySequenceAsc(filmRollId);

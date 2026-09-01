@@ -1,6 +1,7 @@
 package com.chaerok.backend.auth.jwt;
 
-import com.chaerok.backend.global.exception.InvalidTokenException;
+import com.chaerok.backend.auth.exception.AuthErrorCode;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.user.entity.OAuthProvider;
 import com.chaerok.backend.user.entity.UserRole;
 import org.junit.jupiter.api.BeforeEach;
@@ -110,6 +111,10 @@ class JwtTokenProviderTest {
         // when & then
         assertThatThrownBy(
                 () -> jwtTokenProvider.getSignupTokenInfo(accessToken)
-        ).isInstanceOf(InvalidTokenException.class);
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(AuthErrorCode.INVALID_SIGNUP_TOKEN_TYPE)
+        );
     }
 }

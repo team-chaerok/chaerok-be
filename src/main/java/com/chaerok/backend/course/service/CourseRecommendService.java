@@ -3,14 +3,15 @@ package com.chaerok.backend.course.service;
 import com.chaerok.backend.course.dto.CoursePlaceResponse;
 import com.chaerok.backend.course.dto.CourseRecommendResponse;
 import com.chaerok.backend.course.dto.CourseResponse;
-import com.chaerok.backend.global.exception.PlaceNotFoundException;
-import com.chaerok.backend.global.exception.RegionNotFoundException;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryDetail;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
+import com.chaerok.backend.place.exception.PlaceErrorCode;
 import com.chaerok.backend.place.external.KakaoLocalClient;
 import com.chaerok.backend.place.external.KakaoPlaceItem;
 import com.chaerok.backend.place.repository.PlaceRepository;
+import com.chaerok.backend.region.exception.RegionErrorCode;
 import com.chaerok.backend.region.repository.RegionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -80,7 +81,9 @@ public class CourseRecommendService {
 
     private void validateRegion(Long regionId) {
         if (!regionRepository.existsById(regionId)) {
-            throw new RegionNotFoundException();
+            throw new BusinessException(
+                    RegionErrorCode.REGION_NOT_FOUND
+            );
         }
     }
 
@@ -89,7 +92,11 @@ public class CourseRecommendService {
             Long anchorPlaceId
     ) {
         Place anchor = placeRepository.findById(anchorPlaceId)
-                .orElseThrow(PlaceNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                PlaceErrorCode.PLACE_NOT_FOUND
+                        )
+                );
 
         if (!anchor.getRegion().getId().equals(regionId)) {
             throw new IllegalArgumentException("해당 지역의 Anchor 장소가 아닙니다.");

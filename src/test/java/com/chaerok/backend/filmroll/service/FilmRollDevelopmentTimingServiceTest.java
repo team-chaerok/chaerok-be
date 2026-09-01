@@ -1,8 +1,8 @@
 package com.chaerok.backend.filmroll.service;
 
 import com.chaerok.backend.filmroll.entity.FilmRoll;
-import com.chaerok.backend.filmroll.exception.FilmRollDevelopmentWaitException;
-import com.chaerok.backend.filmroll.exception.FilmRollExitRequiredException;
+import com.chaerok.backend.filmroll.exception.FilmRollErrorCode;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.region.entity.Region;
 import com.chaerok.backend.user.entity.User;
 import org.junit.jupiter.api.DisplayName;
@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -25,7 +26,11 @@ class FilmRollDevelopmentTimingServiceTest {
         FilmRoll filmRoll = newFilmRoll();
 
         assertThatThrownBy(() -> service.requireAvailable(filmRoll))
-                .isInstanceOf(FilmRollExitRequiredException.class);
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(FilmRollErrorCode.FILM_ROLL_EXIT_REQUIRED)
+                );
     }
 
     @Test
@@ -35,7 +40,13 @@ class FilmRollDevelopmentTimingServiceTest {
         filmRoll.confirmExit(LocalDateTime.now());
 
         assertThatThrownBy(() -> service.requireAvailable(filmRoll))
-                .isInstanceOf(FilmRollDevelopmentWaitException.class);
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(
+                                        FilmRollErrorCode.DEVELOPMENT_WAIT_NOT_FINISHED
+                                )
+                );
     }
 
     @Test

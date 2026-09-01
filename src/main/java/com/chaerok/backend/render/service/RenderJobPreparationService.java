@@ -2,16 +2,17 @@ package com.chaerok.backend.render.service;
 
 import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.entity.FilmRollStatus;
-import com.chaerok.backend.filmroll.exception.FilmRollConflictException;
-import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
+import com.chaerok.backend.filmroll.exception.FilmRollErrorCode;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.filmroll.service.FilmRollDevelopmentTimingService;
 import com.chaerok.backend.global.aws.AwsProperties;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.photo.entity.PhotoStatus;
 import com.chaerok.backend.photo.repository.PhotoRepository;
 import com.chaerok.backend.render.entity.RenderJob;
 import com.chaerok.backend.render.entity.RenderJobStatus;
+import com.chaerok.backend.render.exception.RenderErrorCode;
 import com.chaerok.backend.render.queue.RenderQueueMessage;
 import com.chaerok.backend.render.repository.RenderJobRepository;
 import com.chaerok.backend.visit.service.VisitRequirementService;
@@ -55,7 +56,11 @@ public class RenderJobPreparationService {
                         filmRollId,
                         userId
                 )
-                .orElseThrow(FilmRollNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                FilmRollErrorCode.FILM_ROLL_NOT_FOUND
+                        )
+                );
 
         requireReady(filmRoll);
         requireNoActiveJob(filmRollId);
@@ -90,8 +95,8 @@ public class RenderJobPreparationService {
 
     private void requireReady(FilmRoll filmRoll) {
         if (filmRoll.getStatus() != FilmRollStatus.READY) {
-            throw new FilmRollConflictException(
-                    "READY 상태의 필름 롤만 현상을 요청할 수 있습니다."
+            throw new BusinessException(
+                    RenderErrorCode.FILM_ROLL_NOT_READY
             );
         }
     }
@@ -101,8 +106,8 @@ public class RenderJobPreparationService {
                 filmRollId,
                 ACTIVE_JOB_STATUSES
         )) {
-            throw new FilmRollConflictException(
-                    "이미 진행 중인 현상 작업이 있습니다."
+            throw new BusinessException(
+                    RenderErrorCode.ACTIVE_RENDER_JOB_EXISTS
             );
         }
     }
@@ -112,14 +117,14 @@ public class RenderJobPreparationService {
             List<Photo> photos
     ) {
         if (photos.isEmpty()) {
-            throw new FilmRollConflictException(
-                    "현상할 사진이 없습니다."
+            throw new BusinessException(
+                    RenderErrorCode.RENDER_PHOTO_NOT_FOUND
             );
         }
 
         if (photos.size() != filmRoll.getTotalPhotoCount()) {
-            throw new FilmRollConflictException(
-                    "필름 롤 사진 수와 저장된 사진 수가 일치하지 않습니다."
+            throw new BusinessException(
+                    RenderErrorCode.RENDER_PHOTO_COUNT_MISMATCH
             );
         }
 
@@ -131,8 +136,8 @@ public class RenderJobPreparationService {
                 );
 
         if (hasIncompletePhoto) {
-            throw new FilmRollConflictException(
-                    "업로드가 완료되지 않은 사진이 있습니다."
+            throw new BusinessException(
+                    RenderErrorCode.INCOMPLETE_PHOTO_UPLOAD
             );
         }
     }
@@ -144,8 +149,8 @@ public class RenderJobPreparationService {
 
             if (!Integer.valueOf(expectedSequence)
                     .equals(actualSequence)) {
-                throw new FilmRollConflictException(
-                        "사진 순서는 1부터 빠짐없이 연속되어야 합니다."
+                throw new BusinessException(
+                        RenderErrorCode.INVALID_PHOTO_SEQUENCE
                 );
             }
         }

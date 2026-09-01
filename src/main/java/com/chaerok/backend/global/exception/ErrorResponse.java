@@ -40,6 +40,19 @@ public record ErrorResponse(
         );
     }
 
+    public static ErrorResponse from(
+            ErrorCode errorCode,
+            String path
+    ) {
+        return new ErrorResponse(
+                errorCode.getCode(),
+                errorCode.getMessage(),
+                path,
+                LocalDateTime.now(),
+                List.of()
+        );
+    }
+
     public record FieldErrorDetail(
             String field,
             String message

@@ -1,7 +1,8 @@
 package com.chaerok.backend.visit.service;
 
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
-import com.chaerok.backend.visit.exception.VisitRequirementNotMetException;
+import com.chaerok.backend.visit.exception.VisitErrorCode;
 import com.chaerok.backend.visit.repository.VisitRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -109,9 +110,10 @@ class VisitRequirementServiceTest {
                 ));
 
         assertThatThrownBy(() -> service.requireSatisfied(100L))
-                .isInstanceOf(VisitRequirementNotMetException.class)
-                .hasMessageContaining("관광지")
-                .hasMessageContaining("식당")
-                .hasMessageContaining("카페");
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(VisitErrorCode.VISIT_REQUIREMENT_NOT_MET)
+                );
     }
 }

@@ -8,8 +8,9 @@ import com.chaerok.backend.course.entity.Course;
 import com.chaerok.backend.course.entity.CourseStatus;
 import com.chaerok.backend.course.repository.CoursePlaceRepository;
 import com.chaerok.backend.course.repository.CourseRepository;
-import com.chaerok.backend.global.exception.RegionNotFoundException;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.region.entity.Region;
+import com.chaerok.backend.region.exception.RegionErrorCode;
 import com.chaerok.backend.region.repository.RegionRepository;
 import com.chaerok.backend.user.entity.User;
 import com.chaerok.backend.user.repository.UserRepository;
@@ -142,7 +143,11 @@ public class CourseCommandService {
 
     private Region findRegion(Long regionId) {
         return regionRepository.findById(regionId)
-                .orElseThrow(RegionNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                RegionErrorCode.REGION_NOT_FOUND
+                        )
+                );
     }
 
     private Course findActiveCourse(Long userId) {

@@ -1,6 +1,7 @@
 package com.chaerok.backend.auth.jwt;
 
-import com.chaerok.backend.global.exception.InvalidTokenException;
+import com.chaerok.backend.auth.exception.AuthErrorCode;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.user.entity.OAuthProvider;
 import com.chaerok.backend.user.entity.UserRole;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
@@ -171,8 +172,8 @@ public class JwtTokenProvider {
             String tokenType = jwt.getClaimAsString("type");
 
             if (!TokenType.SIGNUP.name().equals(tokenType)) {
-                throw new InvalidTokenException(
-                        "회원가입용 토큰이 아닙니다."
+                throw new BusinessException(
+                        AuthErrorCode.INVALID_SIGNUP_TOKEN_TYPE
                 );
             }
 
@@ -186,8 +187,9 @@ public class JwtTokenProvider {
                     jwt.getClaimAsString("email")
             );
         } catch (JwtException exception) {
-            throw new InvalidTokenException(
-                    "유효하지 않거나 만료된 회원가입 토큰입니다.",
+            throw new BusinessException(
+                    AuthErrorCode.INVALID_OR_EXPIRED_SIGNUP_TOKEN,
+                    "Invalid or expired signup token.",
                     exception
             );
         }
@@ -200,15 +202,16 @@ public class JwtTokenProvider {
             String tokenType = jwt.getClaimAsString("type");
 
             if (!TokenType.REFRESH.name().equals(tokenType)) {
-                throw new InvalidTokenException(
-                        "Refresh Token이 아닙니다."
+                throw new BusinessException(
+                        AuthErrorCode.INVALID_REFRESH_TOKEN_TYPE
                 );
             }
 
             return Long.valueOf(jwt.getSubject());
         } catch (JwtException | NumberFormatException exception) {
-            throw new InvalidTokenException(
-                    "유효하지 않거나 만료된 Refresh Token입니다.",
+            throw new BusinessException(
+                    AuthErrorCode.INVALID_OR_EXPIRED_REFRESH_TOKEN,
+                    "Invalid or expired refresh token.",
                     exception
             );
         }
@@ -219,8 +222,8 @@ public class JwtTokenProvider {
             Instant expiresAt = parseToken(token).getExpiresAt();
 
             if (expiresAt == null) {
-                throw new InvalidTokenException(
-                        "토큰 만료 시간이 존재하지 않습니다."
+                throw new BusinessException(
+                        AuthErrorCode.TOKEN_EXPIRATION_MISSING
                 );
             }
 
@@ -229,8 +232,9 @@ public class JwtTokenProvider {
                     ZoneId.systemDefault()
             );
         } catch (JwtException exception) {
-            throw new InvalidTokenException(
-                    "유효하지 않은 토큰입니다.",
+            throw new BusinessException(
+                    AuthErrorCode.INVALID_TOKEN,
+                    "Invalid token.",
                     exception
             );
         }

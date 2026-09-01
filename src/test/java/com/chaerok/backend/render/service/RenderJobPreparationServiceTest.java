@@ -2,18 +2,19 @@ package com.chaerok.backend.render.service;
 
 import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.entity.FilmRollStatus;
-import com.chaerok.backend.filmroll.exception.FilmRollConflictException;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.filmroll.service.FilmRollDevelopmentTimingService;
 import com.chaerok.backend.global.aws.AwsProperties;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.photo.entity.PhotoStatus;
 import com.chaerok.backend.photo.repository.PhotoRepository;
 import com.chaerok.backend.render.entity.RenderJob;
+import com.chaerok.backend.render.exception.RenderErrorCode;
 import com.chaerok.backend.render.repository.RenderJobRepository;
 import com.chaerok.backend.region.entity.Region;
 import com.chaerok.backend.user.entity.User;
-import com.chaerok.backend.visit.exception.VisitRequirementNotMetException;
+import com.chaerok.backend.visit.exception.VisitErrorCode;
 import com.chaerok.backend.visit.service.VisitRequirementService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -102,9 +103,11 @@ class RenderJobPreparationServiceTest {
                 );
 
         assertThatThrownBy(() -> service.prepare(6L, 2L))
-                .isInstanceOf(FilmRollConflictException.class)
-                .hasMessageContaining("1부터")
-                .hasMessageContaining("연속");
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(RenderErrorCode.INVALID_PHOTO_SEQUENCE)
+                );
 
         verify(renderJobRepository, never())
                 .saveAndFlush(any(RenderJob.class));
@@ -127,8 +130,9 @@ class RenderJobPreparationServiceTest {
         when(filmRoll.getTotalPhotoCount()).thenReturn(1);
         when(firstPhoto.getSequence()).thenReturn(1);
         when(firstPhoto.getStatus()).thenReturn(PhotoStatus.UPLOADED);
-        org.mockito.Mockito.doThrow(
-                new VisitRequirementNotMetException()
+        org.mockito.Mockito.doThrow(new BusinessException(
+                        VisitErrorCode.VISIT_REQUIREMENT_NOT_MET
+                )
         ).when(visitRequirementService).requireSatisfied(2L);
 
         RenderJobPreparationService service =
@@ -142,7 +146,11 @@ class RenderJobPreparationServiceTest {
                 );
 
         assertThatThrownBy(() -> service.prepare(6L, 2L))
-                .isInstanceOf(VisitRequirementNotMetException.class);
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(VisitErrorCode.VISIT_REQUIREMENT_NOT_MET)
+                );
 
         verify(renderJobRepository, never())
                 .saveAndFlush(any(RenderJob.class));

@@ -2,19 +2,18 @@ package com.chaerok.backend.visit.service;
 
 import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.entity.FilmRollStatus;
-import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
+import com.chaerok.backend.filmroll.exception.FilmRollErrorCode;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
-import com.chaerok.backend.global.exception.PlaceNotFoundException;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
+import com.chaerok.backend.place.exception.PlaceErrorCode;
 import com.chaerok.backend.place.repository.PlaceRepository;
 import com.chaerok.backend.region.entity.Region;
 import com.chaerok.backend.visit.dto.VisitCreateRequest;
 import com.chaerok.backend.visit.dto.VisitCreateResponse;
 import com.chaerok.backend.visit.entity.Visit;
-import com.chaerok.backend.visit.exception.FilmRollNotVisitableException;
-import com.chaerok.backend.visit.exception.PlaceRegionMismatchException;
-import com.chaerok.backend.visit.exception.VisitAlreadyExistsException;
+import com.chaerok.backend.visit.exception.VisitErrorCode;
 import com.chaerok.backend.visit.repository.VisitRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -156,7 +155,11 @@ class VisitCommandServiceTest {
 
         assertThatThrownBy(() ->
                 service.createVisit(1L, 100L, request)
-        ).isInstanceOf(FilmRollNotFoundException.class);
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(FilmRollErrorCode.FILM_ROLL_NOT_FOUND)
+        );
 
         verify(placeRepository, never()).findById(any());
     }
@@ -168,12 +171,17 @@ class VisitCommandServiceTest {
                 100L,
                 1L
         )).thenReturn(Optional.of(filmRoll));
+
         when(placeRepository.findById(200L))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() ->
                 service.createVisit(1L, 100L, request)
-        ).isInstanceOf(PlaceNotFoundException.class);
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(PlaceErrorCode.PLACE_NOT_FOUND)
+        );
 
         verify(visitRepository, never())
                 .saveAndFlush(any(Visit.class));
@@ -187,7 +195,11 @@ class VisitCommandServiceTest {
 
         assertThatThrownBy(() ->
                 service.createVisit(1L, 100L, request)
-        ).isInstanceOf(PlaceRegionMismatchException.class);
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(VisitErrorCode.PLACE_REGION_MISMATCH)
+        );
 
         verify(visitRepository, never())
                 .saveAndFlush(any(Visit.class));
@@ -205,7 +217,11 @@ class VisitCommandServiceTest {
 
         assertThatThrownBy(() ->
                 service.createVisit(1L, 100L, request)
-        ).isInstanceOf(FilmRollNotVisitableException.class);
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(VisitErrorCode.FILM_ROLL_NOT_VISITABLE)
+        );
 
         verify(placeRepository, never()).findById(any());
         verify(visitRepository, never())
@@ -224,7 +240,11 @@ class VisitCommandServiceTest {
 
         assertThatThrownBy(() ->
                 service.createVisit(1L, 100L, request)
-        ).isInstanceOf(FilmRollNotVisitableException.class);
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(VisitErrorCode.FILM_ROLL_NOT_VISITABLE)
+        );
 
         verify(placeRepository, never()).findById(any());
     }
@@ -240,7 +260,11 @@ class VisitCommandServiceTest {
 
         assertThatThrownBy(() ->
                 service.createVisit(1L, 100L, request)
-        ).isInstanceOf(VisitAlreadyExistsException.class);
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(VisitErrorCode.VISIT_ALREADY_EXISTS)
+        );
 
         verify(visitRepository, never())
                 .saveAndFlush(any(Visit.class));
@@ -261,7 +285,11 @@ class VisitCommandServiceTest {
 
         assertThatThrownBy(() ->
                 service.createVisit(1L, 100L, request)
-        ).isInstanceOf(VisitAlreadyExistsException.class);
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(VisitErrorCode.VISIT_ALREADY_EXISTS)
+        );
     }
 
     @Test
@@ -280,7 +308,7 @@ class VisitCommandServiceTest {
         assertThatThrownBy(() ->
                 service.createVisit(1L, 100L, request)
         ).isInstanceOf(DataIntegrityViolationException.class)
-                .isNotInstanceOf(VisitAlreadyExistsException.class);
+                .isNotInstanceOf(BusinessException.class);
     }
 
     private void stubOwnedFilmRollAndPlace() {

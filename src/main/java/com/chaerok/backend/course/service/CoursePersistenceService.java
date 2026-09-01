@@ -7,11 +7,12 @@ import com.chaerok.backend.course.entity.CoursePlace;
 import com.chaerok.backend.course.entity.CourseStatus;
 import com.chaerok.backend.course.repository.CoursePlaceRepository;
 import com.chaerok.backend.course.repository.CourseRepository;
-import com.chaerok.backend.global.exception.PlaceNotFoundException;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryDetail;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
 import com.chaerok.backend.place.entity.PlaceSource;
+import com.chaerok.backend.place.exception.PlaceErrorCode;
 import com.chaerok.backend.place.external.TourApiPlaceItem;
 import com.chaerok.backend.place.repository.PlaceRepository;
 import com.chaerok.backend.place.service.PlaceCategoryMapper;
@@ -120,7 +121,11 @@ public class CoursePersistenceService {
 
         if (request.placeId() != null) {
             Place place = placeRepository.findById(request.placeId())
-                    .orElseThrow(PlaceNotFoundException::new);
+                    .orElseThrow(() ->
+                            new BusinessException(
+                                    PlaceErrorCode.PLACE_NOT_FOUND
+                            )
+                    );
 
             validatePlaceRegion(region, place);
 

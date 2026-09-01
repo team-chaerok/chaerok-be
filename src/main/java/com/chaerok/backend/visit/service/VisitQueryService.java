@@ -1,7 +1,8 @@
 package com.chaerok.backend.visit.service;
 
-import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
+import com.chaerok.backend.filmroll.exception.FilmRollErrorCode;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.visit.dto.VisitListResponse;
 import com.chaerok.backend.visit.entity.Visit;
 import com.chaerok.backend.visit.repository.VisitRepository;
@@ -26,7 +27,11 @@ public class VisitQueryService {
     ) {
         filmRollRepository
                 .findByIdAndUserId(filmRollId, userId)
-                .orElseThrow(FilmRollNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                FilmRollErrorCode.FILM_ROLL_NOT_FOUND
+                        )
+                );
 
         List<Visit> visits =
                 visitRepository

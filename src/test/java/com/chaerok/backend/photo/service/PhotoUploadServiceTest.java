@@ -1,17 +1,18 @@
 package com.chaerok.backend.photo.service;
 
 import com.chaerok.backend.filmroll.entity.FilmRoll;
-import com.chaerok.backend.filmroll.exception.FilmRollConflictException;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.global.aws.PresignedUpload;
 import com.chaerok.backend.global.aws.S3ObjectKeyGenerator;
 import com.chaerok.backend.global.aws.S3ObjectStorage;
 import com.chaerok.backend.global.aws.StoredObjectMetadata;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.photo.dto.PhotoUploadCompleteResponse;
 import com.chaerok.backend.photo.dto.PhotoUploadUrlRequest;
 import com.chaerok.backend.photo.dto.PhotoUploadUrlResponse;
 import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.photo.entity.PhotoStatus;
+import com.chaerok.backend.photo.exception.PhotoErrorCode;
 import com.chaerok.backend.photo.repository.PhotoRepository;
 import com.chaerok.backend.region.entity.Region;
 import com.chaerok.backend.user.entity.User;
@@ -187,9 +188,11 @@ class PhotoUploadServiceTest {
 
         assertThatThrownBy(() ->
                 service.createUploadUrl(1L, 100L, request)
-        )
-                .isInstanceOf(FilmRollConflictException.class)
-                .hasMessageContaining("지역 이탈 확정 후");
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(PhotoErrorCode.PHOTO_ADD_AFTER_EXIT_NOT_ALLOWED)
+        );
 
         verify(photoRepository, never()).saveAndFlush(any(Photo.class));
     }

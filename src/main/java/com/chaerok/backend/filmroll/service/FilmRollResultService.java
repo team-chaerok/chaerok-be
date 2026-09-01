@@ -3,11 +3,11 @@ package com.chaerok.backend.filmroll.service;
 import com.chaerok.backend.filmroll.dto.FilmRollResultResponse;
 import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.entity.FilmRollStatus;
-import com.chaerok.backend.filmroll.exception.FilmRollConflictException;
-import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
+import com.chaerok.backend.filmroll.exception.FilmRollErrorCode;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.global.aws.PresignedDownload;
 import com.chaerok.backend.global.aws.S3ObjectStorage;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.photo.entity.PhotoStatus;
 import com.chaerok.backend.photo.repository.PhotoRepository;
@@ -89,7 +89,11 @@ public class FilmRollResultService {
     ) {
         FilmRoll filmRoll = filmRollRepository
                 .findByIdAndUserId(filmRollId, userId)
-                .orElseThrow(FilmRollNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                FilmRollErrorCode.FILM_ROLL_NOT_FOUND
+                        )
+                );
 
         FilmRollStatus responseStatus = responseStatus(filmRoll);
 
@@ -107,7 +111,9 @@ public class FilmRollResultService {
 
         LocalDateTime expiresAt = filmRoll.getExpiresAt();
         if (expiresAt == null) {
-            throw conflict("완료된 필름 롤의 만료 시각이 없습니다.");
+            throw new BusinessException(
+                    FilmRollErrorCode.RESULT_EXPIRATION_MISSING
+            );
         }
 
         LocalDateTime now = LocalDateTime.ofInstant(
@@ -122,8 +128,14 @@ public class FilmRollResultService {
     private FilmRollResultResponse completedResult(
             FilmRoll filmRoll
     ) {
-        requireText(filmRoll.getZipObjectKey(), "ZIP 결과 경로");
-        requireText(filmRoll.getReelObjectKey(), "릴스 결과 경로");
+        requireText(
+                filmRoll.getZipObjectKey(),
+                FilmRollErrorCode.ZIP_RESULT_PATH_MISSING
+        );
+        requireText(
+                filmRoll.getReelObjectKey(),
+                FilmRollErrorCode.REEL_RESULT_PATH_MISSING
+        );
 
         List<Photo> photos = photoRepository
                 .findAllByFilmRollIdOrderBySequenceAsc(
@@ -135,9 +147,11 @@ public class FilmRollResultService {
                 .findFirstByFilmRollIdOrderByCreatedAtDesc(
                         filmRoll.getId()
                 )
-                .orElseThrow(() -> conflict(
-                        "완료된 필름 롤의 현상 작업을 찾을 수 없습니다."
-                ));
+                .orElseThrow(() ->
+                        new BusinessException(
+                                FilmRollErrorCode.COMPLETED_RENDER_JOB_NOT_FOUND
+                        )
+                );
         validateCompletedRenderJob(filmRoll, renderJob);
 
         List<FilmRollResultResponse.FilteredPhotoResponse>
@@ -217,7 +231,9 @@ public class FilmRollResultService {
             Long fileSize
     ) {
         if (fileSize == null || fileSize < 0L) {
-            throw conflict("현상 결과 파일 크기가 올바르지 않습니다.");
+            throw new BusinessException(
+                    FilmRollErrorCode.INVALID_RESULT_FILE_SIZE
+            );
         }
 
         PresignedDownload download = objectStorage
@@ -239,8 +255,14 @@ public class FilmRollResultService {
             return null;
         }
 
-        requireText(errorCode, "현상 실패 코드");
-        requireText(errorMessage, "현상 실패 메시지");
+        requireText(
+                errorCode,
+                FilmRollErrorCode.RENDER_FAILURE_CODE_MISSING
+        );
+        requireText(
+                errorMessage,
+                FilmRollErrorCode.RENDER_FAILURE_MESSAGE_MISSING
+        );
 
         return new FilmRollResultResponse.FailureResponse(
                 errorCode,
@@ -253,16 +275,20 @@ public class FilmRollResultService {
             List<Photo> photos
     ) {
         if (photos.size() != filmRoll.getTotalPhotoCount()) {
-            throw conflict("완료된 사진 수가 필름 롤의 사진 수와 다릅니다.");
+            throw new BusinessException(
+                    FilmRollErrorCode.COMPLETED_PHOTO_COUNT_MISMATCH
+            );
         }
 
         for (Photo photo : photos) {
             if (photo.getStatus() != PhotoStatus.COMPLETED) {
-                throw conflict("완료되지 않은 사진이 현상 결과에 포함되어 있습니다.");
+                throw new BusinessException(
+                        FilmRollErrorCode.INCOMPLETE_PHOTO_IN_RESULT
+                );
             }
             requireText(
                     photo.getFilteredObjectKey(),
-                    "필터 사진 결과 경로"
+                    FilmRollErrorCode.FILTERED_PHOTO_RESULT_PATH_MISSING
             );
         }
     }
@@ -272,7 +298,9 @@ public class FilmRollResultService {
             RenderJob renderJob
     ) {
         if (renderJob.getStatus() != RenderJobStatus.COMPLETED) {
-            throw conflict("최신 현상 작업이 완료 상태가 아닙니다.");
+            throw new BusinessException(
+                    FilmRollErrorCode.RENDER_JOB_NOT_COMPLETED
+            );
         }
 
         if (!filmRoll.getZipObjectKey().equals(
@@ -280,14 +308,10 @@ public class FilmRollResultService {
         ) || !filmRoll.getReelObjectKey().equals(
                 renderJob.getReelObjectKey()
         )) {
-            throw conflict("필름 롤과 현상 작업의 결과 경로가 일치하지 않습니다.");
+            throw new BusinessException(
+                    FilmRollErrorCode.RESULT_PATH_MISMATCH
+            );
         }
-    }
-
-    private static FilmRollConflictException conflict(
-            String message
-    ) {
-        return new FilmRollConflictException(message);
     }
 
     private static boolean isBlank(String value) {
@@ -296,10 +320,10 @@ public class FilmRollResultService {
 
     private static void requireText(
             String value,
-            String fieldName
+            FilmRollErrorCode errorCode
     ) {
         if (value == null || value.isBlank()) {
-            throw conflict(fieldName + "이(가) 없습니다.");
+            throw new BusinessException(errorCode);
         }
     }
 

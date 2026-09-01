@@ -1,5 +1,6 @@
 package com.chaerok.backend.global.exception;
 
+import com.chaerok.backend.global.aws.ObjectStorageException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -14,58 +15,17 @@ import java.util.List;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(InvalidTokenException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidToken(
-            InvalidTokenException exception,
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessException(
+            BusinessException exception,
             HttpServletRequest request
     ) {
-        return ResponseEntity
-                .status(HttpStatus.UNAUTHORIZED)
-                .body(ErrorResponse.of(
-                        "INVALID_TOKEN",
-                        exception.getMessage(),
-                        request.getRequestURI()
-                ));
-    }
+        ErrorCode errorCode = exception.getErrorCode();
 
-    @ExceptionHandler(DuplicateUserException.class)
-    public ResponseEntity<ErrorResponse> handleDuplicateUser(
-            DuplicateUserException exception,
-            HttpServletRequest request
-    ) {
         return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(ErrorResponse.of(
-                        "DUPLICATE_USER",
-                        exception.getMessage(),
-                        request.getRequestURI()
-                ));
-    }
-
-    @ExceptionHandler(PlaceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handlePlaceNotFound(
-            PlaceNotFoundException exception,
-            HttpServletRequest request
-    ) {
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(ErrorResponse.of(
-                        "PLACE_NOT_FOUND",
-                        exception.getMessage(),
-                        request.getRequestURI()
-                ));
-    }
-
-    @ExceptionHandler(RegionNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleRegionNotFound(
-            RegionNotFoundException exception,
-            HttpServletRequest request
-    ) {
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(ErrorResponse.of(
-                        "REGION_NOT_FOUND",
-                        exception.getMessage(),
+                .status(errorCode.getStatus())
+                .body(ErrorResponse.from(
+                        errorCode,
                         request.getRequestURI()
                 ));
     }
@@ -127,6 +87,20 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(
                         "INTERNAL_SERVER_ERROR",
                         "서버 내부 오류가 발생했습니다.",
+                        request.getRequestURI()
+                ));
+    }
+
+    @ExceptionHandler(ObjectStorageException.class)
+    public ResponseEntity<ErrorResponse> handleObjectStorage(
+            ObjectStorageException exception,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ErrorResponse.of(
+                        "OBJECT_STORAGE_UNAVAILABLE",
+                        "파일 저장소 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.",
                         request.getRequestURI()
                 ));
     }

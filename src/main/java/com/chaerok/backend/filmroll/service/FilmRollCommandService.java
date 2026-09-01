@@ -4,16 +4,15 @@ import com.chaerok.backend.filmroll.dto.FilmRollCreateRequest;
 import com.chaerok.backend.filmroll.dto.FilmRollResponse;
 import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.entity.FilmRollStatus;
-import com.chaerok.backend.filmroll.exception.ActiveFilmRollExistsException;
-import com.chaerok.backend.filmroll.exception.FilmRollConflictException;
-import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
+import com.chaerok.backend.filmroll.exception.FilmRollErrorCode;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.filter.preset.FilmFilterPresetProvider;
-import com.chaerok.backend.global.exception.RegionNotFoundException;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.photo.entity.PhotoStatus;
 import com.chaerok.backend.photo.repository.PhotoRepository;
 import com.chaerok.backend.region.entity.Region;
+import com.chaerok.backend.region.exception.RegionErrorCode;
 import com.chaerok.backend.region.repository.RegionRepository;
 import com.chaerok.backend.user.entity.User;
 import com.chaerok.backend.user.repository.UserRepository;
@@ -69,14 +68,22 @@ public class FilmRollCommandService {
                         userId,
                         FilmRollStatus.CAPTURING
                 )) {
-            throw new ActiveFilmRollExistsException();
+            throw new BusinessException(
+                    FilmRollErrorCode.ACTIVE_FILM_ROLL_EXISTS
+            );
         }
 
         Region region = regionRepository.findById(request.regionId())
-                .orElseThrow(RegionNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                RegionErrorCode.REGION_NOT_FOUND
+                        )
+                );
 
         if (!region.isServiceEnabled()) {
-            throw new RegionNotFoundException();
+            throw new BusinessException(
+                    RegionErrorCode.REGION_NOT_FOUND
+            );
         }
 
         String filterId = request.filterId().trim();
@@ -99,7 +106,9 @@ public class FilmRollCommandService {
 
             return FilmRollResponse.from(savedFilmRoll);
         } catch (DataIntegrityViolationException exception) {
-            throw new ActiveFilmRollExistsException();
+            throw new BusinessException(
+                    FilmRollErrorCode.ACTIVE_FILM_ROLL_EXISTS
+            );
         }
     }
 
@@ -115,8 +124,8 @@ public class FilmRollCommandService {
                 );
 
         if (filmRoll.getStatus() != FilmRollStatus.CAPTURING) {
-            throw new FilmRollConflictException(
-                    "촬영 중인 필름 롤만 현상 준비 상태로 전환할 수 있습니다."
+            throw new BusinessException(
+                    FilmRollErrorCode.FILM_ROLL_NOT_CAPTURING_FOR_READY
             );
         }
 
@@ -170,11 +179,12 @@ public class FilmRollCommandService {
                     PreparedFilmRollDevelopment.alreadyRequested(
                             filmRoll
                     );
-            case COMPLETED -> throw new FilmRollConflictException(
-                    "이미 현상이 완료된 필름 롤입니다."
+            case COMPLETED -> throw new BusinessException(
+                    FilmRollErrorCode.FILM_ROLL_ALREADY_COMPLETED
             );
-            case EXPIRED -> throw new FilmRollConflictException(
-                    "현상 결과가 만료된 필름 롤은 다시 현상할 수 없습니다."
+
+            case EXPIRED -> throw new BusinessException(
+                    FilmRollErrorCode.FILM_ROLL_EXPIRED
             );
         };
     }
@@ -188,8 +198,8 @@ public class FilmRollCommandService {
                 );
 
         if (photos.isEmpty()) {
-            throw new FilmRollConflictException(
-                    "사진이 없는 필름 롤은 현상할 수 없습니다."
+            throw new BusinessException(
+                    FilmRollErrorCode.FILM_ROLL_HAS_NO_PHOTOS
             );
         }
 
@@ -200,8 +210,8 @@ public class FilmRollCommandService {
                 );
 
         if (hasUnexpectedStatus) {
-            throw new FilmRollConflictException(
-                    "현재 사진 상태에는 현상을 시작할 수 없습니다."
+            throw new BusinessException(
+                    FilmRollErrorCode.FILM_ROLL_INVALID_PHOTO_STATUS
             );
         }
 
@@ -212,14 +222,14 @@ public class FilmRollCommandService {
                 .toList();
 
         if (uploadedPhotos.isEmpty()) {
-            throw new FilmRollConflictException(
-                    "업로드가 완료된 사진이 없어 현상할 수 없습니다."
+            throw new BusinessException(
+                    FilmRollErrorCode.FILM_ROLL_HAS_NO_UPLOADED_PHOTOS
             );
         }
 
         if (uploadedPhotos.size() != filmRoll.getTotalPhotoCount()) {
-            throw new FilmRollConflictException(
-                    "필름 롤 사진 수와 업로드 완료 사진 수가 일치하지 않습니다."
+            throw new BusinessException(
+                    FilmRollErrorCode.FILM_ROLL_PHOTO_COUNT_MISMATCH
             );
         }
 
@@ -265,6 +275,10 @@ public class FilmRollCommandService {
                         filmRollId,
                         userId
                 )
-                .orElseThrow(FilmRollNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                FilmRollErrorCode.FILM_ROLL_NOT_FOUND
+                        )
+                );
     }
 }

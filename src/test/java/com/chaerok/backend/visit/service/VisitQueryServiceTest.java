@@ -1,8 +1,9 @@
 package com.chaerok.backend.visit.service;
 
 import com.chaerok.backend.filmroll.entity.FilmRoll;
-import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
+import com.chaerok.backend.filmroll.exception.FilmRollErrorCode;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
 import com.chaerok.backend.visit.dto.VisitListResponse;
@@ -115,6 +116,10 @@ class VisitQueryServiceTest {
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.getVisits(1L, 100L))
-                .isInstanceOf(FilmRollNotFoundException.class);
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(FilmRollErrorCode.FILM_ROLL_NOT_FOUND)
+                );
     }
 }
