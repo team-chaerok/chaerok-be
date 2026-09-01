@@ -1,17 +1,23 @@
 package com.chaerok.backend.auth.oauth.service;
 
+import com.chaerok.backend.auth.oauth.verifier.AppleTokenVerifier;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AppleOAuthRevokeServiceTest {
 
+    @Mock
+    private AppleTokenVerifier appleTokenVerifier;
+
     @Test
     void 잘못된_Private_Key면_client_secret_생성에_실패한다() {
         // given
         AppleOAuthRevokeService service = new AppleOAuthRevokeService(
                 WebClient.builder(),
+                appleTokenVerifier,
                 "com.teamchaerok.chaerok",
                 "test-team-id",
                 "test-key-id",

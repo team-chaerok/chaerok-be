@@ -1,16 +1,22 @@
 package com.chaerok.backend.auth.oauth.service;
 
 import com.chaerok.backend.auth.oauth.dto.AppleTokenResponse;
+import com.chaerok.backend.auth.oauth.verifier.AppleTokenVerifier;
 import io.jsonwebtoken.Jwts;
+import io.netty.channel.ChannelOption;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.netty.http.client.HttpClient;
 
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
@@ -21,6 +27,7 @@ public class AppleOAuthRevokeService {
     private static final String APPLE_AUDIENCE = "https://appleid.apple.com";
 
     private final WebClient webClient;
+    private final AppleTokenVerifier appleTokenVerifier;
     private final String clientId;
     private final String teamId;
     private final String keyId;
@@ -30,6 +37,7 @@ public class AppleOAuthRevokeService {
 
     public AppleOAuthRevokeService(
             WebClient.Builder webClientBuilder,
+            AppleTokenVerifier appleTokenVerifier,
             @Value("${oauth.apple.client-id}") String clientId,
             @Value("${oauth.apple.team-id}") String teamId,
             @Value("${oauth.apple.key-id}") String keyId,
@@ -37,7 +45,14 @@ public class AppleOAuthRevokeService {
             @Value("${oauth.apple.token-uri}") String tokenUri,
             @Value("${oauth.apple.revoke-uri}") String revokeUri
     ) {
-        this.webClient = webClientBuilder.build();
+        HttpClient httpClient = HttpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
+                .responseTimeout(Duration.ofSeconds(10));
+
+        this.webClient = webClientBuilder
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .build();
+        this.appleTokenVerifier = appleTokenVerifier;
         this.clientId = clientId;
         this.teamId = teamId;
         this.keyId = keyId;
@@ -101,17 +116,40 @@ public class AppleOAuthRevokeService {
                 .block();
     }
 
-    public void revoke(String authorizationCode) {
+    public void revoke(
+            String authorizationCode,
+            String providerUserId
+    ) {
         AppleTokenResponse tokenResponse =
                 exchangeAuthorizationCode(authorizationCode);
 
-        if (tokenResponse == null || tokenResponse.refreshToken() == null) {
+        if (tokenResponse == null
+                || tokenResponse.refreshToken() == null
+                || tokenResponse.idToken() == null) {
             throw new IllegalStateException(
-                    "Apple Refresh Token을 발급받지 못했습니다."
+                    "Apple Token을 발급받지 못했습니다."
             );
         }
 
+        validateAppleUser(
+                tokenResponse.idToken(),
+                providerUserId
+        );
+
         revokeToken(tokenResponse.refreshToken());
+    }
+
+    private void validateAppleUser(
+            String idToken,
+            String providerUserId
+    ) {
+        Jwt jwt = appleTokenVerifier.decodeAndValidate(idToken);
+
+        if (!providerUserId.equals(jwt.getSubject())) {
+            throw new IllegalArgumentException(
+                    "Apple 회원탈퇴 인증 사용자가 일치하지 않습니다."
+            );
+        }
     }
 
     private void revokeToken(String refreshToken) {

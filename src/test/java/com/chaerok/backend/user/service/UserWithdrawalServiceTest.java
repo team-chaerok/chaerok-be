@@ -102,7 +102,9 @@ class UserWithdrawalServiceTest {
         // given
         Long userId = 3L;
         String authorizationCode = "apple-authorization-code";
+        String providerUserId = "apple-user-id";
 
+        when(user.getProviderUserId()).thenReturn(providerUserId);
         when(userService.findById(userId)).thenReturn(user);
         when(user.getId()).thenReturn(userId);
         when(user.getProvider()).thenReturn(OAuthProvider.APPLE);
@@ -121,7 +123,7 @@ class UserWithdrawalServiceTest {
                 .findById(userId);
 
         inOrder.verify(appleOAuthRevokeService)
-                .revoke(authorizationCode);
+                .revoke(authorizationCode, providerUserId);
 
         inOrder.verify(persistenceService)
                 .deleteUserData(userId);

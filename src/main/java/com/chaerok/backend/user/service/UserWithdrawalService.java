@@ -32,7 +32,10 @@ public class UserWithdrawalService {
                 );
             }
 
-            appleOAuthRevokeService.revoke(authorizationCode);
+            appleOAuthRevokeService.revoke(
+                    authorizationCode,
+                    user.getProviderUserId()
+            );
         }
 
         persistenceService.deleteUserData(user.getId());
