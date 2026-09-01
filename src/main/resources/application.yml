@@ -69,7 +69,7 @@ oauth:
     jwk-set-uri: https://www.googleapis.com/oauth2/v3/certs
 
   apple:
-    client-id: ${APPLE_CLIENT_ID:}
+    client-id: ${APPLE_CLIENT_ID}
     issuer: https://appleid.apple.com
     jwk-set-uri: https://appleid.apple.com/auth/keys
 

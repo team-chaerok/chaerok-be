@@ -61,7 +61,7 @@ public class KakaoTokenVerifier implements OAuthTokenVerifier {
     }
 
     @Override
-    public OAuthUserInfo verify(String idToken) {
+    public OAuthUserInfo verify(String idToken, String nonce) {
         try {
             Jwt jwt = jwtDecoder.decode(idToken);
 

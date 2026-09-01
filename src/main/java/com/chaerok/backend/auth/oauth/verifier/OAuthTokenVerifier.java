@@ -7,5 +7,5 @@ public interface OAuthTokenVerifier {
 
     OAuthProvider getProvider();
 
-    OAuthUserInfo verify(String idToken);
+    OAuthUserInfo verify(String idToken, String nonce);
 }

@@ -34,7 +34,10 @@ public class AuthService {
                 verifierResolver.resolve(request.provider());
 
         OAuthUserInfo oauthUserInfo =
-                verifier.verify(request.idToken());
+                verifier.verify(
+                        request.idToken(),
+                        request.nonce()
+                );
 
         Optional<User> existingUser =
                 userService.findByOAuthProvider(

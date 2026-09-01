@@ -61,7 +61,7 @@ public class GoogleTokenVerifier implements OAuthTokenVerifier {
     }
 
     @Override
-    public OAuthUserInfo verify(String idToken) {
+    public OAuthUserInfo verify(String idToken, String nonce) {
         try {
             Jwt jwt = jwtDecoder.decode(idToken);
 
@@ -73,7 +73,7 @@ public class GoogleTokenVerifier implements OAuthTokenVerifier {
             );
         } catch (JwtException exception) {
             throw new InvalidTokenException(
-                    "유효하지 않은 구글 ID Token입니다.",
+                    "유효하지 않은 Google ID Token입니다.",
                     exception
             );
         }
