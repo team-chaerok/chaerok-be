@@ -40,6 +40,7 @@ public record VisitListResponse(
     public record VisitItemResponse(
             Long visitId,
             Long placeId,
+            Long photoId,
             String placeName,
             String categoryGroup,
             LocalDateTime visitedAt
@@ -49,6 +50,9 @@ public record VisitListResponse(
             return new VisitItemResponse(
                     visit.getId(),
                     visit.getPlace().getId(),
+                    visit.getPhoto() == null
+                            ? null
+                            : visit.getPhoto().getId(),
                     visit.getPlace().getTitle(),
                     visit.getCategoryGroup().name(),
                     visit.getVisitedAt()
