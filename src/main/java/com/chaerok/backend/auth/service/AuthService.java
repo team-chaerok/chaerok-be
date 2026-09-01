@@ -145,7 +145,7 @@ public class AuthService {
                 );
 
         RefreshToken savedToken =
-                refreshTokenService.findValidToken(
+                refreshTokenService.findValidTokenForUpdate(
                         oldRefreshToken
                 );
 
