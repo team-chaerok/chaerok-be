@@ -56,6 +56,26 @@ public class RefreshTokenService {
         return refreshToken;
     }
 
+    public RefreshToken findValidTokenForUpdate(String rawToken) {
+        String tokenHash = tokenHashUtil.hash(rawToken);
+
+        RefreshToken refreshToken =
+                refreshTokenRepository.findByTokenHashForUpdate(tokenHash)
+                        .orElseThrow(() ->
+                                new InvalidTokenException(
+                                        "저장되지 않았거나 폐기된 Refresh Token입니다."
+                                )
+                        );
+
+        if (refreshToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new InvalidTokenException(
+                    "만료된 Refresh Token입니다."
+            );
+        }
+
+        return refreshToken;
+    }
+
     @Transactional
     public void delete(String rawToken) {
         String tokenHash = tokenHashUtil.hash(rawToken);
