@@ -36,8 +36,32 @@ class AppleTokenVerifierTest {
         String invalidIdToken = "invalid-token";
 
         // when & then
-        assertThatThrownBy(() -> appleTokenVerifier.verify(invalidIdToken))
+        assertThatThrownBy(
+                () -> appleTokenVerifier.verify(invalidIdToken, "test-nonce")
+        )
                 .isInstanceOf(InvalidTokenException.class)
                 .hasMessage("유효하지 않은 Apple ID Token입니다.");
+    }
+
+    @Test
+    void Apple_로그인_nonce가_없으면_예외가_발생한다() {
+        // given
+        String idToken = "dummy-token";
+
+        // when & then
+        assertThatThrownBy(() -> appleTokenVerifier.verify(idToken, null))
+                .isInstanceOf(InvalidTokenException.class)
+                .hasMessage("Apple 로그인 nonce가 필요합니다.");
+    }
+
+    @Test
+    void Apple_로그인_nonce가_빈_문자열이면_예외가_발생한다() {
+        // given
+        String idToken = "dummy-token";
+
+        // when & then
+        assertThatThrownBy(() -> appleTokenVerifier.verify(idToken, " "))
+                .isInstanceOf(InvalidTokenException.class)
+                .hasMessage("Apple 로그인 nonce가 필요합니다.");
     }
 }

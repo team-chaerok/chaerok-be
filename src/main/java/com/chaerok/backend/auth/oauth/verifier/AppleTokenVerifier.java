@@ -61,9 +61,23 @@ public class AppleTokenVerifier implements OAuthTokenVerifier {
     }
 
     @Override
-    public OAuthUserInfo verify(String idToken) {
+    public OAuthUserInfo verify(String idToken, String nonce) {
         try {
+            if (nonce == null || nonce.isBlank()) {
+                throw new InvalidTokenException(
+                        "Apple 로그인 nonce가 필요합니다."
+                );
+            }
+
             Jwt jwt = jwtDecoder.decode(idToken);
+
+            String tokenNonce = jwt.getClaimAsString("nonce");
+
+            if (tokenNonce == null || !nonce.equals(tokenNonce)) {
+                throw new InvalidTokenException(
+                        "Apple ID Token의 nonce가 일치하지 않습니다."
+                );
+            }
 
             return new OAuthUserInfo(
                     OAuthProvider.APPLE,

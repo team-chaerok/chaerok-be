@@ -19,7 +19,7 @@ public class AuthController {
 
     @Operation(
             summary = "OAuth 로그인",
-            description = "카카오 또는 구글 ID Token을 검증합니다. 기존 회원은 Access Token과 Refresh Token을 발급하고, 신규 회원은 회원가입에 사용할 Signup Token을 반환합니다."
+            description = "카카오, 구글 또는 Apple ID Token을 검증합니다. Apple 로그인은 nonce를 함께 검증합니다."
     )
     @PostMapping("/login")
     public ResponseEntity<OAuthLoginResponse> login(
