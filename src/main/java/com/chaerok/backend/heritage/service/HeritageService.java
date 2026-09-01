@@ -2,6 +2,7 @@ package com.chaerok.backend.heritage.service;
 
 import com.chaerok.backend.heritage.dto.HeritagePlaceResponse;
 import com.chaerok.backend.place.entity.Place;
+import com.chaerok.backend.place.entity.PlaceCategoryDetail;
 import com.chaerok.backend.place.external.TourApiPlaceClient;
 import com.chaerok.backend.place.external.TourApiPlaceItem;
 import com.chaerok.backend.place.repository.PlaceRepository;
@@ -29,23 +30,37 @@ public class HeritageService {
             throw new IllegalArgumentException("TourAPI 장소가 아닙니다.");
         }
 
-        TourApiPlaceItem item = tourApiPlaceClient.getPlaceDetail(contentId);
-
-        if (item == null) {
-            throw new IllegalStateException("TourAPI 장소 정보를 조회할 수 없습니다.");
-        }
-
-        boolean heritage = isHeritage(item);
-
         String regionName = place.getRegion().getProvinceName()
                 + " "
                 + place.getRegion().getCityCountyName();
+
+        TourApiPlaceItem item = tourApiPlaceClient.getPlaceDetail(contentId);
+
+        if (item == null) {
+            return createFallbackResponse(place, regionName);
+        }
+
+        boolean heritage = isHeritage(item);
 
         return HeritagePlaceResponse.of(
                 place.getId(),
                 regionName,
                 heritage,
                 item
+        );
+    }
+
+    private HeritagePlaceResponse createFallbackResponse(
+            Place place,
+            String regionName
+    ) {
+        boolean heritage =
+                place.getCategoryDetail() == PlaceCategoryDetail.HERITAGE;
+
+        return HeritagePlaceResponse.fromPlace(
+                place,
+                regionName,
+                heritage
         );
     }
 

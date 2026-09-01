@@ -1,5 +1,6 @@
 package com.chaerok.backend.heritage.dto;
 
+import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.external.TourApiPlaceItem;
 
 public record HeritagePlaceResponse(
@@ -34,6 +35,26 @@ public record HeritagePlaceResponse(
                 item.lclsSystm3(),
                 item.overview(),
                 item.firstImageUrl()
+        );
+    }
+
+    public static HeritagePlaceResponse fromPlace(
+            Place place,
+            String regionName,
+            boolean heritage
+    ) {
+        return new HeritagePlaceResponse(
+                place.getId(),
+                place.getTourContentId(),
+                place.getTitle(),
+                place.getAddress(),
+                regionName,
+                heritage,
+                place.getLclsSystm1(),
+                place.getLclsSystm2(),
+                place.getLclsSystm3(),
+                null,
+                place.getFirstImageUrl()
         );
     }
 }
