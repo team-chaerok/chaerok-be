@@ -7,6 +7,7 @@ import jakarta.validation.Path;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindingResult;
@@ -240,5 +241,26 @@ class GlobalExceptionHandlerTest {
                 .isEqualTo("서버 내부 오류가 발생했습니다.");
         assertThat(response.getBody().path())
                 .isEqualTo("/api/test");
+    }
+
+    @Test
+    @DisplayName("처리되지 않은 IllegalArgumentException은 서버 내부 오류로 처리한다")
+    void handleIllegalArgumentAsInternalServerError() {
+        IllegalArgumentException exception =
+                new IllegalArgumentException("internal validation failure");
+
+        ResponseEntity<ErrorResponse> response =
+                handler.handleException(
+                        exception,
+                        request
+                );
+
+        assertThat(response.getStatusCode())
+                .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().code())
+                .isEqualTo(CommonErrorCode.INTERNAL_SERVER_ERROR.getCode());
+        assertThat(response.getBody().message())
+                .isEqualTo(CommonErrorCode.INTERNAL_SERVER_ERROR.getMessage());
     }
 }
