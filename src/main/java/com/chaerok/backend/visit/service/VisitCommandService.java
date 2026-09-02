@@ -5,6 +5,9 @@ import com.chaerok.backend.filmroll.entity.FilmRollStatus;
 import com.chaerok.backend.filmroll.exception.FilmRollErrorCode;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.global.exception.BusinessException;
+import com.chaerok.backend.photo.entity.Photo;
+import com.chaerok.backend.photo.entity.PhotoStatus;
+import com.chaerok.backend.photo.repository.PhotoRepository;
 import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.exception.PlaceErrorCode;
 import com.chaerok.backend.place.repository.PlaceRepository;
@@ -29,8 +32,12 @@ public class VisitCommandService {
     private static final String DUPLICATE_VISIT_CONSTRAINT =
             "uk_visits_film_roll_place";
 
+    private static final String DUPLICATE_PHOTO_CONSTRAINT =
+            "uk_visits_photo";
+
     private final FilmRollRepository filmRollRepository;
     private final PlaceRepository placeRepository;
+    private final PhotoRepository photoRepository;
     private final VisitRepository visitRepository;
     private final VisitRequirementService visitRequirementService;
 
@@ -64,17 +71,49 @@ public class VisitCommandService {
         requireSameRegion(filmRoll, place);
         requireNotVisited(filmRollId, place.getId());
 
-        Visit visit = Visit.create(filmRoll, place);
+        Photo photo = photoRepository
+                .findByIdAndFilmRollId(
+                        request.photoId(),
+                        filmRollId
+                )
+                .orElseThrow(() ->
+                        new BusinessException(
+                                FilmRollErrorCode.PHOTO_NOT_FOUND
+                        )
+                );
+
+        requireUploaded(photo);
+        requireUnusedPhoto(photo.getId());
+
+        Visit visit = Visit.create(
+                filmRoll,
+                place,
+                photo
+        );
+
         Visit savedVisit;
 
         try {
             savedVisit = visitRepository.saveAndFlush(visit);
         } catch (DataIntegrityViolationException exception) {
-            if (isDuplicateVisitConstraint(exception)) {
+            if (hasConstraint(
+                    exception,
+                    DUPLICATE_VISIT_CONSTRAINT
+            )) {
                 throw new BusinessException(
                         VisitErrorCode.VISIT_ALREADY_EXISTS
                 );
             }
+
+            if (hasConstraint(
+                    exception,
+                    DUPLICATE_PHOTO_CONSTRAINT
+            )) {
+                throw new BusinessException(
+                        VisitErrorCode.VISIT_PHOTO_ALREADY_USED
+                );
+            }
+
             throw exception;
         }
 
@@ -126,14 +165,31 @@ public class VisitCommandService {
         }
     }
 
-    private boolean isDuplicateVisitConstraint(
-            DataIntegrityViolationException exception
+    private void requireUploaded(Photo photo) {
+        if (photo.getStatus() != PhotoStatus.UPLOADED) {
+            throw new BusinessException(
+                    VisitErrorCode.VISIT_PHOTO_NOT_READY
+            );
+        }
+    }
+
+    private void requireUnusedPhoto(Long photoId) {
+        if (visitRepository.existsByPhoto_Id(photoId)) {
+            throw new BusinessException(
+                    VisitErrorCode.VISIT_PHOTO_ALREADY_USED
+            );
+        }
+    }
+
+    private boolean hasConstraint(
+            DataIntegrityViolationException exception,
+            String constraintName
     ) {
         Throwable current = exception;
 
         while (current != null) {
             if (current instanceof ConstraintViolationException violation
-                    && DUPLICATE_VISIT_CONSTRAINT.equals(
+                    && constraintName.equals(
                     violation.getConstraintName()
             )) {
                 return true;
@@ -141,13 +197,13 @@ public class VisitCommandService {
 
             String message = current.getMessage();
             if (message != null
-                    && message.contains(DUPLICATE_VISIT_CONSTRAINT)) {
+                    && message.contains(constraintName)) {
                 return true;
             }
+
             current = current.getCause();
         }
 
         return false;
     }
-
 }

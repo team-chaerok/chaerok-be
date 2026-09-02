@@ -1,6 +1,7 @@
 package com.chaerok.backend.visit.entity;
 
 import com.chaerok.backend.filmroll.entity.FilmRoll;
+import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
 import jakarta.persistence.Column;
@@ -31,6 +32,10 @@ import java.time.LocalDateTime;
                 @UniqueConstraint(
                         name = "uk_visits_film_roll_place",
                         columnNames = {"film_roll_id", "place_id"}
+                ),
+                @UniqueConstraint(
+                        name = "uk_visits_photo",
+                        columnNames = {"photo_id"}
                 )
         },
         indexes = {
@@ -55,6 +60,12 @@ public class Visit {
     @JoinColumn(name = "place_id", nullable = false)
     private Place place;
 
+    // 기존 V18 Visit 행에는 어떤 사진이 인증 사진이었는지 정보가 없으므로
+    // DB 컬럼은 nullable로 유지합니다. 신규 Visit 생성 경로에서는 photo를 필수로 받습니다.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "photo_id")
+    private Photo photo;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "category_group", nullable = false, length = 30)
     private PlaceCategoryGroup categoryGroup;
@@ -69,7 +80,8 @@ public class Visit {
 
     private Visit(
             FilmRoll filmRoll,
-            Place place
+            Place place,
+            Photo photo
     ) {
         if (filmRoll == null) {
             throw new IllegalArgumentException(
@@ -83,6 +95,12 @@ public class Visit {
             );
         }
 
+        if (photo == null) {
+            throw new IllegalArgumentException(
+                    "방문 인증 사진은 필수입니다."
+            );
+        }
+
         PlaceCategoryGroup categoryGroup = place.getCategoryGroup();
         if (categoryGroup == null) {
             throw new IllegalArgumentException(
@@ -92,13 +110,15 @@ public class Visit {
 
         this.filmRoll = filmRoll;
         this.place = place;
+        this.photo = photo;
         this.categoryGroup = categoryGroup;
     }
 
     public static Visit create(
             FilmRoll filmRoll,
-            Place place
+            Place place,
+            Photo photo
     ) {
-        return new Visit(filmRoll, place);
+        return new Visit(filmRoll, place, photo);
     }
 }

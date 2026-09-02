@@ -31,6 +31,17 @@ public enum VisitErrorCode implements ErrorCode {
             HttpStatus.CONFLICT,
             "VISIT_REQUIREMENT_NOT_MET",
             "관광지, 식당, 카페를 각각 1곳 이상 방문해야 현상할 수 있습니다."
+    ),
+
+    VISIT_PHOTO_NOT_READY(
+            HttpStatus.CONFLICT,
+            "VISIT_PHOTO_NOT_READY",
+            "업로드가 완료된 필름 롤 사진만 방문 인증에 사용할 수 있습니다."
+    ),
+    VISIT_PHOTO_ALREADY_USED(
+            HttpStatus.CONFLICT,
+            "VISIT_PHOTO_ALREADY_USED",
+            "이미 다른 방문 인증에 사용한 사진입니다."
     );
 
     private final HttpStatus status;
