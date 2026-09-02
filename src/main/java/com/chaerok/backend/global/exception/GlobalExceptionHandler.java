@@ -179,20 +179,6 @@ public class GlobalExceptionHandler {
                 ));
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponse> handleIllegalArgument(
-            IllegalArgumentException exception,
-            HttpServletRequest request
-    ) {
-        return ResponseEntity
-                .badRequest()
-                .body(ErrorResponse.of(
-                        "BAD_REQUEST",
-                        exception.getMessage(),
-                        request.getRequestURI()
-                ));
-    }
-
     @ExceptionHandler(ObjectStorageException.class)
     public ResponseEntity<ErrorResponse> handleObjectStorage(
             ObjectStorageException exception,
