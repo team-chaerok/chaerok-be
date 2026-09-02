@@ -179,4 +179,20 @@ class PlaceControllerTest {
                 .andExpect(jsonPath("$[0].categoryDetail").value("HERITAGE"))
                 .andExpect(jsonPath("$[0].source").value("TOUR_API"));
     }
+
+    @Test
+    @DisplayName("빈 keyword로 장소 검색 시 COMMON_001을 반환한다")
+    void searchPlacesRejectsBlankKeyword() throws Exception {
+        mockMvc.perform(get("/api/places/search")
+                        .param("regionId", "1")
+                        .param("keyword", ""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_001"))
+                .andExpect(jsonPath("$.message")
+                        .value("요청값이 올바르지 않습니다."))
+                .andExpect(jsonPath("$.path")
+                        .value("/api/places/search"))
+                .andExpect(jsonPath("$.errors[0].field")
+                        .value("keyword"));
+    }
 }

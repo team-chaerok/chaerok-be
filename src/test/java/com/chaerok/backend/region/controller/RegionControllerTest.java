@@ -103,7 +103,7 @@ class RegionControllerTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+                .andExpect(jsonPath("$.code").value("COMMON_001"));
 
         verifyNoInteractions(regionService);
     }
@@ -120,7 +120,7 @@ class RegionControllerTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+                .andExpect(jsonPath("$.code").value("COMMON_001"));
 
         verifyNoInteractions(regionService);
     }

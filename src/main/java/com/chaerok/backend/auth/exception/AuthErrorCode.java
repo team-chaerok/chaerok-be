@@ -91,6 +91,12 @@ public enum AuthErrorCode implements ErrorCode {
             HttpStatus.UNAUTHORIZED,
             "AUTH_014",
             "만료된 Refresh Token입니다."
+    ),
+
+    APPLE_WITHDRAWAL_USER_MISMATCH(
+            HttpStatus.UNAUTHORIZED,
+            "AUTH_015",
+            "Apple 회원탈퇴 인증 사용자가 일치하지 않습니다."
     );
 
     private final HttpStatus status;

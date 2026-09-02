@@ -2,6 +2,7 @@ package com.chaerok.backend.user.service;
 
 import com.chaerok.backend.auth.oauth.service.AppleOAuthRevokeService;
 import com.chaerok.backend.auth.oauth.unlink.KakaoOAuthUnlinkService;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.user.entity.OAuthProvider;
 import com.chaerok.backend.user.entity.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -143,7 +144,7 @@ class UserWithdrawalServiceTest {
         assertThatThrownBy(
                 () -> userWithdrawalService.withdraw(userId, null)
         )
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(BusinessException.class)
                 .hasMessage("Apple 회원탈퇴에는 authorizationCode가 필요합니다.");
 
         verifyNoInteractions(appleOAuthRevokeService);

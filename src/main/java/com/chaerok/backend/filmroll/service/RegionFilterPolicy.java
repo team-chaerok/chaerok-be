@@ -1,5 +1,7 @@
 package com.chaerok.backend.filmroll.service;
 
+import com.chaerok.backend.filmroll.exception.FilmRollErrorCode;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.region.entity.Region;
 import org.springframework.stereotype.Component;
 
@@ -35,8 +37,8 @@ public class RegionFilterPolicy {
         String normalizedFilterId = filterId.trim();
 
         if (!normalizedFilterId.equals(expectedFilterId)) {
-            throw new IllegalArgumentException(
-                    "선택한 지역에서 사용할 수 없는 필터입니다."
+            throw new BusinessException(
+                    FilmRollErrorCode.INVALID_REGION_FILTER
             );
         }
     }

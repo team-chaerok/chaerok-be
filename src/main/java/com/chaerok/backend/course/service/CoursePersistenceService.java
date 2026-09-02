@@ -5,6 +5,7 @@ import com.chaerok.backend.course.dto.SelectedCourseResponse;
 import com.chaerok.backend.course.entity.Course;
 import com.chaerok.backend.course.entity.CoursePlace;
 import com.chaerok.backend.course.entity.CourseStatus;
+import com.chaerok.backend.course.exception.CourseErrorCode;
 import com.chaerok.backend.course.repository.CoursePlaceRepository;
 import com.chaerok.backend.course.repository.CourseRepository;
 import com.chaerok.backend.global.exception.BusinessException;
@@ -67,8 +68,8 @@ public class CoursePersistenceService {
 
         if (currentPlaceCount + resolvedPlaces.size()
                 > MAX_COURSE_PLACE_COUNT) {
-            throw new IllegalArgumentException(
-                    "ACTIVE 코스에는 최대 3개 장소까지만 저장할 수 있습니다."
+            throw new BusinessException(
+                    CourseErrorCode.COURSE_PLACE_LIMIT_EXCEEDED
             );
         }
 
@@ -204,8 +205,8 @@ public class CoursePersistenceService {
     ) {
         if (!region.getLdongRegnCd().equals(item.lDongRegnCd())
                 || !region.getLdongSignguCd().equals(item.lDongSignguCd())) {
-            throw new IllegalArgumentException(
-                    "TourAPI 장소가 코스 지역과 일치하지 않습니다."
+            throw new BusinessException(
+                    CourseErrorCode.PLACE_REGION_MISMATCH
             );
         }
     }
@@ -215,8 +216,8 @@ public class CoursePersistenceService {
             CoursePlaceSaveRequest request
     ) {
         if (!hasText(request.externalPlaceId())) {
-            throw new IllegalArgumentException(
-                    "외부 후보 장소 저장 시 externalPlaceId는 필수입니다."
+            throw new BusinessException(
+                    CourseErrorCode.EXTERNAL_PLACE_ID_REQUIRED
             );
         }
 
@@ -271,34 +272,34 @@ public class CoursePersistenceService {
             CoursePlaceSaveRequest request
     ) {
         if (!hasText(request.title())) {
-            throw new IllegalArgumentException(
-                    "Kakao 장소명은 필수입니다."
+            throw new BusinessException(
+                    CourseErrorCode.INVALID_EXTERNAL_PLACE_DATA
             );
         }
 
         if (!hasText(request.address())) {
-            throw new IllegalArgumentException(
-                    "Kakao 장소 주소는 필수입니다."
+            throw new BusinessException(
+                    CourseErrorCode.INVALID_EXTERNAL_PLACE_DATA
             );
         }
 
         if (request.latitude() == null
                 || request.longitude() == null) {
-            throw new IllegalArgumentException(
-                    "Kakao 장소 좌표는 필수입니다."
+            throw new BusinessException(
+                    CourseErrorCode.INVALID_EXTERNAL_PLACE_DATA
             );
         }
 
         if (!isValidLatitude(request.latitude())
                 || !isValidLongitude(request.longitude())) {
-            throw new IllegalArgumentException(
-                    "Kakao 장소 좌표가 올바르지 않습니다."
+            throw new BusinessException(
+                    CourseErrorCode.INVALID_EXTERNAL_PLACE_DATA
             );
         }
 
         if (!isAddressInRegion(request.address(), region)) {
-            throw new IllegalArgumentException(
-                    "Kakao 장소가 코스 지역과 일치하지 않습니다."
+            throw new BusinessException(
+                    CourseErrorCode.PLACE_REGION_MISMATCH
             );
         }
 
@@ -343,9 +344,9 @@ public class CoursePersistenceService {
             categoryDetail = PlaceCategoryDetail.valueOf(
                     request.categoryDetail()
             );
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException(
-                    "지원하지 않는 장소 세부 유형입니다."
+        } catch (IllegalArgumentException exception) {
+            throw new BusinessException(
+                    CourseErrorCode.UNSUPPORTED_PLACE_CATEGORY
             );
         }
 
@@ -372,8 +373,8 @@ public class CoursePersistenceService {
         };
 
         if (!valid) {
-            throw new IllegalArgumentException(
-                    "장소 유형과 세부 유형이 일치하지 않습니다."
+            throw new BusinessException(
+                    CourseErrorCode.PLACE_CATEGORY_MISMATCH
             );
         }
     }
@@ -386,8 +387,8 @@ public class CoursePersistenceService {
                 course.getId(),
                 place.getId()
         )) {
-            throw new IllegalArgumentException(
-                    "이미 ACTIVE 코스에 저장된 장소입니다."
+            throw new BusinessException(
+                    CourseErrorCode.DUPLICATE_PLACE
             );
         }
 
@@ -396,8 +397,8 @@ public class CoursePersistenceService {
                         course.getId(),
                         place.getCategoryGroup()
                 )) {
-            throw new IllegalArgumentException(
-                    "이미 ACTIVE 코스에 저장된 장소 유형입니다."
+            throw new BusinessException(
+                    CourseErrorCode.DUPLICATE_PLACE_CATEGORY
             );
         }
     }
@@ -415,8 +416,8 @@ public class CoursePersistenceService {
                     toCategoryGroup(request.categoryGroup());
 
             if (!categoryGroups.add(categoryGroup)) {
-                throw new IllegalArgumentException(
-                        "한 번의 요청에 동일한 장소 유형을 중복 저장할 수 없습니다."
+                throw new BusinessException(
+                        CourseErrorCode.DUPLICATE_REQUEST_PLACE_CATEGORY
                 );
             }
         }
@@ -427,8 +428,8 @@ public class CoursePersistenceService {
             Place place
     ) {
         if (!place.getRegion().getId().equals(region.getId())) {
-            throw new IllegalArgumentException(
-                    "선택한 장소가 코스 지역과 일치하지 않습니다."
+            throw new BusinessException(
+                    CourseErrorCode.PLACE_REGION_MISMATCH
             );
         }
     }
@@ -452,8 +453,8 @@ public class CoursePersistenceService {
         try {
             return PlaceCategoryGroup.valueOf(value);
         } catch (RuntimeException exception) {
-            throw new IllegalArgumentException(
-                    "지원하지 않는 장소 유형입니다."
+            throw new BusinessException(
+                    CourseErrorCode.UNSUPPORTED_PLACE_CATEGORY
             );
         }
     }

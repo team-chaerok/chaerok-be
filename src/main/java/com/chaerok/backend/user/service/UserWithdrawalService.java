@@ -2,8 +2,10 @@ package com.chaerok.backend.user.service;
 
 import com.chaerok.backend.auth.oauth.service.AppleOAuthRevokeService;
 import com.chaerok.backend.auth.oauth.unlink.KakaoOAuthUnlinkService;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.user.entity.OAuthProvider;
 import com.chaerok.backend.user.entity.User;
+import com.chaerok.backend.user.exception.UserErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -27,8 +29,8 @@ public class UserWithdrawalService {
 
         if (user.getProvider() == OAuthProvider.APPLE) {
             if (authorizationCode == null || authorizationCode.isBlank()) {
-                throw new IllegalArgumentException(
-                        "Apple 회원탈퇴에는 authorizationCode가 필요합니다."
+                throw new BusinessException(
+                        UserErrorCode.APPLE_AUTHORIZATION_CODE_REQUIRED
                 );
             }
 

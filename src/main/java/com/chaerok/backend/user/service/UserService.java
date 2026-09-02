@@ -1,7 +1,9 @@
 package com.chaerok.backend.user.service;
 
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.user.entity.OAuthProvider;
 import com.chaerok.backend.user.entity.User;
+import com.chaerok.backend.user.exception.UserErrorCode;
 import com.chaerok.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -45,7 +47,9 @@ public class UserService {
                 provider,
                 providerUserId
         )) {
-            throw new IllegalArgumentException("이미 가입된 사용자입니다.");
+            throw new BusinessException(
+                    UserErrorCode.ALREADY_REGISTERED
+            );
         }
 
         User user = User.create(

@@ -4,8 +4,10 @@ import com.chaerok.backend.course.dto.CoursePlaceSaveRequest;
 import com.chaerok.backend.course.entity.Course;
 import com.chaerok.backend.course.entity.CoursePlace;
 import com.chaerok.backend.course.entity.CourseStatus;
+import com.chaerok.backend.course.exception.CourseErrorCode;
 import com.chaerok.backend.course.repository.CoursePlaceRepository;
 import com.chaerok.backend.course.repository.CourseRepository;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryDetail;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
@@ -158,10 +160,16 @@ class CoursePersistenceServiceTest {
                         )
                 )
         )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(
-                        "Kakao 장소가 코스 지역과 일치하지 않습니다."
-                );
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> {
+                    BusinessException businessException =
+                            (BusinessException) exception;
+
+                    assertThat(businessException.getErrorCode())
+                            .isEqualTo(
+                                    CourseErrorCode.PLACE_REGION_MISMATCH
+                            );
+                });
 
         verify(placeRepository, never())
                 .save(any(Place.class));
@@ -196,8 +204,16 @@ class CoursePersistenceServiceTest {
                         )
                 )
         )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Kakao 장소 좌표는 필수입니다.");
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> {
+                    BusinessException businessException =
+                            (BusinessException) exception;
+
+                    assertThat(businessException.getErrorCode())
+                            .isEqualTo(
+                                    CourseErrorCode.INVALID_EXTERNAL_PLACE_DATA
+                            );
+                });
 
         verify(placeRepository, never())
                 .save(any(Place.class));
@@ -232,10 +248,16 @@ class CoursePersistenceServiceTest {
                         )
                 )
         )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(
-                        "Kakao 장소 좌표가 올바르지 않습니다."
-                );
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> {
+                    BusinessException businessException =
+                            (BusinessException) exception;
+
+                    assertThat(businessException.getErrorCode())
+                            .isEqualTo(
+                                    CourseErrorCode.INVALID_EXTERNAL_PLACE_DATA
+                            );
+                });
 
         verify(placeRepository, never())
                 .save(any(Place.class));
@@ -272,10 +294,16 @@ class CoursePersistenceServiceTest {
                         )
                 )
         )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(
-                        "지원하지 않는 장소 세부 유형입니다."
-                );
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> {
+                    BusinessException businessException =
+                            (BusinessException) exception;
+
+                    assertThat(businessException.getErrorCode())
+                            .isEqualTo(
+                                    CourseErrorCode.UNSUPPORTED_PLACE_CATEGORY
+                            );
+                });
 
         verify(placeRepository, never())
                 .save(any(Place.class));
@@ -312,10 +340,16 @@ class CoursePersistenceServiceTest {
                         )
                 )
         )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(
-                        "장소 유형과 세부 유형이 일치하지 않습니다."
-                );
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> {
+                    BusinessException businessException =
+                            (BusinessException) exception;
+
+                    assertThat(businessException.getErrorCode())
+                            .isEqualTo(
+                                    CourseErrorCode.PLACE_CATEGORY_MISMATCH
+                            );
+                });
 
         verify(placeRepository, never())
                 .save(any(Place.class));

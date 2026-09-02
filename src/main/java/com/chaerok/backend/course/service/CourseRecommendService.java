@@ -3,6 +3,7 @@ package com.chaerok.backend.course.service;
 import com.chaerok.backend.course.dto.CoursePlaceResponse;
 import com.chaerok.backend.course.dto.CourseRecommendResponse;
 import com.chaerok.backend.course.dto.CourseResponse;
+import com.chaerok.backend.course.exception.CourseErrorCode;
 import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryDetail;
@@ -99,15 +100,21 @@ public class CourseRecommendService {
                 );
 
         if (!anchor.getRegion().getId().equals(regionId)) {
-            throw new IllegalArgumentException("해당 지역의 Anchor 장소가 아닙니다.");
+            throw new BusinessException(
+                    CourseErrorCode.INVALID_ANCHOR_REGION
+            );
         }
 
         if (!anchor.isRepresentative()) {
-            throw new IllegalArgumentException("대표 장소만 Anchor로 사용할 수 있습니다.");
+            throw new BusinessException(
+                    CourseErrorCode.NON_REPRESENTATIVE_ANCHOR
+            );
         }
 
         if (!hasCoordinate(anchor)) {
-            throw new IllegalArgumentException("Anchor 장소의 좌표 정보가 없습니다.");
+            throw new BusinessException(
+                    CourseErrorCode.ANCHOR_COORDINATE_MISSING
+            );
         }
 
         return anchor;

@@ -250,15 +250,20 @@ class FilmRollCommandServiceTest {
                 .thenReturn(Optional.of(region));
         when(filterPresetProvider.getByFilterId("buyeo"))
                 .thenReturn(mock(FilmFilterPreset.class));
-        doThrow(new IllegalArgumentException(
-                "선택한 지역에서 사용할 수 없는 필터입니다."
+        doThrow(new BusinessException(
+                FilmRollErrorCode.INVALID_REGION_FILTER
         )).when(regionFilterPolicy).validate(region, "buyeo");
 
         assertThatThrownBy(() ->
                 service.createFilmRoll(1L, request)
         )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("사용할 수 없는 필터");
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(
+                                        FilmRollErrorCode.INVALID_REGION_FILTER
+                                )
+                );
 
         verify(regionFilterPolicy).validate(region, "buyeo");
         verify(filmRollRepository, never())

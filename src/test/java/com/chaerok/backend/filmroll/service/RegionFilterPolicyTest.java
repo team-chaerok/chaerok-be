@@ -1,11 +1,12 @@
 package com.chaerok.backend.filmroll.service;
 
+import com.chaerok.backend.filmroll.exception.FilmRollErrorCode;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.region.entity.Region;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.*;
 
 class RegionFilterPolicyTest {
 
@@ -38,23 +39,39 @@ class RegionFilterPolicyTest {
     @Test
     @DisplayName("다른 지역의 필터를 선택하면 거부한다")
     void rejectsMismatchedRegionFilter() {
-        assertThatThrownBy(() -> policy.validate(
-                region("공주시"),
-                "buyeo"
-        ))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("선택한 지역에서 사용할 수 없는 필터입니다.");
+        assertThatThrownBy(() ->
+                policy.validate(
+                        region("공주시"),
+                        "wrong-filter"
+                )
+        )
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        exception ->
+                                assertThat(exception.getErrorCode())
+                                        .isEqualTo(
+                                                FilmRollErrorCode.INVALID_REGION_FILTER
+                                        )
+                );
     }
 
     @Test
     @DisplayName("정책에 등록되지 않은 지역은 필터를 허용하지 않는다")
     void rejectsUnmappedRegion() {
-        assertThatThrownBy(() -> policy.validate(
-                region("천안시"),
-                "gongju"
-        ))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("선택한 지역에서 사용할 수 없는 필터입니다.");
+        assertThatThrownBy(() ->
+                policy.validate(
+                        region("천안시"),
+                        "gongju"
+                )
+        )
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        exception ->
+                                assertThat(exception.getErrorCode())
+                                        .isEqualTo(
+                                                FilmRollErrorCode.INVALID_REGION_FILTER
+                                        )
+                );
     }
 
     private Region region(String cityCountyName) {

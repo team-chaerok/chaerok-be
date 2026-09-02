@@ -1,8 +1,10 @@
 package com.chaerok.backend.notification.device.service;
 
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.notification.device.entity.PushDevice;
 import com.chaerok.backend.notification.device.entity.PushPlatform;
 import com.chaerok.backend.notification.device.repository.PushDeviceRepository;
+import com.chaerok.backend.notification.exception.NotificationErrorCode;
 import com.chaerok.backend.user.entity.User;
 import com.chaerok.backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -62,17 +64,19 @@ public class PushDeviceService {
 
     private String normalizeToken(String token) {
         if (token == null || token.isBlank()) {
-            throw new IllegalArgumentException(
-                    "FCM 등록 토큰은 필수입니다."
+            throw new BusinessException(
+                    NotificationErrorCode.INVALID_FCM_TOKEN
             );
         }
 
         String normalized = token.trim();
+
         if (normalized.length() > 4096) {
-            throw new IllegalArgumentException(
-                    "FCM 등록 토큰은 4096자를 초과할 수 없습니다."
+            throw new BusinessException(
+                    NotificationErrorCode.INVALID_FCM_TOKEN
             );
         }
+
         return normalized;
     }
 }

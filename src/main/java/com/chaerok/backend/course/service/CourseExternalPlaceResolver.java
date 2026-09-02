@@ -1,6 +1,8 @@
 package com.chaerok.backend.course.service;
 
 import com.chaerok.backend.course.dto.CoursePlaceSaveRequest;
+import com.chaerok.backend.course.exception.CourseErrorCode;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.place.entity.PlaceSource;
 import com.chaerok.backend.place.external.TourApiPlaceClient;
 import com.chaerok.backend.place.external.TourApiPlaceItem;
@@ -32,8 +34,8 @@ public class CourseExternalPlaceResolver {
             );
 
             if (item == null) {
-                throw new IllegalArgumentException(
-                        "TourAPI 장소 정보를 찾을 수 없습니다."
+                throw new BusinessException(
+                        CourseErrorCode.EXTERNAL_PLACE_NOT_FOUND
                 );
             }
 
@@ -60,8 +62,8 @@ public class CourseExternalPlaceResolver {
     ) {
         if (!region.getLdongRegnCd().equals(item.lDongRegnCd())
                 || !region.getLdongSignguCd().equals(item.lDongSignguCd())) {
-            throw new IllegalArgumentException(
-                    "TourAPI 장소가 코스 지역과 일치하지 않습니다."
+            throw new BusinessException(
+                    CourseErrorCode.PLACE_REGION_MISMATCH
             );
         }
     }

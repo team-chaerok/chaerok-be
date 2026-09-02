@@ -157,6 +157,12 @@ public enum FilmRollErrorCode implements ErrorCode {
             HttpStatus.CONFLICT,
             "FILM_ROLL_CONFLICT",
             "필터 사진 결과 경로가 없습니다."
+    ),
+
+    INVALID_REGION_FILTER(
+            HttpStatus.BAD_REQUEST,
+            "FILM_ROLL_INVALID_FILTER",
+            "선택한 지역에서 사용할 수 없는 필터입니다."
     );
 
     private final HttpStatus status;
