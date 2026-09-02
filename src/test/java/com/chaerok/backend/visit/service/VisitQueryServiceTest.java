@@ -4,6 +4,7 @@ import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.exception.FilmRollErrorCode;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.global.exception.BusinessException;
+import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
 import com.chaerok.backend.visit.dto.VisitListResponse;
@@ -45,6 +46,9 @@ class VisitQueryServiceTest {
     @Mock
     private Place place;
 
+    @Mock
+    private Photo photo;
+
     private VisitQueryService service;
 
     @BeforeEach
@@ -80,7 +84,7 @@ class VisitQueryServiceTest {
     }
 
     @Test
-    @DisplayName("방문 목록에는 Place 정보와 방문 당시 categoryGroup을 반환한다")
+    @DisplayName("방문 목록에는 Place 정보와 방문 당시 categoryGroup 및 Photo 정보를 반환한다")
     void returnsVisitsWithProgress() {
         when(filmRollRepository.findByIdAndUserId(100L, 1L))
                 .thenReturn(Optional.of(filmRoll));
@@ -92,10 +96,15 @@ class VisitQueryServiceTest {
                         3,
                         true
                 ));
+
         when(visit.getId()).thenReturn(300L);
         when(visit.getPlace()).thenReturn(place);
         when(place.getId()).thenReturn(200L);
         when(place.getTitle()).thenReturn("공산성");
+
+        when(visit.getPhoto()).thenReturn(photo);
+        when(photo.getId()).thenReturn(400L);
+
         when(visit.getCategoryGroup())
                 .thenReturn(PlaceCategoryGroup.TOURISM);
         when(visit.getVisitedAt())
@@ -105,8 +114,42 @@ class VisitQueryServiceTest {
 
         assertThat(response.visitRequirementMet()).isTrue();
         assertThat(response.visits()).hasSize(1);
+        assertThat(response.visits().get(0).placeId())
+                .isEqualTo(200L);
+        assertThat(response.visits().get(0).photoId())
+                .isEqualTo(400L);
         assertThat(response.visits().get(0).categoryGroup())
                 .isEqualTo("TOURISM");
+    }
+
+    @Test
+    @DisplayName("기존 방문 기록에 Photo가 없으면 photoId는 null로 반환한다")
+    void returnsNullPhotoIdForLegacyVisit() {
+        when(filmRollRepository.findByIdAndUserId(100L, 1L))
+                .thenReturn(Optional.of(filmRoll));
+        when(visitRepository.findAllWithPlaceByFilmRollId(100L))
+                .thenReturn(List.of(visit));
+        when(visitRequirementService.getProgress(100L))
+                .thenReturn(new VisitRequirementService.Progress(
+                        1,
+                        3,
+                        false
+                ));
+
+        when(visit.getId()).thenReturn(300L);
+        when(visit.getPlace()).thenReturn(place);
+        when(place.getId()).thenReturn(200L);
+        when(place.getTitle()).thenReturn("공산성");
+        when(visit.getPhoto()).thenReturn(null);
+        when(visit.getCategoryGroup())
+                .thenReturn(PlaceCategoryGroup.TOURISM);
+        when(visit.getVisitedAt())
+                .thenReturn(LocalDateTime.of(2026, 8, 7, 15, 0));
+
+        VisitListResponse response = service.getVisits(1L, 100L);
+
+        assertThat(response.visits()).hasSize(1);
+        assertThat(response.visits().get(0).photoId()).isNull();
     }
 
     @Test
