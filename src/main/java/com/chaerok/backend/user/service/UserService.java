@@ -1,7 +1,9 @@
 package com.chaerok.backend.user.service;
 
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.user.entity.OAuthProvider;
 import com.chaerok.backend.user.entity.User;
+import com.chaerok.backend.user.exception.UserErrorCode;
 import com.chaerok.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,7 +21,10 @@ public class UserService {
     public User findById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                        new BusinessException(
+                                UserErrorCode.USER_NOT_FOUND
+                        )
+                );
     }
 
     public Optional<User> findByOAuthProvider(
@@ -45,7 +50,9 @@ public class UserService {
                 provider,
                 providerUserId
         )) {
-            throw new IllegalArgumentException("이미 가입된 사용자입니다.");
+            throw new BusinessException(
+                    UserErrorCode.ALREADY_REGISTERED
+            );
         }
 
         User user = User.create(

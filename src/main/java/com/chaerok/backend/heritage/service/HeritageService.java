@@ -1,8 +1,11 @@
 package com.chaerok.backend.heritage.service;
 
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.heritage.dto.HeritagePlaceResponse;
+import com.chaerok.backend.heritage.exception.HeritageErrorCode;
 import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryDetail;
+import com.chaerok.backend.place.exception.PlaceErrorCode;
 import com.chaerok.backend.place.external.TourApiPlaceClient;
 import com.chaerok.backend.place.external.TourApiPlaceItem;
 import com.chaerok.backend.place.repository.PlaceRepository;
@@ -22,22 +25,32 @@ public class HeritageService {
 
     public HeritagePlaceResponse getHeritagePlace(Long placeId) {
         Place place = placeRepository.findById(placeId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 장소입니다."));
+                .orElseThrow(() ->
+                        new BusinessException(
+                                PlaceErrorCode.PLACE_NOT_FOUND
+                        )
+                );
 
         String contentId = place.getTourContentId();
 
         if (contentId == null || contentId.isBlank()) {
-            throw new IllegalArgumentException("TourAPI 장소가 아닙니다.");
+            throw new BusinessException(
+                    HeritageErrorCode.NOT_TOUR_API_PLACE
+            );
         }
 
         String regionName = place.getRegion().getProvinceName()
                 + " "
                 + place.getRegion().getCityCountyName();
 
-        TourApiPlaceItem item = tourApiPlaceClient.getPlaceDetail(contentId);
+        TourApiPlaceItem item =
+                tourApiPlaceClient.getPlaceDetail(contentId);
 
         if (item == null) {
-            return createFallbackResponse(place, regionName);
+            return createFallbackResponse(
+                    place,
+                    regionName
+            );
         }
 
         boolean heritage = isHeritage(item);
@@ -55,7 +68,8 @@ public class HeritageService {
             String regionName
     ) {
         boolean heritage =
-                place.getCategoryDetail() == PlaceCategoryDetail.HERITAGE;
+                place.getCategoryDetail()
+                        == PlaceCategoryDetail.HERITAGE;
 
         return HeritagePlaceResponse.fromPlace(
                 place,
@@ -65,8 +79,13 @@ public class HeritageService {
     }
 
     private boolean isHeritage(TourApiPlaceItem item) {
-        boolean heritageCategory = "HS".equals(item.lclsSystm1());
-        boolean heritageException = GUNGNAMJI_CONTENT_ID.equals(item.contentId());
+        boolean heritageCategory =
+                "HS".equals(item.lclsSystm1());
+
+        boolean heritageException =
+                GUNGNAMJI_CONTENT_ID.equals(
+                        item.contentId()
+                );
 
         return heritageCategory || heritageException;
     }

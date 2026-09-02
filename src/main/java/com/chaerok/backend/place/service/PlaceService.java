@@ -1,17 +1,18 @@
 package com.chaerok.backend.place.service;
 
-import com.chaerok.backend.global.exception.PlaceNotFoundException;
-import com.chaerok.backend.global.exception.RegionNotFoundException;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.place.dto.PlaceDetailResponse;
 import com.chaerok.backend.place.dto.PlaceListResponse;
 import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
+import com.chaerok.backend.place.exception.PlaceErrorCode;
 import com.chaerok.backend.place.external.KakaoLocalClient;
 import com.chaerok.backend.place.external.KakaoPlaceItem;
 import com.chaerok.backend.place.external.TourApiPlaceClient;
 import com.chaerok.backend.place.external.TourApiPlaceItem;
 import com.chaerok.backend.place.repository.PlaceRepository;
 import com.chaerok.backend.region.entity.Region;
+import com.chaerok.backend.region.exception.RegionErrorCode;
 import com.chaerok.backend.region.repository.RegionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -49,7 +50,11 @@ public class PlaceService {
 
     public List<PlaceListResponse> getPlacesByRegion(Long regionId) {
         Region region = regionRepository.findById(regionId)
-                .orElseThrow(RegionNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                RegionErrorCode.REGION_NOT_FOUND
+                        )
+                );
 
         List<Place> representativePlaces =
                 placeRepository.findByRegionIdAndRepresentativeTrue(regionId);
@@ -76,7 +81,11 @@ public class PlaceService {
 
     public List<PlaceListResponse> getExternalPlaces(Long regionId) {
         Region region = regionRepository.findById(regionId)
-                .orElseThrow(RegionNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                RegionErrorCode.REGION_NOT_FOUND
+                        )
+                );
 
         List<TourApiPlaceItem> tourApiItems =
                 tourApiPlaceClient.getPlacesByRegion(
@@ -372,7 +381,11 @@ public class PlaceService {
 
     public PlaceDetailResponse getPlace(Long placeId) {
         Place place = placeRepository.findById(placeId)
-                .orElseThrow(PlaceNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                PlaceErrorCode.PLACE_NOT_FOUND
+                        )
+                );
 
         TourApiPlaceItem tourApiItem =
                 tourApiPlaceClient.getPlaceDetail(

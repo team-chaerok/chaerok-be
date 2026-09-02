@@ -6,12 +6,15 @@ import com.chaerok.backend.course.dto.CoursePlaceSaveRequest;
 import com.chaerok.backend.course.dto.SelectedCourseResponse;
 import com.chaerok.backend.course.entity.Course;
 import com.chaerok.backend.course.entity.CourseStatus;
+import com.chaerok.backend.course.exception.CourseErrorCode;
 import com.chaerok.backend.course.repository.CoursePlaceRepository;
 import com.chaerok.backend.course.repository.CourseRepository;
-import com.chaerok.backend.global.exception.RegionNotFoundException;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.region.entity.Region;
+import com.chaerok.backend.region.exception.RegionErrorCode;
 import com.chaerok.backend.region.repository.RegionRepository;
 import com.chaerok.backend.user.entity.User;
+import com.chaerok.backend.user.exception.UserErrorCode;
 import com.chaerok.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -107,14 +110,14 @@ public class CourseCommandService {
             List<CoursePlaceSaveRequest> places
     ) {
         if (places == null || places.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "코스 장소는 1개 이상 선택해야 합니다."
+            throw new BusinessException(
+                    CourseErrorCode.COURSE_PLACE_REQUIRED
             );
         }
 
         if (places.size() > MAX_COURSE_PLACE_COUNT) {
-            throw new IllegalArgumentException(
-                    "코스 장소는 최대 3개까지 선택할 수 있습니다."
+            throw new BusinessException(
+                    CourseErrorCode.COURSE_PLACE_LIMIT_EXCEEDED
             );
         }
     }
@@ -134,15 +137,19 @@ public class CourseCommandService {
     private User findUser(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "사용자를 찾을 수 없습니다."
+                        new BusinessException(
+                                UserErrorCode.USER_NOT_FOUND
                         )
                 );
     }
 
     private Region findRegion(Long regionId) {
         return regionRepository.findById(regionId)
-                .orElseThrow(RegionNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                RegionErrorCode.REGION_NOT_FOUND
+                        )
+                );
     }
 
     private Course findActiveCourse(Long userId) {
@@ -151,8 +158,8 @@ public class CourseCommandService {
                         CourseStatus.ACTIVE
                 )
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "ACTIVE 코스가 없습니다."
+                        new BusinessException(
+                                CourseErrorCode.ACTIVE_COURSE_NOT_FOUND
                         )
                 );
     }

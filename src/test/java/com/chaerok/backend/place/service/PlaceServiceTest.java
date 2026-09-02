@@ -1,19 +1,20 @@
 package com.chaerok.backend.place.service;
 
-import com.chaerok.backend.global.exception.PlaceNotFoundException;
-import com.chaerok.backend.global.exception.RegionNotFoundException;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.place.dto.PlaceDetailResponse;
 import com.chaerok.backend.place.dto.PlaceListResponse;
 import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryDetail;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
 import com.chaerok.backend.place.entity.PlaceSource;
+import com.chaerok.backend.place.exception.PlaceErrorCode;
 import com.chaerok.backend.place.external.KakaoLocalClient;
 import com.chaerok.backend.place.external.KakaoPlaceItem;
 import com.chaerok.backend.place.external.TourApiPlaceClient;
 import com.chaerok.backend.place.external.TourApiPlaceItem;
 import com.chaerok.backend.place.repository.PlaceRepository;
 import com.chaerok.backend.region.entity.Region;
+import com.chaerok.backend.region.exception.RegionErrorCode;
 import com.chaerok.backend.region.repository.RegionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -193,8 +194,11 @@ class PlaceServiceTest {
 
         // when & then
         assertThatThrownBy(() -> placeService.getPlacesByRegion(regionId))
-                .isInstanceOf(RegionNotFoundException.class)
-                .hasMessage("지역을 찾을 수 없습니다.");
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(RegionErrorCode.REGION_NOT_FOUND)
+                );
 
         verify(regionRepository).findById(regionId);
         verifyNoInteractions(placeRepository);
@@ -651,8 +655,11 @@ class PlaceServiceTest {
 
         // when & then
         assertThatThrownBy(() -> placeService.getPlace(placeId))
-                .isInstanceOf(PlaceNotFoundException.class)
-                .hasMessage("장소를 찾을 수 없습니다.");
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(PlaceErrorCode.PLACE_NOT_FOUND)
+                );
 
         verify(placeRepository).findById(placeId);
         verifyNoInteractions(tourApiPlaceClient);
@@ -669,8 +676,11 @@ class PlaceServiceTest {
 
         // when & then
         assertThatThrownBy(() -> placeService.getExternalPlaces(regionId))
-                .isInstanceOf(RegionNotFoundException.class)
-                .hasMessage("지역을 찾을 수 없습니다.");
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(RegionErrorCode.REGION_NOT_FOUND)
+                );
 
         verify(regionRepository).findById(regionId);
         verifyNoInteractions(tourApiPlaceClient);

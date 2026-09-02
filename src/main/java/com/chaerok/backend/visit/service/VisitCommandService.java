@@ -2,23 +2,19 @@ package com.chaerok.backend.visit.service;
 
 import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.entity.FilmRollStatus;
-import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
-import com.chaerok.backend.filmroll.exception.PhotoNotFoundException;
+import com.chaerok.backend.filmroll.exception.FilmRollErrorCode;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
-import com.chaerok.backend.global.exception.PlaceNotFoundException;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.photo.entity.PhotoStatus;
 import com.chaerok.backend.photo.repository.PhotoRepository;
 import com.chaerok.backend.place.entity.Place;
+import com.chaerok.backend.place.exception.PlaceErrorCode;
 import com.chaerok.backend.place.repository.PlaceRepository;
 import com.chaerok.backend.visit.dto.VisitCreateRequest;
 import com.chaerok.backend.visit.dto.VisitCreateResponse;
 import com.chaerok.backend.visit.entity.Visit;
-import com.chaerok.backend.visit.exception.FilmRollNotVisitableException;
-import com.chaerok.backend.visit.exception.PlaceRegionMismatchException;
-import com.chaerok.backend.visit.exception.VisitAlreadyExistsException;
-import com.chaerok.backend.visit.exception.VisitPhotoAlreadyUsedException;
-import com.chaerok.backend.visit.exception.VisitPhotoNotReadyException;
+import com.chaerok.backend.visit.exception.VisitErrorCode;
 import com.chaerok.backend.visit.repository.VisitRepository;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.exception.ConstraintViolationException;
@@ -35,6 +31,7 @@ public class VisitCommandService {
 
     private static final String DUPLICATE_VISIT_CONSTRAINT =
             "uk_visits_film_roll_place";
+
     private static final String DUPLICATE_PHOTO_CONSTRAINT =
             "uk_visits_photo";
 
@@ -55,13 +52,21 @@ public class VisitCommandService {
                         filmRollId,
                         userId
                 )
-                .orElseThrow(FilmRollNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                FilmRollErrorCode.FILM_ROLL_NOT_FOUND
+                        )
+                );
 
         requireVisitable(filmRoll);
 
         Place place = placeRepository
                 .findById(request.placeId())
-                .orElseThrow(PlaceNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                PlaceErrorCode.PLACE_NOT_FOUND
+                        )
+                );
 
         requireSameRegion(filmRoll, place);
         requireNotVisited(filmRollId, place.getId());
@@ -71,7 +76,11 @@ public class VisitCommandService {
                         request.photoId(),
                         filmRollId
                 )
-                .orElseThrow(PhotoNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                FilmRollErrorCode.PHOTO_NOT_FOUND
+                        )
+                );
 
         requireUploaded(photo);
         requireUnusedPhoto(photo.getId());
@@ -81,6 +90,7 @@ public class VisitCommandService {
                 place,
                 photo
         );
+
         Visit savedVisit;
 
         try {
@@ -90,14 +100,18 @@ public class VisitCommandService {
                     exception,
                     DUPLICATE_VISIT_CONSTRAINT
             )) {
-                throw new VisitAlreadyExistsException();
+                throw new BusinessException(
+                        VisitErrorCode.VISIT_ALREADY_EXISTS
+                );
             }
 
             if (hasConstraint(
                     exception,
                     DUPLICATE_PHOTO_CONSTRAINT
             )) {
-                throw new VisitPhotoAlreadyUsedException();
+                throw new BusinessException(
+                        VisitErrorCode.VISIT_PHOTO_ALREADY_USED
+                );
             }
 
             throw exception;
@@ -117,7 +131,9 @@ public class VisitCommandService {
     private void requireVisitable(FilmRoll filmRoll) {
         if (filmRoll.getStatus() != FilmRollStatus.CAPTURING
                 || filmRoll.isExitConfirmed()) {
-            throw new FilmRollNotVisitableException();
+            throw new BusinessException(
+                    VisitErrorCode.FILM_ROLL_NOT_VISITABLE
+            );
         }
     }
 
@@ -129,7 +145,9 @@ public class VisitCommandService {
                 filmRoll.getRegion().getId(),
                 place.getRegion().getId()
         )) {
-            throw new PlaceRegionMismatchException();
+            throw new BusinessException(
+                    VisitErrorCode.PLACE_REGION_MISMATCH
+            );
         }
     }
 
@@ -141,19 +159,25 @@ public class VisitCommandService {
                 filmRollId,
                 placeId
         )) {
-            throw new VisitAlreadyExistsException();
+            throw new BusinessException(
+                    VisitErrorCode.VISIT_ALREADY_EXISTS
+            );
         }
     }
 
     private void requireUploaded(Photo photo) {
         if (photo.getStatus() != PhotoStatus.UPLOADED) {
-            throw new VisitPhotoNotReadyException();
+            throw new BusinessException(
+                    VisitErrorCode.VISIT_PHOTO_NOT_READY
+            );
         }
     }
 
     private void requireUnusedPhoto(Long photoId) {
         if (visitRepository.existsByPhoto_Id(photoId)) {
-            throw new VisitPhotoAlreadyUsedException();
+            throw new BusinessException(
+                    VisitErrorCode.VISIT_PHOTO_ALREADY_USED
+            );
         }
     }
 

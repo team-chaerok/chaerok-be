@@ -1,6 +1,8 @@
 package com.chaerok.backend.course.service;
 
 import com.chaerok.backend.course.dto.CoursePlaceSaveRequest;
+import com.chaerok.backend.course.exception.CourseErrorCode;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.place.entity.PlaceSource;
 import com.chaerok.backend.place.external.TourApiPlaceClient;
 import com.chaerok.backend.place.external.TourApiPlaceItem;
@@ -131,10 +133,16 @@ class CourseExternalPlaceResolverTest {
                         request
                 )
         )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(
-                        "TourAPI 장소 정보를 찾을 수 없습니다."
-                );
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> {
+                    BusinessException businessException =
+                            (BusinessException) exception;
+
+                    assertThat(businessException.getErrorCode())
+                            .isEqualTo(
+                                    CourseErrorCode.EXTERNAL_PLACE_NOT_FOUND
+                            );
+                });
     }
 
     @Test
@@ -168,10 +176,16 @@ class CourseExternalPlaceResolverTest {
                         request
                 )
         )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(
-                        "TourAPI 장소가 코스 지역과 일치하지 않습니다."
-                );
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> {
+                    BusinessException businessException =
+                            (BusinessException) exception;
+
+                    assertThat(businessException.getErrorCode())
+                            .isEqualTo(
+                                    CourseErrorCode.PLACE_REGION_MISMATCH
+                            );
+                });
     }
 
     @Test

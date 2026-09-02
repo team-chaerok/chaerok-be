@@ -2,21 +2,20 @@ package com.chaerok.backend.photo.service;
 
 import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.entity.FilmRollStatus;
-import com.chaerok.backend.filmroll.exception.FilmRollConflictException;
-import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
-import com.chaerok.backend.filmroll.exception.PhotoNotFoundException;
-import com.chaerok.backend.filmroll.exception.PhotoUploadValidationException;
+import com.chaerok.backend.filmroll.exception.FilmRollErrorCode;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.global.aws.PresignedUpload;
 import com.chaerok.backend.global.aws.S3ObjectKeyGenerator;
 import com.chaerok.backend.global.aws.S3ObjectNotFoundException;
 import com.chaerok.backend.global.aws.S3ObjectStorage;
 import com.chaerok.backend.global.aws.StoredObjectMetadata;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.photo.dto.PhotoUploadCompleteResponse;
 import com.chaerok.backend.photo.dto.PhotoUploadUrlRequest;
 import com.chaerok.backend.photo.dto.PhotoUploadUrlResponse;
 import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.photo.entity.PhotoStatus;
+import com.chaerok.backend.photo.exception.PhotoErrorCode;
 import com.chaerok.backend.photo.repository.PhotoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -65,8 +64,8 @@ public class PhotoUploadService {
                 );
 
         if (filmRoll.isExitConfirmed() && existingPhoto.isEmpty()) {
-            throw new FilmRollConflictException(
-                    "지역 이탈 확정 후에는 새 사진을 추가할 수 없습니다."
+            throw new BusinessException(
+                    PhotoErrorCode.PHOTO_ADD_AFTER_EXIT_NOT_ALLOWED
             );
         }
 
@@ -114,7 +113,11 @@ public class PhotoUploadService {
                         photoId,
                         filmRollId
                 )
-                .orElseThrow(PhotoNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                FilmRollErrorCode.PHOTO_NOT_FOUND
+                        )
+                );
 
         if (photo.getStatus() == PhotoStatus.UPLOADED) {
             return PhotoUploadCompleteResponse.of(
@@ -124,8 +127,8 @@ public class PhotoUploadService {
         }
 
         if (photo.getStatus() != PhotoStatus.UPLOADING) {
-            throw new FilmRollConflictException(
-                    "업로드 대기 중인 사진만 업로드 완료 처리할 수 있습니다."
+            throw new BusinessException(
+                    PhotoErrorCode.PHOTO_NOT_UPLOADING
             );
         }
 
@@ -154,8 +157,8 @@ public class PhotoUploadService {
                 );
 
         if (photoSlotCount >= FilmRoll.MAX_PHOTO_COUNT) {
-            throw new FilmRollConflictException(
-                    "필름 롤에는 최대 24장까지만 업로드할 수 있습니다."
+            throw new BusinessException(
+                    PhotoErrorCode.PHOTO_LIMIT_EXCEEDED
             );
         }
 
@@ -178,8 +181,8 @@ public class PhotoUploadService {
 
     private Photo validateReusableUpload(Photo photo) {
         if (photo.getStatus() != PhotoStatus.UPLOADING) {
-            throw new FilmRollConflictException(
-                    "이미 사용 중인 사진 순서입니다."
+            throw new BusinessException(
+                    PhotoErrorCode.PHOTO_SEQUENCE_ALREADY_IN_USE
             );
         }
 
@@ -194,8 +197,10 @@ public class PhotoUploadService {
                     photo.getOriginalObjectKey()
             );
         } catch (S3ObjectNotFoundException exception) {
-            throw new PhotoUploadValidationException(
-                    "S3에서 업로드된 사진을 찾을 수 없습니다."
+            throw new BusinessException(
+                    PhotoErrorCode.UPLOADED_PHOTO_NOT_FOUND,
+                    "S3에서 업로드된 사진 메타데이터를 찾지 못했습니다.",
+                    exception
             );
         }
     }
@@ -204,8 +209,8 @@ public class PhotoUploadService {
             StoredObjectMetadata metadata
     ) {
         if (metadata.contentLength() <= 0) {
-            throw new PhotoUploadValidationException(
-                    "업로드된 사진 파일이 비어 있습니다."
+            throw new BusinessException(
+                    PhotoErrorCode.EMPTY_PHOTO_FILE
             );
         }
 
@@ -213,8 +218,8 @@ public class PhotoUploadService {
                 > objectStorage.getMaxUploadBytes()) {
             deleteInvalidObject(metadata.objectKey());
 
-            throw new PhotoUploadValidationException(
-                    "업로드된 사진이 허용된 최대 크기를 초과했습니다."
+            throw new BusinessException(
+                    PhotoErrorCode.PHOTO_FILE_TOO_LARGE
             );
         }
 
@@ -226,8 +231,8 @@ public class PhotoUploadService {
                 && !JPG_CONTENT_TYPE.equals(contentType)) {
             deleteInvalidObject(metadata.objectKey());
 
-            throw new PhotoUploadValidationException(
-                    "업로드된 파일은 JPEG 이미지가 아닙니다."
+            throw new BusinessException(
+                    PhotoErrorCode.INVALID_PHOTO_CONTENT_TYPE
             );
         }
     }
@@ -245,13 +250,17 @@ public class PhotoUploadService {
                         filmRollId,
                         userId
                 )
-                .orElseThrow(FilmRollNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                FilmRollErrorCode.FILM_ROLL_NOT_FOUND
+                        )
+                );
     }
 
     private void requireCapturing(FilmRoll filmRoll) {
         if (filmRoll.getStatus() != FilmRollStatus.CAPTURING) {
-            throw new FilmRollConflictException(
-                    "촬영 중인 필름 롤에서만 사진을 업로드할 수 있습니다."
+            throw new BusinessException(
+                    PhotoErrorCode.PHOTO_UPLOAD_NOT_ALLOWED
             );
         }
     }

@@ -2,8 +2,9 @@ package com.chaerok.backend.filmroll.service;
 
 import com.chaerok.backend.filmroll.dto.FilmRollPhotoListResponse;
 import com.chaerok.backend.filmroll.entity.FilmRoll;
-import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
+import com.chaerok.backend.filmroll.exception.FilmRollErrorCode;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.photo.repository.PhotoRepository;
 import com.chaerok.backend.region.entity.Region;
@@ -114,7 +115,11 @@ class FilmRollPhotoQueryServiceTest {
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.getPhotos(1L, 100L))
-                .isInstanceOf(FilmRollNotFoundException.class);
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(FilmRollErrorCode.FILM_ROLL_NOT_FOUND)
+                );
 
         verify(photoRepository, never())
                 .findAllByFilmRollIdOrderBySequenceAsc(100L);

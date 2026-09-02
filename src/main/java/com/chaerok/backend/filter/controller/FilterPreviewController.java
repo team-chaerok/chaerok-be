@@ -1,6 +1,8 @@
 package com.chaerok.backend.filter.controller;
 
 import com.chaerok.backend.filter.engine.FilmFilterEngine;
+import com.chaerok.backend.filter.exception.FilterErrorCode;
+import com.chaerok.backend.global.exception.BusinessException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -77,8 +79,8 @@ public class FilterPreviewController {
         }
 
         if (original == null) {
-            throw new IllegalArgumentException(
-                    "이미지를 읽을 수 없습니다. 지원하지 않는 이미지 형식일 수 있습니다."
+            throw new BusinessException(
+                    FilterErrorCode.INVALID_IMAGE_FORMAT
             );
         }
 
@@ -102,22 +104,22 @@ public class FilterPreviewController {
 
     private void validateFile(MultipartFile image) {
         if (image == null || image.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "이미지 파일은 필수입니다."
+            throw new BusinessException(
+                    FilterErrorCode.IMAGE_REQUIRED
             );
         }
 
         if (image.getSize() > MAX_FILE_SIZE) {
-            throw new IllegalArgumentException(
-                    "이미지 파일은 최대 20MB까지 업로드할 수 있습니다."
+            throw new BusinessException(
+                    FilterErrorCode.IMAGE_FILE_TOO_LARGE
             );
         }
 
         String contentType = image.getContentType();
 
         if (contentType == null) {
-            throw new IllegalArgumentException(
-                    "이미지 Content-Type을 확인할 수 없습니다."
+            throw new BusinessException(
+                    FilterErrorCode.INVALID_IMAGE_CONTENT_TYPE
             );
         }
 
@@ -133,54 +135,42 @@ public class FilterPreviewController {
                 );
 
         if (!supportedType) {
-            throw new IllegalArgumentException(
-                    "JPG, PNG, WebP 이미지만 업로드할 수 있습니다."
+            throw new BusinessException(
+                    FilterErrorCode.INVALID_IMAGE_CONTENT_TYPE
             );
         }
     }
 
     private void validateFilterId(String filterId) {
         if (filterId == null || filterId.isBlank()) {
-            throw new IllegalArgumentException(
-                    "filterId는 필수입니다."
+            throw new BusinessException(
+                    FilterErrorCode.FILTER_ID_REQUIRED
             );
         }
     }
 
     private void validateStrength(double strength) {
-        if (!Double.isFinite(strength)) {
-            throw new IllegalArgumentException(
-                    "strength는 유효한 숫자여야 합니다."
-            );
-        }
-
-        if (strength < 0.0 || strength > 1.0) {
-            throw new IllegalArgumentException(
-                    "strength는 0.0 이상 1.0 이하이어야 합니다."
+        if (!Double.isFinite(strength)
+                || strength < 0.0
+                || strength > 1.0) {
+            throw new BusinessException(
+                    FilterErrorCode.INVALID_FILTER_STRENGTH
             );
         }
     }
 
     private void validateImageSize(BufferedImage image) {
-        if (
-                image.getWidth() > MAX_WIDTH
-                        || image.getHeight() > MAX_HEIGHT
-        ) {
-            throw new IllegalArgumentException(
-                    "이미지 해상도는 최대 "
-                            + MAX_WIDTH
-                            + "x"
-                            + MAX_HEIGHT
-                            + "까지 허용됩니다."
+        if (image.getWidth() > MAX_WIDTH
+                || image.getHeight() > MAX_HEIGHT) {
+            throw new BusinessException(
+                    FilterErrorCode.IMAGE_SIZE_LIMIT_EXCEEDED
             );
         }
 
-        if (
-                image.getWidth() <= 0
-                        || image.getHeight() <= 0
-        ) {
-            throw new IllegalArgumentException(
-                    "이미지 해상도가 올바르지 않습니다."
+        if (image.getWidth() <= 0
+                || image.getHeight() <= 0) {
+            throw new BusinessException(
+                    FilterErrorCode.INVALID_IMAGE_SIZE
             );
         }
     }

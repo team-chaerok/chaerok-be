@@ -1,7 +1,8 @@
 package com.chaerok.backend.auth.oauth.verifier;
 
+import com.chaerok.backend.auth.exception.AuthErrorCode;
 import com.chaerok.backend.auth.oauth.dto.OAuthUserInfo;
-import com.chaerok.backend.global.exception.InvalidTokenException;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.user.entity.OAuthProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -63,8 +64,8 @@ public class AppleTokenVerifier implements OAuthTokenVerifier {
     @Override
     public OAuthUserInfo verify(String idToken, String nonce) {
         if (nonce == null || nonce.isBlank()) {
-            throw new InvalidTokenException(
-                    "Apple 로그인 nonce가 필요합니다."
+            throw new BusinessException(
+                    AuthErrorCode.APPLE_NONCE_REQUIRED
             );
         }
 
@@ -73,8 +74,8 @@ public class AppleTokenVerifier implements OAuthTokenVerifier {
         String tokenNonce = jwt.getClaimAsString("nonce");
 
         if (tokenNonce == null || !nonce.equals(tokenNonce)) {
-            throw new InvalidTokenException(
-                    "Apple ID Token의 nonce가 일치하지 않습니다."
+            throw new BusinessException(
+                    AuthErrorCode.APPLE_NONCE_MISMATCH
             );
         }
 
@@ -90,8 +91,9 @@ public class AppleTokenVerifier implements OAuthTokenVerifier {
         try {
             return jwtDecoder.decode(idToken);
         } catch (JwtException exception) {
-            throw new InvalidTokenException(
-                    "유효하지 않은 Apple ID Token입니다.",
+            throw new BusinessException(
+                    AuthErrorCode.INVALID_APPLE_ID_TOKEN,
+                    "Invalid Apple ID token.",
                     exception
             );
         }

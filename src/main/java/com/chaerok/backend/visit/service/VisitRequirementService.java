@@ -1,7 +1,8 @@
 package com.chaerok.backend.visit.service;
 
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
-import com.chaerok.backend.visit.exception.VisitRequirementNotMetException;
+import com.chaerok.backend.visit.exception.VisitErrorCode;
 import com.chaerok.backend.visit.repository.VisitRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -60,7 +61,9 @@ public class VisitRequirementService {
 
     public void requireSatisfied(Long filmRollId) {
         if (!isSatisfied(filmRollId)) {
-            throw new VisitRequirementNotMetException();
+            throw new BusinessException(
+                    VisitErrorCode.VISIT_REQUIREMENT_NOT_MET
+            );
         }
     }
 

@@ -2,12 +2,13 @@ package com.chaerok.backend.render.service;
 
 import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.entity.FilmRollStatus;
-import com.chaerok.backend.filmroll.exception.FilmRollConflictException;
-import com.chaerok.backend.filmroll.exception.FilmRollNotFoundException;
+import com.chaerok.backend.filmroll.exception.FilmRollErrorCode;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.render.dto.RenderRequestResponse;
 import com.chaerok.backend.render.entity.RenderJob;
 import com.chaerok.backend.render.entity.RenderJobStatus;
+import com.chaerok.backend.render.exception.RenderErrorCode;
 import com.chaerok.backend.render.queue.RenderQueuePublishResult;
 import com.chaerok.backend.render.repository.RenderJobRepository;
 import lombok.RequiredArgsConstructor;
@@ -52,7 +53,11 @@ public class RenderJobStateService {
                         filmRollId,
                         userId
                 )
-                .orElseThrow(FilmRollNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                FilmRollErrorCode.FILM_ROLL_NOT_FOUND
+                        )
+                );
 
         if (isAlreadyAdvanced(renderJob, filmRoll)) {
             log.info(
@@ -69,8 +74,8 @@ public class RenderJobStateService {
         }
 
         if (filmRoll.getStatus() != FilmRollStatus.READY) {
-            throw new FilmRollConflictException(
-                    "READY 상태에서만 현상 대기 상태로 전환할 수 있습니다."
+            throw new BusinessException(
+                    RenderErrorCode.FILM_ROLL_NOT_READY_FOR_QUEUE
             );
         }
 

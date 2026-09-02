@@ -1,7 +1,9 @@
 package com.chaerok.backend.auth.oauth.service;
 
+import com.chaerok.backend.auth.exception.AuthErrorCode;
 import com.chaerok.backend.auth.oauth.dto.AppleTokenResponse;
 import com.chaerok.backend.auth.oauth.verifier.AppleTokenVerifier;
+import com.chaerok.backend.global.exception.BusinessException;
 import io.jsonwebtoken.Jwts;
 import io.netty.channel.ChannelOption;
 import org.springframework.beans.factory.annotation.Value;
@@ -146,8 +148,8 @@ public class AppleOAuthRevokeService {
         Jwt jwt = appleTokenVerifier.decodeAndValidate(idToken);
 
         if (!providerUserId.equals(jwt.getSubject())) {
-            throw new IllegalArgumentException(
-                    "Apple 회원탈퇴 인증 사용자가 일치하지 않습니다."
+            throw new BusinessException(
+                    AuthErrorCode.APPLE_WITHDRAWAL_USER_MISMATCH
             );
         }
     }

@@ -1,7 +1,8 @@
 package com.chaerok.backend.auth.oauth.verifier;
 
+import com.chaerok.backend.auth.exception.AuthErrorCode;
 import com.chaerok.backend.auth.oauth.dto.OAuthUserInfo;
-import com.chaerok.backend.global.exception.InvalidTokenException;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.user.entity.OAuthProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -72,8 +73,9 @@ public class GoogleTokenVerifier implements OAuthTokenVerifier {
                     jwt.getClaimAsString("email")
             );
         } catch (JwtException exception) {
-            throw new InvalidTokenException(
-                    "유효하지 않은 Google ID Token입니다.",
+            throw new BusinessException(
+                    AuthErrorCode.INVALID_GOOGLE_ID_TOKEN,
+                    "Invalid Google ID token.",
                     exception
             );
         }

@@ -1,12 +1,13 @@
 package com.chaerok.backend.place.service;
 
-import com.chaerok.backend.global.exception.RegionNotFoundException;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.place.dto.PlaceSearchResponse;
 import com.chaerok.backend.place.external.KakaoLocalClient;
 import com.chaerok.backend.place.external.KakaoPlaceItem;
 import com.chaerok.backend.place.external.TourApiPlaceClient;
 import com.chaerok.backend.place.external.TourApiPlaceItem;
 import com.chaerok.backend.region.entity.Region;
+import com.chaerok.backend.region.exception.RegionErrorCode;
 import com.chaerok.backend.region.repository.RegionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -42,7 +43,11 @@ public class PlaceSearchService {
 
     private Region findRegion(Long regionId) {
         return regionRepository.findById(regionId)
-                .orElseThrow(RegionNotFoundException::new);
+                .orElseThrow(() ->
+                        new BusinessException(
+                                RegionErrorCode.REGION_NOT_FOUND
+                        )
+                );
     }
 
     private List<PlaceSearchResponse> searchTourApi(Region region, String keyword) {

@@ -4,18 +4,18 @@ import com.chaerok.backend.filmroll.dto.FilmRollCreateRequest;
 import com.chaerok.backend.filmroll.dto.FilmRollResponse;
 import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.entity.FilmRollStatus;
-import com.chaerok.backend.filmroll.exception.ActiveFilmRollExistsException;
-import com.chaerok.backend.filmroll.exception.FilmRollConflictException;
+import com.chaerok.backend.filmroll.exception.FilmRollErrorCode;
 import com.chaerok.backend.filmroll.repository.FilmRollRepository;
 import com.chaerok.backend.filter.preset.FilmFilterPreset;
 import com.chaerok.backend.filter.preset.FilmFilterPresetProvider;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.photo.entity.Photo;
 import com.chaerok.backend.photo.repository.PhotoRepository;
 import com.chaerok.backend.region.entity.Region;
 import com.chaerok.backend.region.repository.RegionRepository;
 import com.chaerok.backend.user.entity.User;
 import com.chaerok.backend.user.repository.UserRepository;
-import com.chaerok.backend.visit.exception.VisitRequirementNotMetException;
+import com.chaerok.backend.visit.exception.VisitErrorCode;
 import com.chaerok.backend.visit.service.VisitRequirementService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -250,15 +250,20 @@ class FilmRollCommandServiceTest {
                 .thenReturn(Optional.of(region));
         when(filterPresetProvider.getByFilterId("buyeo"))
                 .thenReturn(mock(FilmFilterPreset.class));
-        doThrow(new IllegalArgumentException(
-                "선택한 지역에서 사용할 수 없는 필터입니다."
+        doThrow(new BusinessException(
+                FilmRollErrorCode.INVALID_REGION_FILTER
         )).when(regionFilterPolicy).validate(region, "buyeo");
 
         assertThatThrownBy(() ->
                 service.createFilmRoll(1L, request)
         )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("사용할 수 없는 필터");
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(
+                                        FilmRollErrorCode.INVALID_REGION_FILTER
+                                )
+                );
 
         verify(regionFilterPolicy).validate(region, "buyeo");
         verify(filmRollRepository, never())
@@ -286,7 +291,11 @@ class FilmRollCommandServiceTest {
                         1L,
                         request
                 )
-        ).isInstanceOf(ActiveFilmRollExistsException.class);
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(FilmRollErrorCode.ACTIVE_FILM_ROLL_EXISTS)
+        );
 
         verify(filmRollRepository)
                 .existsByUserIdAndStatusAndExitedAtIsNull(
@@ -350,12 +359,17 @@ class FilmRollCommandServiceTest {
                 100L,
                 1L
         )).thenReturn(Optional.of(filmRoll));
-        doThrow(new VisitRequirementNotMetException())
+        doThrow(new BusinessException(
+                VisitErrorCode.VISIT_REQUIREMENT_NOT_MET))
                 .when(visitRequirementService)
                 .requireSatisfied(100L);
 
         assertThatThrownBy(() -> service.markReady(1L, 100L))
-                .isInstanceOf(VisitRequirementNotMetException.class);
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(VisitErrorCode.VISIT_REQUIREMENT_NOT_MET)
+                );
 
         assertThat(filmRoll.getStatus())
                 .isEqualTo(FilmRollStatus.CAPTURING);
@@ -370,13 +384,18 @@ class FilmRollCommandServiceTest {
                 100L,
                 1L
         )).thenReturn(Optional.of(filmRoll));
-        doThrow(new VisitRequirementNotMetException())
+        doThrow(new BusinessException(
+                VisitErrorCode.VISIT_REQUIREMENT_NOT_MET))
                 .when(visitRequirementService)
                 .requireSatisfied(100L);
 
         assertThatThrownBy(() ->
                 service.prepareDevelopment(1L, 100L)
-        ).isInstanceOf(VisitRequirementNotMetException.class);
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(VisitErrorCode.VISIT_REQUIREMENT_NOT_MET)
+        );
 
         assertThat(filmRoll.getStatus())
                 .isEqualTo(FilmRollStatus.CAPTURING);
@@ -511,16 +530,20 @@ class FilmRollCommandServiceTest {
                 100L,
                 1L
         )).thenReturn(Optional.of(filmRoll));
-        doThrow(new com.chaerok.backend.filmroll.exception
-                .FilmRollDevelopmentWaitException())
+        doThrow(new BusinessException(
+                FilmRollErrorCode.DEVELOPMENT_WAIT_NOT_FINISHED
+        ))
                 .when(developmentTimingService)
                 .requireAvailable(filmRoll);
 
         assertThatThrownBy(() ->
                 service.prepareDevelopment(1L, 100L)
-        ).isInstanceOf(
-                com.chaerok.backend.filmroll.exception
-                        .FilmRollDevelopmentWaitException.class
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(
+                                FilmRollErrorCode.DEVELOPMENT_WAIT_NOT_FINISHED
+                        )
         );
 
         verify(photoRepository, never())
@@ -573,9 +596,11 @@ class FilmRollCommandServiceTest {
 
         assertThatThrownBy(() ->
                 service.prepareDevelopment(1L, 100L)
-        )
-                .isInstanceOf(FilmRollConflictException.class)
-                .hasMessageContaining("이미 현상이 완료");
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(FilmRollErrorCode.FILM_ROLL_ALREADY_COMPLETED)
+        );
 
         verifyNoInteractions(photoRepository);
     }

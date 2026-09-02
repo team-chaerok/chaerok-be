@@ -1,6 +1,7 @@
 package com.chaerok.backend.auth.oauth.verifier;
 
-import com.chaerok.backend.global.exception.InvalidTokenException;
+import com.chaerok.backend.auth.exception.AuthErrorCode;
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.user.entity.OAuthProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,9 +39,11 @@ class AppleTokenVerifierTest {
         // when & then
         assertThatThrownBy(
                 () -> appleTokenVerifier.verify(invalidIdToken, "test-nonce")
-        )
-                .isInstanceOf(InvalidTokenException.class)
-                .hasMessage("유효하지 않은 Apple ID Token입니다.");
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(AuthErrorCode.INVALID_APPLE_ID_TOKEN)
+        );
     }
 
     @Test
@@ -49,9 +52,13 @@ class AppleTokenVerifierTest {
         String idToken = "dummy-token";
 
         // when & then
-        assertThatThrownBy(() -> appleTokenVerifier.verify(idToken, null))
-                .isInstanceOf(InvalidTokenException.class)
-                .hasMessage("Apple 로그인 nonce가 필요합니다.");
+        assertThatThrownBy(
+                () -> appleTokenVerifier.verify(idToken, null)
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(AuthErrorCode.APPLE_NONCE_REQUIRED)
+        );
     }
 
     @Test
@@ -60,8 +67,12 @@ class AppleTokenVerifierTest {
         String idToken = "dummy-token";
 
         // when & then
-        assertThatThrownBy(() -> appleTokenVerifier.verify(idToken, " "))
-                .isInstanceOf(InvalidTokenException.class)
-                .hasMessage("Apple 로그인 nonce가 필요합니다.");
+        assertThatThrownBy(
+                () -> appleTokenVerifier.verify(idToken, " ")
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(AuthErrorCode.APPLE_NONCE_REQUIRED)
+        );
     }
 }

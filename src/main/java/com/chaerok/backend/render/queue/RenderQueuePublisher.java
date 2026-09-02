@@ -1,7 +1,8 @@
 package com.chaerok.backend.render.queue;
 
 import com.chaerok.backend.global.aws.sqs.AwsSqsProperties;
-import com.chaerok.backend.render.exception.RenderQueueException;
+import com.chaerok.backend.global.exception.BusinessException;
+import com.chaerok.backend.render.exception.RenderErrorCode;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -56,8 +57,9 @@ public class RenderQueuePublisher {
                     response.messageId()
             );
         } catch (SqsException exception) {
-            throw new RenderQueueException(
-                    "렌더링 요청을 SQS에 전송하지 못했습니다.",
+            throw new BusinessException(
+                    RenderErrorCode.RENDER_QUEUE_UNAVAILABLE,
+                    "렌더링 요청 SQS 전송 실패",
                     exception
             );
         }
@@ -67,8 +69,9 @@ public class RenderQueuePublisher {
         try {
             return objectMapper.writeValueAsString(message);
         } catch (JsonProcessingException exception) {
-            throw new RenderQueueException(
-                    "렌더링 메시지 직렬화에 실패했습니다.",
+            throw new BusinessException(
+                    RenderErrorCode.RENDER_QUEUE_UNAVAILABLE,
+                    "렌더링 메시지 직렬화 실패",
                     exception
             );
         }
