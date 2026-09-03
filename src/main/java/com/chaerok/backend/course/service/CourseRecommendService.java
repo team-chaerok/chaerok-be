@@ -56,21 +56,33 @@ public class CourseRecommendService {
         if (anchorPlaceId != null) {
             Place anchor = findAnchor(regionId, anchorPlaceId);
 
+            CourseResponse course = createCourse(anchor, representativePlaces);
+
             return new CourseRecommendResponse(
                     regionId,
                     RECOMMENDATION_TYPE_ANCHOR,
                     anchor.getId(),
-                    List.of(createCourse(anchor, representativePlaces))
+                    isCompleteCourse(course) ? List.of(course) : List.of()
             );
         }
 
         List<Place> anchors = findRegionAnchors(representativePlaces);
 
-        List<CourseResponse> courses = anchors.stream()
-                .map(anchor -> createCourse(anchor, representativePlaces))
+        List<AnchorCourse> validCourses = anchors.stream()
+                .map(anchor -> new AnchorCourse(
+                        anchor,
+                        createCourse(anchor, representativePlaces)
+                ))
+                .filter(anchorCourse -> isCompleteCourse(anchorCourse.course()))
                 .toList();
 
-        Long firstAnchorPlaceId = anchors.isEmpty() ? null : anchors.get(0).getId();
+        List<CourseResponse> courses = validCourses.stream()
+                .map(AnchorCourse::course)
+                .toList();
+
+        Long firstAnchorPlaceId = validCourses.isEmpty()
+                ? null
+                : validCourses.get(0).anchor().getId();
 
         return new CourseRecommendResponse(
                 regionId,
@@ -78,6 +90,13 @@ public class CourseRecommendService {
                 firstAnchorPlaceId,
                 courses
         );
+    }
+
+    private boolean isCompleteCourse(CourseResponse course) {
+        return course.places().size() == MAX_COURSE_PLACE_COUNT
+                && containsCategoryGroup(course.places(), PlaceCategoryGroup.TOURISM)
+                && containsCategoryGroup(course.places(), PlaceCategoryGroup.FOOD)
+                && containsCategoryGroup(course.places(), PlaceCategoryGroup.CAFE_DESSERT);
     }
 
     private void validateRegion(Long regionId) {
@@ -111,6 +130,12 @@ public class CourseRecommendService {
             );
         }
 
+        if (anchor.getCategoryGroup() != PlaceCategoryGroup.TOURISM) {
+            throw new BusinessException(
+                    CourseErrorCode.INVALID_ANCHOR_CATEGORY
+            );
+        }
+
         if (!hasCoordinate(anchor)) {
             throw new BusinessException(
                     CourseErrorCode.ANCHOR_COORDINATE_MISSING
@@ -141,15 +166,21 @@ public class CourseRecommendService {
 
         findFirstFoodCandidate(anchor)
                 .map(CoursePlaceResponse::fromKakaoFood)
+                .or(() -> findFallbackPlace(
+                        anchor,
+                        representativePlaces,
+                        PlaceCategoryGroup.FOOD
+                ).map(CoursePlaceResponse::fromPlace))
                 .ifPresent(places::add);
 
         findFirstCafeCandidate(anchor)
                 .map(CoursePlaceResponse::fromKakaoCafe)
+                .or(() -> findFallbackPlace(
+                        anchor,
+                        representativePlaces,
+                        PlaceCategoryGroup.CAFE_DESSERT
+                ).map(CoursePlaceResponse::fromPlace))
                 .ifPresent(places::add);
-
-        if (places.size() < MAX_COURSE_PLACE_COUNT) {
-            addFallbackPlaces(anchor, representativePlaces, places);
-        }
 
         return new CourseResponse(
                 createCourseTitle(anchor),
@@ -220,33 +251,18 @@ public class CourseRecommendService {
                 && candidate.addressName().contains(cityCountyName);
     }
 
-    private void addFallbackPlaces(
+    private java.util.Optional<Place> findFallbackPlace(
             Place anchor,
             List<Place> representativePlaces,
-            List<CoursePlaceResponse> places
+            PlaceCategoryGroup categoryGroup
     ) {
-        List<Place> fallbackPlaces = representativePlaces.stream()
+        return representativePlaces.stream()
                 .filter(this::hasCoordinate)
                 .filter(place -> !place.getId().equals(anchor.getId()))
-                .filter(place -> !containsPlace(places, place.getId()))
-                .sorted(Comparator.comparingDouble(place -> calculateDistanceMeters(anchor, place)))
-                .toList();
-
-        for (Place fallbackPlace : fallbackPlaces) {
-            if (places.size() >= MAX_COURSE_PLACE_COUNT) {
-                return;
-            }
-
-            places.add(CoursePlaceResponse.fromPlace(fallbackPlace));
-        }
-    }
-
-    private boolean containsPlace(
-            List<CoursePlaceResponse> places,
-            Long placeId
-    ) {
-        return places.stream()
-                .anyMatch(place -> placeId.equals(place.placeId()));
+                .filter(place -> place.getCategoryGroup() == categoryGroup)
+                .min(Comparator.comparingDouble(
+                        place -> calculateDistanceMeters(anchor, place)
+                ));
     }
 
     private String createCourseTitle(Place anchor) {
@@ -348,5 +364,11 @@ public class CourseRecommendService {
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
         return earthRadiusMeters * c;
+    }
+
+    private record AnchorCourse(
+            Place anchor,
+            CourseResponse course
+    ) {
     }
 }
