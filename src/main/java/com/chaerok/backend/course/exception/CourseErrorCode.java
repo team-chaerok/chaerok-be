@@ -97,6 +97,18 @@ public enum CourseErrorCode implements ErrorCode {
             HttpStatus.NOT_FOUND,
             "COURSE_015",
             "ACTIVE 코스가 없습니다."
+    ),
+
+    INVALID_ANCHOR_CATEGORY(
+            HttpStatus.BAD_REQUEST,
+            "COURSE_016",
+            "추천 코스의 앵커 장소는 관광지 유형이어야 합니다."
+    ),
+
+    INVALID_COURSE_CATEGORY_COMPOSITION(
+            HttpStatus.BAD_REQUEST,
+            "COURSE_017",
+            "코스는 관광지, 음식점, 카페/디저트 각 1곳으로 구성해야 합니다."
     );
 
     private final HttpStatus status;

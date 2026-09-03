@@ -515,6 +515,153 @@ class CoursePersistenceServiceTest {
                 .isEqualTo(PlaceSource.TOUR_API);
     }
 
+    @Test
+    @DisplayName("최종 3곳의 유형 구성이 올바르지 않으면 저장하지 않는다")
+    void addPlacesRejectsInvalidFinalCategoryComposition() {
+        // given
+        when(course.getId()).thenReturn(COURSE_ID);
+        when(region.getId()).thenReturn(REGION_ID);
+
+        Place existingTourism = org.mockito.Mockito.mock(Place.class);
+        when(existingTourism.getCategoryGroup())
+                .thenReturn(PlaceCategoryGroup.TOURISM);
+
+        CoursePlace existingCoursePlace =
+                org.mockito.Mockito.mock(CoursePlace.class);
+
+        when(existingCoursePlace.getPlace())
+                .thenReturn(existingTourism);
+
+        Place food = org.mockito.Mockito.mock(Place.class);
+        when(food.getRegion()).thenReturn(region);
+        when(food.getCategoryGroup())
+                .thenReturn(PlaceCategoryGroup.FOOD);
+
+        Place anotherTourism = org.mockito.Mockito.mock(Place.class);
+        when(anotherTourism.getRegion()).thenReturn(region);
+        when(anotherTourism.getCategoryGroup())
+                .thenReturn(PlaceCategoryGroup.TOURISM);
+
+        when(coursePlaceRepository.countByCourseId(COURSE_ID))
+                .thenReturn(1);
+
+        when(coursePlaceRepository
+                .findByCourseIdOrderBySequenceAsc(COURSE_ID))
+                .thenReturn(List.of(existingCoursePlace));
+
+        when(placeRepository.findById(2L))
+                .thenReturn(Optional.of(food));
+        when(placeRepository.findById(3L))
+                .thenReturn(Optional.of(anotherTourism));
+
+        // when & then
+        assertThatThrownBy(() ->
+                persistenceService.addPlacesToCourse(
+                        course,
+                        region,
+                        List.of(
+                                resolvedPlace(2L, "FOOD"),
+                                resolvedPlace(3L, "CAFE_DESSERT")
+                        )
+                )
+        )
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> {
+                    BusinessException businessException =
+                            (BusinessException) exception;
+
+                    assertThat(businessException.getErrorCode())
+                            .isEqualTo(
+                                    CourseErrorCode.INVALID_COURSE_CATEGORY_COMPOSITION
+                            );
+                });
+
+        verify(coursePlaceRepository, never())
+                .save(any(CoursePlace.class));
+    }
+
+    @Test
+    @DisplayName("코스 장소가 3곳을 초과하면 장소 조회 전에 요청을 거부한다")
+    void addPlacesRejectsOverLimitBeforeResolvingPlace() {
+        // given
+        when(course.getId()).thenReturn(COURSE_ID);
+
+        when(coursePlaceRepository.countByCourseId(COURSE_ID))
+                .thenReturn(3);
+
+        // when & then
+        assertThatThrownBy(() ->
+                persistenceService.addPlacesToCourse(
+                        course,
+                        region,
+                        List.of(
+                                resolvedPlace(4L, "FOOD")
+                        )
+                )
+        )
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> {
+                    BusinessException businessException =
+                            (BusinessException) exception;
+
+                    assertThat(businessException.getErrorCode())
+                            .isEqualTo(
+                                    CourseErrorCode.COURSE_PLACE_LIMIT_EXCEEDED
+                            );
+                });
+
+        verify(placeRepository, never())
+                .findById(any());
+    }
+
+    @Test
+    @DisplayName("코스가 3곳이 되면 관광지 음식점 카페 각 1곳으로 저장할 수 있다")
+    void addPlacesAllowsRequiredThreeCategories() {
+        // given
+        mockSuccessfulCourse();
+
+        Place tourism = createPlace(
+                1L,
+                PlaceCategoryGroup.TOURISM
+        );
+
+        Place food = createPlace(
+                2L,
+                PlaceCategoryGroup.FOOD
+        );
+
+        Place cafe = createPlace(
+                3L,
+                PlaceCategoryGroup.CAFE_DESSERT
+        );
+
+        when(coursePlaceRepository.countByCourseId(COURSE_ID))
+                .thenReturn(0);
+
+        when(placeRepository.findById(1L))
+                .thenReturn(Optional.of(tourism));
+        when(placeRepository.findById(2L))
+                .thenReturn(Optional.of(food));
+        when(placeRepository.findById(3L))
+                .thenReturn(Optional.of(cafe));
+
+        // when
+        persistenceService.addPlacesToCourse(
+                course,
+                region,
+                List.of(
+                        resolvedPlace(1L, "TOURISM"),
+                        resolvedPlace(2L, "FOOD"),
+                        resolvedPlace(3L, "CAFE_DESSERT")
+                )
+        );
+
+        // then
+        verify(coursePlaceRepository,
+                org.mockito.Mockito.times(3))
+                .save(any(CoursePlace.class));
+    }
+
     private void mockSuccessfulCourse() {
         when(course.getId())
                 .thenReturn(COURSE_ID);
@@ -589,5 +736,39 @@ class CoursePersistenceServiceTest {
                 "HS01",
                 null
         );
+    }
+
+    private Place createPlace(
+            Long id,
+            PlaceCategoryGroup categoryGroup
+    ) {
+        Place place = org.mockito.Mockito.mock(Place.class);
+
+        when(place.getId()).thenReturn(id);
+        when(place.getRegion()).thenReturn(region);
+        when(place.getCategoryGroup()).thenReturn(categoryGroup);
+
+        return place;
+    }
+
+    private ResolvedCoursePlace resolvedPlace(
+            Long placeId,
+            String categoryGroup
+    ) {
+        CoursePlaceSaveRequest request =
+                new CoursePlaceSaveRequest(
+                        placeId,
+                        null,
+                        PlaceSource.TOUR_API.name(),
+                        "테스트 장소",
+                        categoryGroup,
+                        null,
+                        "충남 공주시",
+                        null,
+                        null,
+                        null
+                );
+
+        return ResolvedCoursePlace.of(request, null);
     }
 }

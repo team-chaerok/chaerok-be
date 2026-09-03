@@ -33,6 +33,12 @@ import java.util.Set;
 public class CoursePersistenceService {
 
     private static final int MAX_COURSE_PLACE_COUNT = 3;
+    private static final Set<PlaceCategoryGroup> REQUIRED_COURSE_CATEGORIES =
+            Set.of(
+                    PlaceCategoryGroup.TOURISM,
+                    PlaceCategoryGroup.FOOD,
+                    PlaceCategoryGroup.CAFE_DESSERT
+            );
 
     private final CourseRepository courseRepository;
     private final CoursePlaceRepository coursePlaceRepository;
@@ -62,20 +68,33 @@ public class CoursePersistenceService {
             Region region,
             List<ResolvedCoursePlace> resolvedPlaces
     ) {
-        int currentPlaceCount = coursePlaceRepository.countByCourseId(
-                course.getId()
-        );
-
-        if (currentPlaceCount + resolvedPlaces.size()
-                > MAX_COURSE_PLACE_COUNT) {
-            throw new BusinessException(
-                    CourseErrorCode.COURSE_PLACE_LIMIT_EXCEEDED
-            );
-        }
-
         addPlaces(course, region, resolvedPlaces);
 
         return getCourseResponse(course);
+    }
+
+    private void validateFinalCourseCategories(
+            Course course,
+            List<Place> newPlaces
+    ) {
+        Set<PlaceCategoryGroup> categoryGroups =
+                new HashSet<>(coursePlaceRepository
+                        .findByCourseIdOrderBySequenceAsc(course.getId())
+                        .stream()
+                        .map(coursePlace ->
+                                coursePlace.getPlace().getCategoryGroup()
+                        )
+                        .toList());
+
+        newPlaces.stream()
+                .map(Place::getCategoryGroup)
+                .forEach(categoryGroups::add);
+
+        if (!categoryGroups.equals(REQUIRED_COURSE_CATEGORIES)) {
+            throw new BusinessException(
+                    CourseErrorCode.INVALID_COURSE_CATEGORY_COMPOSITION
+            );
+        }
     }
 
     private void inactiveActiveCourses(Long userId) {
@@ -93,15 +112,31 @@ public class CoursePersistenceService {
             Region region,
             List<ResolvedCoursePlace> resolvedPlaces
     ) {
-        validateDuplicateCategoryInRequest(resolvedPlaces);
-
-        int nextSequence = coursePlaceRepository.countByCourseId(
+        int currentPlaceCount = coursePlaceRepository.countByCourseId(
                 course.getId()
-        ) + 1;
+        );
 
-        for (ResolvedCoursePlace resolvedPlace : resolvedPlaces) {
-            Place place = resolvePlace(region, resolvedPlace);
+        int finalPlaceCount = currentPlaceCount + resolvedPlaces.size();
 
+        if (finalPlaceCount > MAX_COURSE_PLACE_COUNT) {
+            throw new BusinessException(
+                    CourseErrorCode.COURSE_PLACE_LIMIT_EXCEEDED
+            );
+        }
+
+        List<Place> places = resolvedPlaces.stream()
+                .map(resolvedPlace -> resolvePlace(region, resolvedPlace))
+                .toList();
+
+        validateDuplicateCategoryInPlaces(places);
+
+        if (finalPlaceCount == MAX_COURSE_PLACE_COUNT) {
+            validateFinalCourseCategories(course, places);
+        }
+
+        int nextSequence = currentPlaceCount + 1;
+
+        for (Place place : places) {
             validateCoursePlace(course, place);
 
             CoursePlace coursePlace = CoursePlace.create(
@@ -403,19 +438,13 @@ public class CoursePersistenceService {
         }
     }
 
-    private void validateDuplicateCategoryInRequest(
-            List<ResolvedCoursePlace> resolvedPlaces
+    private void validateDuplicateCategoryInPlaces(
+            List<Place> places
     ) {
         Set<PlaceCategoryGroup> categoryGroups = new HashSet<>();
 
-        for (ResolvedCoursePlace resolvedPlace : resolvedPlaces) {
-            CoursePlaceSaveRequest request =
-                    resolvedPlace.request();
-
-            PlaceCategoryGroup categoryGroup =
-                    toCategoryGroup(request.categoryGroup());
-
-            if (!categoryGroups.add(categoryGroup)) {
+        for (Place place : places) {
+            if (!categoryGroups.add(place.getCategoryGroup())) {
                 throw new BusinessException(
                         CourseErrorCode.DUPLICATE_REQUEST_PLACE_CATEGORY
                 );
