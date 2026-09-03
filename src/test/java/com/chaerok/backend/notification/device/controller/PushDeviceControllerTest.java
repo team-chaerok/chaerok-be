@@ -55,6 +55,26 @@ class PushDeviceControllerTest {
     }
 
     @Test
+    @DisplayName("현재 사용자의 iOS FCM 토큰을 등록하고 204를 반환한다")
+    void registerIos() {
+        ResponseEntity<Void> response = controller.register(
+                authenticatedUser,
+                new PushDeviceRegisterRequest(
+                        "ios-token-1",
+                        PushPlatform.IOS
+                )
+        );
+
+        assertThat(response.getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+        verify(pushDeviceService).register(
+                6L,
+                "ios-token-1",
+                PushPlatform.IOS
+        );
+    }
+
+    @Test
     @DisplayName("현재 사용자의 FCM 토큰을 해제하고 204를 반환한다")
     void unregister() {
         ResponseEntity<Void> response = controller.unregister(

@@ -6,10 +6,13 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.AndroidConfig;
 import com.google.firebase.messaging.AndroidNotification;
+import com.google.firebase.messaging.ApnsConfig;
+import com.google.firebase.messaging.Aps;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.MessagingErrorCode;
+import com.google.firebase.messaging.Notification;
 import com.chaerok.backend.notification.message.NotificationPayload;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -61,6 +64,12 @@ public class FirebasePushSender implements PushSender {
             Message message = Message.builder()
                     .setToken(registrationToken)
                     .putAllData(payload.data())
+                    .setNotification(
+                            Notification.builder()
+                                    .setTitle(payload.title())
+                                    .setBody(payload.body())
+                                    .build()
+                    )
                     .setAndroidConfig(
                             AndroidConfig.builder()
                                     .setCollapseKey(
@@ -80,6 +89,27 @@ public class FirebasePushSender implements PushSender {
                                                     .setTag(
                                                             payload.notificationTag()
                                                     )
+                                                    .build()
+                                    )
+                                    .build()
+                    )
+                    .setApnsConfig(
+                            ApnsConfig.builder()
+                                    .putHeader(
+                                            "apns-push-type",
+                                            "alert"
+                                    )
+                                    .putHeader(
+                                            "apns-priority",
+                                            "10"
+                                    )
+                                    .putHeader(
+                                            "apns-collapse-id",
+                                            payload.collapseKey()
+                                    )
+                                    .setAps(
+                                            Aps.builder()
+                                                    .setSound("default")
                                                     .build()
                                     )
                                     .build()
