@@ -17,6 +17,12 @@ public class FilmRollDevelopmentTimingService {
             );
         }
 
+        // Review Mode??FilmRoll/DB??1?쒓컙 ?ㅼ?以꾩쓣 諛붽씀吏 ?딅뒗??
+        // ?ъ궗??怨꾩젙???쒗빐???꾩긽 ?붿껌 ??1?쒓컙 ?湲?寃?щ쭔 硫댁젣?쒕떎.
+        if (filmRoll.getUser().isReviewMode()) {
+            return;
+        }
+
         if (!filmRoll.isDevelopmentAvailable(LocalDateTime.now())) {
             throw new BusinessException(
                     FilmRollErrorCode.DEVELOPMENT_WAIT_NOT_FINISHED
