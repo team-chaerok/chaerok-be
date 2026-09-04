@@ -263,4 +263,111 @@ class PlaceCategoryMapperTest {
         assertThat(detail)
                 .isEqualTo(PlaceCategoryDetail.SOUVENIR_SHOP);
     }
+
+    @Test
+    @DisplayName("Kakao 디저트 카테고리를 CAFE_DESSERT/DESSERT로 매핑한다")
+    void mapKakaoDessert() {
+        assertThat(PlaceCategoryMapper.toGroupFromKakao(
+                "",
+                "음식점 > 카페 > 디저트"
+        )).isEqualTo(PlaceCategoryGroup.CAFE_DESSERT);
+
+        assertThat(PlaceCategoryMapper.toDetailFromKakao(
+                "",
+                "음식점 > 카페 > 디저트"
+        )).isEqualTo(PlaceCategoryDetail.DESSERT);
+    }
+
+    @Test
+    @DisplayName("Kakao 간식 카테고리를 SNACK으로 매핑한다")
+    void mapKakaoSnack() {
+        assertThat(PlaceCategoryMapper.toDetailFromKakao(
+                "FD6",
+                "음식점 > 간식 > 호떡"
+        )).isEqualTo(PlaceCategoryDetail.SNACK);
+    }
+
+    @Test
+    @DisplayName("Kakao 찻집 카테고리를 CAFE_DESSERT/TEA_HOUSE로 매핑한다")
+    void mapKakaoTeaHouse() {
+        assertThat(PlaceCategoryMapper.toGroupFromKakao(
+                "",
+                "음식점 > 전통찻집"
+        )).isEqualTo(PlaceCategoryGroup.CAFE_DESSERT);
+
+        assertThat(PlaceCategoryMapper.toDetailFromKakao(
+                "",
+                "음식점 > 전통찻집"
+        )).isEqualTo(PlaceCategoryDetail.TEA_HOUSE);
+    }
+
+    @Test
+    @DisplayName("Kakao 일반 음식점은 FOOD/RESTAURANT로 매핑한다")
+    void mapKakaoGenericRestaurant() {
+        assertThat(PlaceCategoryMapper.toGroupFromKakao(
+                "FD6",
+                "음식점"
+        )).isEqualTo(PlaceCategoryGroup.FOOD);
+
+        assertThat(PlaceCategoryMapper.toDetailFromKakao(
+                "FD6",
+                "음식점"
+        )).isEqualTo(PlaceCategoryDetail.RESTAURANT);
+    }
+
+    @Test
+    @DisplayName("Kakao 분류 정보가 없으면 TOURISM/EXPERIENCE로 매핑한다")
+    void mapUnknownKakaoCategory() {
+        assertThat(PlaceCategoryMapper.toGroupFromKakao(
+                null,
+                null
+        )).isEqualTo(PlaceCategoryGroup.TOURISM);
+
+        assertThat(PlaceCategoryMapper.toDetailFromKakao(
+                null,
+                null
+        )).isEqualTo(PlaceCategoryDetail.EXPERIENCE);
+    }
+
+    @Test
+    @DisplayName("Kakao 그룹 코드가 없어도 카테고리명으로 카페와 음식점을 판별한다")
+    void mapKakaoByCategoryName() {
+        assertThat(PlaceCategoryMapper.toGroupFromKakao(
+                null,
+                "음식점 > 카페"
+        )).isEqualTo(PlaceCategoryGroup.CAFE_DESSERT);
+
+        assertThat(PlaceCategoryMapper.toGroupFromKakao(
+                null,
+                "음식점 > 일식"
+        )).isEqualTo(PlaceCategoryGroup.FOOD);
+    }
+
+    @Test
+    @DisplayName("lclsSystm3가 빈 값이면 lclsSystm1 기준으로 매핑한다")
+    void fallbackToLclsSystm1WhenLclsSystm3IsBlank() {
+        assertThat(PlaceCategoryMapper.toGroup(
+                "HS",
+                " "
+        )).isEqualTo(PlaceCategoryGroup.TOURISM);
+
+        assertThat(PlaceCategoryMapper.toDetail(
+                "HS",
+                " "
+        )).isEqualTo(PlaceCategoryDetail.HERITAGE);
+
+        assertThat(PlaceCategoryMapper.isSupportedTourApiCategory(
+                "HS",
+                " "
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("Kakao 떡볶이 카테고리를 SNACK_MEAL로 매핑한다")
+    void mapKakaoTteokbokki() {
+        assertThat(PlaceCategoryMapper.toDetailFromKakao(
+                "FD6",
+                "음식점 > 분식 > 떡볶이"
+        )).isEqualTo(PlaceCategoryDetail.SNACK_MEAL);
+    }
 }
