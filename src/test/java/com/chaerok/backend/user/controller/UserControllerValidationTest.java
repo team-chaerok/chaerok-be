@@ -5,6 +5,7 @@ import com.chaerok.backend.auth.security.AuthenticatedUser;
 import com.chaerok.backend.user.entity.OAuthProvider;
 import com.chaerok.backend.user.entity.User;
 import com.chaerok.backend.user.entity.UserRole;
+import com.chaerok.backend.user.service.ReviewModeService;
 import com.chaerok.backend.user.service.UserService;
 import com.chaerok.backend.user.service.UserWithdrawalService;
 import org.junit.jupiter.api.AfterEach;
@@ -47,6 +48,9 @@ class UserControllerValidationTest {
 
     @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
+
+    @MockitoBean
+    private ReviewModeService reviewModeService;
 
     @BeforeEach
     void setUpAuthentication() {
