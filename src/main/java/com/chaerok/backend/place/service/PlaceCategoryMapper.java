@@ -116,10 +116,6 @@ public class PlaceCategoryMapper {
             return PlaceCategoryDetail.BAKERY;
         }
 
-        if (containsAny(name, "디저트", "떡", "모찌", "케이크", "마카롱", "아이스크림")) {
-            return PlaceCategoryDetail.DESSERT;
-        }
-
         if (containsAny(name, "분식", "김밥", "떡볶이")) {
             return PlaceCategoryDetail.SNACK_MEAL;
         }
@@ -130,6 +126,10 @@ public class PlaceCategoryMapper {
 
         if (containsAny(name, "전통찻집", "찻집", "다방")) {
             return PlaceCategoryDetail.TEA_HOUSE;
+        }
+
+        if (containsAny(name, "디저트", "떡", "모찌", "케이크", "마카롱", "아이스크림")) {
+            return PlaceCategoryDetail.DESSERT;
         }
 
         if (isKakaoCafe(categoryGroupCode, categoryName)) {

@@ -195,4 +195,39 @@ class PlaceControllerTest {
                 .andExpect(jsonPath("$.errors[0].field")
                         .value("keyword"));
     }
+
+    @Test
+    @DisplayName("regionId 기준 추가 장소 목록 조회에 성공한다")
+    void getExternalPlaces() throws Exception {
+        // given
+        Long regionId = 1L;
+
+        PlaceListResponse response = new PlaceListResponse(
+                null,
+                "1001",
+                null,
+                "공산성",
+                "충청남도 공주시 웅진로 280",
+                new BigDecimal("36.4623000"),
+                new BigDecimal("127.1248000"),
+                "https://example.com/image.jpg",
+                PlaceCategoryGroup.TOURISM,
+                PlaceCategoryDetail.HERITAGE,
+                false,
+                PlaceSource.TOUR_API
+        );
+
+        when(placeService.getExternalPlaces(regionId))
+                .thenReturn(List.of(response));
+
+        // when & then
+        mockMvc.perform(get("/api/places/external")
+                        .param("regionId", String.valueOf(regionId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].tourContentId").value("1001"))
+                .andExpect(jsonPath("$[0].title").value("공산성"))
+                .andExpect(jsonPath("$[0].categoryGroup").value("TOURISM"))
+                .andExpect(jsonPath("$[0].categoryDetail").value("HERITAGE"))
+                .andExpect(jsonPath("$[0].source").value("TOUR_API"));
+    }
 }

@@ -41,6 +41,13 @@ class JwtTokenProviderTest {
         Jwt jwt = jwtTokenProvider.parseToken(accessToken);
 
         // then
+        assertThat(jwt.getClaimAsString("iss"))
+                .isEqualTo("chaerok");
+        assertThat(jwt.getIssuedAt()).isNotNull();
+        assertThat(jwt.getExpiresAt()).isNotNull();
+        assertThat(jwt.getExpiresAt())
+                .isAfter(jwt.getIssuedAt());
+
         assertThat(jwt.getSubject()).isEqualTo("1");
         assertThat(jwt.getClaimAsString("type"))
                 .isEqualTo(TokenType.ACCESS.name());
@@ -55,6 +62,8 @@ class JwtTokenProviderTest {
                 .isTrue();
         assertThat(jwtTokenProvider.isRefreshToken(accessToken))
                 .isFalse();
+        assertThat(jwtTokenProvider.isSignupToken(accessToken))
+                .isFalse();
     }
 
     @Test
@@ -68,6 +77,8 @@ class JwtTokenProviderTest {
 
         // then
         assertThat(jwtTokenProvider.getUserId(refreshToken))
+                .isEqualTo(userId);
+        assertThat(jwtTokenProvider.getRefreshTokenUserId(refreshToken))
                 .isEqualTo(userId);
         assertThat(jwtTokenProvider.isRefreshToken(refreshToken))
                 .isTrue();
@@ -101,6 +112,120 @@ class JwtTokenProviderTest {
     }
 
     @Test
+    void 액세스_토큰은_리프레시_토큰으로_사용할_수_없다() {
+        // given
+        String accessToken = jwtTokenProvider.createAccessToken(
+                1L,
+                UserRole.USER
+        );
+
+        // when & then
+        assertThatThrownBy(
+                () -> jwtTokenProvider.getRefreshTokenUserId(accessToken)
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(
+                                AuthErrorCode.INVALID_REFRESH_TOKEN_TYPE
+                        )
+        );
+    }
+
+    @Test
+    void 유효하지_않은_리프레시_토큰이면_예외가_발생한다() {
+        // given
+        String invalidToken = "invalid-refresh-token";
+
+        // when & then
+        assertThatThrownBy(
+                () -> jwtTokenProvider.getRefreshTokenUserId(invalidToken)
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(
+                                AuthErrorCode.INVALID_OR_EXPIRED_REFRESH_TOKEN
+                        )
+        );
+    }
+
+    @Test
+    void 유효하지_않은_회원가입_토큰이면_예외가_발생한다() {
+        // given
+        String invalidToken = "invalid-signup-token";
+
+        // when & then
+        assertThatThrownBy(
+                () -> jwtTokenProvider.getSignupTokenInfo(invalidToken)
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(
+                                AuthErrorCode.INVALID_OR_EXPIRED_SIGNUP_TOKEN
+                        )
+        );
+    }
+
+    @Test
+    void 토큰의_만료_시간을_조회한다() {
+        // given
+        String accessToken = jwtTokenProvider.createAccessToken(
+                1L,
+                UserRole.USER
+        );
+
+        Jwt jwt = jwtTokenProvider.parseToken(accessToken);
+
+        // when
+        var expiration =
+                jwtTokenProvider.getExpiration(accessToken);
+
+        // then
+        assertThat(expiration).isEqualTo(
+                java.time.LocalDateTime.ofInstant(
+                        jwt.getExpiresAt(),
+                        java.time.ZoneId.systemDefault()
+                )
+        );
+    }
+
+    @Test
+    void 유효하지_않은_토큰의_만료_시간을_조회하면_예외가_발생한다() {
+        // given
+        String invalidToken = "invalid-token";
+
+        // when & then
+        assertThatThrownBy(
+                () -> jwtTokenProvider.getExpiration(invalidToken)
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(AuthErrorCode.INVALID_TOKEN)
+        );
+    }
+
+    @Test
+    void 이메일이_없는_회원가입_토큰에서_사용자_정보를_조회한다() {
+        // given
+        String signupToken = jwtTokenProvider.createSignupToken(
+                OAuthProvider.APPLE,
+                "apple-user-1",
+                "채록 사용자",
+                null
+        );
+
+        // when
+        SignupTokenInfo tokenInfo =
+                jwtTokenProvider.getSignupTokenInfo(signupToken);
+
+        // then
+        assertThat(tokenInfo.provider())
+                .isEqualTo(OAuthProvider.APPLE);
+        assertThat(tokenInfo.providerUserId())
+                .isEqualTo("apple-user-1");
+        assertThat(tokenInfo.email()).isNull();
+    }
+
+    @Test
     void 액세스_토큰은_회원가입_토큰으로_사용할_수_없다() {
         // given
         String accessToken = jwtTokenProvider.createAccessToken(
@@ -114,7 +239,9 @@ class JwtTokenProviderTest {
         ).isInstanceOfSatisfying(
                 BusinessException.class,
                 exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.INVALID_SIGNUP_TOKEN_TYPE)
+                        .isEqualTo(
+                                AuthErrorCode.INVALID_SIGNUP_TOKEN_TYPE
+                        )
         );
     }
 }

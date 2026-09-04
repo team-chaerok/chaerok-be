@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,7 +43,6 @@ class OdiiServiceTest {
     @Test
     @DisplayName("키워드가 포함된 Odii 테마와 스토리에 오디오가 있으면 오디오 가이드를 반환한다")
     void getAudioGuideWithPlayableAudio() {
-        // given
         Long placeId = 1L;
 
         when(heritageService.getHeritagePlace(placeId))
@@ -72,11 +72,9 @@ class OdiiServiceTest {
                 "theme-list-1"
         )).thenReturn(List.of(story));
 
-        // when
         OdiiGuideResponse response =
                 odiiService.getAudioGuide(placeId);
 
-        // then
         assertThat(response.heritage()).isTrue();
         assertThat(response.audioAvailable()).isTrue();
         assertThat(response.audioGuide()).isNotNull();
@@ -90,10 +88,35 @@ class OdiiServiceTest {
     }
 
     @Test
+    @DisplayName("유적지가 아니면 Odii API를 호출하지 않고 TourAPI 소개 문구를 반환한다")
+    void getAudioGuideSkipsOdiiForNonHeritagePlace() {
+        Long placeId = 2L;
+
+        when(heritageService.getHeritagePlace(placeId))
+                .thenReturn(createNonHeritagePlace(
+                        placeId,
+                        "일반 관광지",
+                        "일반 관광지 TourAPI 소개"
+                ));
+
+        OdiiGuideResponse response =
+                odiiService.getAudioGuide(placeId);
+
+        assertThat(response.heritage()).isFalse();
+        assertThat(response.audioAvailable()).isFalse();
+        assertThat(response.audioGuide()).isNull();
+        assertThat(response.guideScript()).isNull();
+        assertThat(response.fallbackOverview())
+                .isEqualTo("일반 관광지 TourAPI 소개");
+
+        verify(odiiApiClient, never())
+                .searchThemes(anyString());
+    }
+
+    @Test
     @DisplayName("Odii 테마 검색 결과가 있어도 키워드와 관련 없으면 TourAPI 소개 문구를 반환한다")
     void getAudioGuideFallsBackWhenThemeDoesNotMatch() {
-        // given
-        Long placeId = 1L;
+        Long placeId = 3L;
 
         when(heritageService.getHeritagePlace(placeId))
                 .thenReturn(createHeritagePlace(
@@ -112,11 +135,9 @@ class OdiiServiceTest {
         when(odiiApiClient.searchThemes("공산성"))
                 .thenReturn(List.of(unrelatedTheme));
 
-        // when
         OdiiGuideResponse response =
                 odiiService.getAudioGuide(placeId);
 
-        // then
         assertThat(response.audioAvailable()).isFalse();
         assertThat(response.audioGuide()).isNull();
         assertThat(response.guideScript()).isNull();
@@ -130,8 +151,7 @@ class OdiiServiceTest {
     @Test
     @DisplayName("테마는 일치하지만 관련된 대표 스토리가 없으면 TourAPI 소개 문구를 반환한다")
     void getAudioGuideFallsBackWhenStoryDoesNotMatch() {
-        // given
-        Long placeId = 1L;
+        Long placeId = 4L;
 
         when(heritageService.getHeritagePlace(placeId))
                 .thenReturn(createHeritagePlace(
@@ -160,11 +180,9 @@ class OdiiServiceTest {
                 "theme-list-1"
         )).thenReturn(List.of(unrelatedStory));
 
-        // when
         OdiiGuideResponse response =
                 odiiService.getAudioGuide(placeId);
 
-        // then
         assertThat(response.audioAvailable()).isFalse();
         assertThat(response.audioGuide()).isNull();
         assertThat(response.guideScript()).isNull();
@@ -175,8 +193,7 @@ class OdiiServiceTest {
     @Test
     @DisplayName("오디오 URL이 없고 스크립트가 있으면 Odii 스크립트를 반환한다")
     void getAudioGuideWithScriptOnly() {
-        // given
-        Long placeId = 2L;
+        Long placeId = 5L;
 
         when(heritageService.getHeritagePlace(placeId))
                 .thenReturn(createHeritagePlace(
@@ -205,11 +222,9 @@ class OdiiServiceTest {
                 "theme-list-3"
         )).thenReturn(List.of(story));
 
-        // when
         OdiiGuideResponse response =
                 odiiService.getAudioGuide(placeId);
 
-        // then
         assertThat(response.audioAvailable()).isFalse();
         assertThat(response.audioGuide()).isNull();
         assertThat(response.guideScript())
@@ -218,10 +233,51 @@ class OdiiServiceTest {
     }
 
     @Test
+    @DisplayName("관련 스토리에 오디오와 스크립트가 모두 없으면 TourAPI 소개 문구를 반환한다")
+    void getAudioGuideFallsBackWhenStoryHasNoContent() {
+        Long placeId = 6L;
+
+        when(heritageService.getHeritagePlace(placeId))
+                .thenReturn(createHeritagePlace(
+                        placeId,
+                        "공주 공산성",
+                        "공산성 TourAPI 소개"
+                ));
+
+        OdiiThemeItem theme =
+                createTheme("theme-1", "theme-list-1", "공주 공산성");
+
+        when(odiiApiClient.searchThemes("공산성"))
+                .thenReturn(List.of(theme));
+
+        OdiiStoryItem story = createStory(
+                "theme-1",
+                "theme-list-1",
+                "story-1",
+                "공주 공산성",
+                null,
+                null
+        );
+
+        when(odiiApiClient.getStories(
+                "theme-1",
+                "theme-list-1"
+        )).thenReturn(List.of(story));
+
+        OdiiGuideResponse response =
+                odiiService.getAudioGuide(placeId);
+
+        assertThat(response.audioAvailable()).isFalse();
+        assertThat(response.audioGuide()).isNull();
+        assertThat(response.guideScript()).isNull();
+        assertThat(response.fallbackOverview())
+                .isEqualTo("공산성 TourAPI 소개");
+    }
+
+    @Test
     @DisplayName("Odii 데이터가 없으면 TourAPI 소개 문구를 반환한다")
     void getAudioGuideFallsBackWhenOdiiDataIsEmpty() {
-        // given
-        Long placeId = 3L;
+        Long placeId = 7L;
 
         when(heritageService.getHeritagePlace(placeId))
                 .thenReturn(createHeritagePlace(
@@ -233,11 +289,9 @@ class OdiiServiceTest {
         when(odiiApiClient.searchThemes("향천사"))
                 .thenReturn(List.of());
 
-        // when
         OdiiGuideResponse response =
                 odiiService.getAudioGuide(placeId);
 
-        // then
         assertThat(response.heritage()).isTrue();
         assertThat(response.audioAvailable()).isFalse();
         assertThat(response.audioGuide()).isNull();
@@ -249,8 +303,7 @@ class OdiiServiceTest {
     @Test
     @DisplayName("정림사지 키워드가 포함된 관련 테마와 스토리는 정상 매칭한다")
     void getAudioGuideMatchesJeongnimsaWithContains() {
-        // given
-        Long placeId = 4L;
+        Long placeId = 8L;
 
         when(heritageService.getHeritagePlace(placeId))
                 .thenReturn(createHeritagePlace(
@@ -282,11 +335,9 @@ class OdiiServiceTest {
                 "theme-list-4"
         )).thenReturn(List.of(story));
 
-        // when
         OdiiGuideResponse response =
                 odiiService.getAudioGuide(placeId);
 
-        // then
         assertThat(response.audioAvailable()).isTrue();
         assertThat(response.audioGuide()).isNotNull();
         assertThat(response.audioGuide().title())
@@ -297,8 +348,7 @@ class OdiiServiceTest {
     @Test
     @DisplayName("해미국제성지는 해미순례성지 키워드로 검색하여 관련 스크립트를 반환한다")
     void getAudioGuideUsesMappedKeywordForHaemiInternationalShrine() {
-        // given
-        Long placeId = 5L;
+        Long placeId = 9L;
 
         when(heritageService.getHeritagePlace(placeId))
                 .thenReturn(createHeritagePlace(
@@ -330,16 +380,71 @@ class OdiiServiceTest {
                 "theme-list-5"
         )).thenReturn(List.of(story));
 
-        // when
         OdiiGuideResponse response =
                 odiiService.getAudioGuide(placeId);
 
-        // then
         assertThat(response.audioAvailable()).isFalse();
         assertThat(response.audioGuide()).isNull();
         assertThat(response.guideScript())
                 .isEqualTo("해미순례성지 Odii 설명입니다.");
         assertThat(response.fallbackOverview()).isNull();
+    }
+
+    @Test
+    @DisplayName("세부 지점 스토리보다 장소 전체를 설명하는 대표 스토리를 선택한다")
+    void getAudioGuideSelectsRepresentativeStory() {
+        Long placeId = 10L;
+
+        when(heritageService.getHeritagePlace(placeId))
+                .thenReturn(createHeritagePlace(
+                        placeId,
+                        "공주 공산성",
+                        "공산성 TourAPI 소개"
+                ));
+
+        OdiiThemeItem theme =
+                createTheme("theme-1", "theme-list-1", "공주 공산성");
+
+        when(odiiApiClient.searchThemes("공산성"))
+                .thenReturn(List.of(theme));
+
+        OdiiStoryItem detailStory = createStory(
+                "theme-1",
+                "theme-list-1",
+                "story-detail",
+                "공산성 - 금서루",
+                "금서루 설명입니다.",
+                "https://example.com/geumseoru.mp3"
+        );
+
+        OdiiStoryItem representativeStory = createStory(
+                "theme-1",
+                "theme-list-1",
+                "story-main",
+                "공주 공산성",
+                "공산성 전체 설명입니다.",
+                "https://example.com/gongsanseong.mp3"
+        );
+
+        when(odiiApiClient.getStories(
+                "theme-1",
+                "theme-list-1"
+        )).thenReturn(List.of(
+                detailStory,
+                representativeStory
+        ));
+
+        OdiiGuideResponse response =
+                odiiService.getAudioGuide(placeId);
+
+        assertThat(response.audioAvailable()).isTrue();
+        assertThat(response.audioGuide()).isNotNull();
+        assertThat(response.audioGuide().storyId())
+                .isEqualTo("story-main");
+        assertThat(response.audioGuide().title())
+                .isEqualTo("공주 공산성");
+        assertThat(response.guideScript())
+                .isEqualTo("공산성 전체 설명입니다.");
     }
 
     private HeritagePlaceResponse createHeritagePlace(
@@ -357,6 +462,26 @@ class OdiiServiceTest {
                 "HS",
                 "HS01",
                 "HS010100",
+                overview,
+                null
+        );
+    }
+
+    private HeritagePlaceResponse createNonHeritagePlace(
+            Long placeId,
+            String title,
+            String overview
+    ) {
+        return new HeritagePlaceResponse(
+                placeId,
+                "1001",
+                title,
+                "충청남도",
+                "충청남도",
+                false,
+                "EX",
+                null,
+                null,
                 overview,
                 null
         );

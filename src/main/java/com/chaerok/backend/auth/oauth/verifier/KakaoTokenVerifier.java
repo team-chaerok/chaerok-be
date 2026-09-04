@@ -4,6 +4,7 @@ import com.chaerok.backend.auth.exception.AuthErrorCode;
 import com.chaerok.backend.auth.oauth.dto.OAuthUserInfo;
 import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.user.entity.OAuthProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2Error;
@@ -21,6 +22,7 @@ public class KakaoTokenVerifier implements OAuthTokenVerifier {
 
     private final JwtDecoder jwtDecoder;
 
+    @Autowired
     public KakaoTokenVerifier(
             @Value("${oauth.kakao.client-id}") String clientId,
             @Value("${oauth.kakao.issuer}") String issuer,
@@ -54,6 +56,10 @@ public class KakaoTokenVerifier implements OAuthTokenVerifier {
         );
 
         this.jwtDecoder = decoder;
+    }
+
+    KakaoTokenVerifier(JwtDecoder jwtDecoder) {
+        this.jwtDecoder = jwtDecoder;
     }
 
     @Override

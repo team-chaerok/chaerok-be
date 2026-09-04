@@ -4,6 +4,7 @@ import com.chaerok.backend.auth.exception.AuthErrorCode;
 import com.chaerok.backend.auth.oauth.dto.OAuthUserInfo;
 import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.user.entity.OAuthProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2Error;
@@ -21,6 +22,7 @@ public class AppleTokenVerifier implements OAuthTokenVerifier {
 
     private final JwtDecoder jwtDecoder;
 
+    @Autowired
     public AppleTokenVerifier(
             @Value("${oauth.apple.client-id}") String clientId,
             @Value("${oauth.apple.issuer}") String issuer,
