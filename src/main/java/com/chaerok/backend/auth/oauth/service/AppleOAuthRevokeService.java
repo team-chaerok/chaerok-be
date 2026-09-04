@@ -6,6 +6,7 @@ import com.chaerok.backend.auth.oauth.verifier.AppleTokenVerifier;
 import com.chaerok.backend.global.exception.BusinessException;
 import io.jsonwebtoken.Jwts;
 import io.netty.channel.ChannelOption;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -37,6 +38,7 @@ public class AppleOAuthRevokeService {
     private final String tokenUri;
     private final String revokeUri;
 
+    @Autowired
     public AppleOAuthRevokeService(
             WebClient.Builder webClientBuilder,
             AppleTokenVerifier appleTokenVerifier,
@@ -54,6 +56,26 @@ public class AppleOAuthRevokeService {
         this.webClient = webClientBuilder
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .build();
+        this.appleTokenVerifier = appleTokenVerifier;
+        this.clientId = clientId;
+        this.teamId = teamId;
+        this.keyId = keyId;
+        this.privateKey = privateKey;
+        this.tokenUri = tokenUri;
+        this.revokeUri = revokeUri;
+    }
+
+    AppleOAuthRevokeService(
+            WebClient webClient,
+            AppleTokenVerifier appleTokenVerifier,
+            String clientId,
+            String teamId,
+            String keyId,
+            String privateKey,
+            String tokenUri,
+            String revokeUri
+    ) {
+        this.webClient = webClient;
         this.appleTokenVerifier = appleTokenVerifier;
         this.clientId = clientId;
         this.teamId = teamId;
