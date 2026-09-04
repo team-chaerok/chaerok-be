@@ -47,6 +47,9 @@ public class User {
     @Column(nullable = false, length = 20)
     private UserRole role;
 
+    @Column(name = "review_mode", nullable = false)
+    private boolean reviewMode;
+
     @Column(name = "terms_agreed_at", nullable = false, updatable = false)
     private LocalDateTime termsAgreedAt;
 

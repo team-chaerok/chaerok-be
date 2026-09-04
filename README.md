@@ -1,4 +1,4 @@
-﻿# 채록 비동기 필름 현상 파이프라인
+# 채록 비동기 필름 현상 파이프라인
 
 채록 백엔드의 필름 롤 촬영, 현상 요청, Lambda 렌더링, 결과 반영 흐름을 구현합니다.
 
@@ -7,7 +7,7 @@
 - 사용자당 미완료 필름 롤 최대 1개 정책
 - 필름 롤 생성, 현재 롤 조회, 상세 조회
 - FilmRoll별 방문 인증과 관광지·식당·카페 방문 진행도 조회
-- 프론트 판정 기반 지역 이탈 확정과 이탈 후 1시간 현상 대기
+- 프론트 판정 기반 지역 이탈 확정과 계정 정책 기반 현상 대기
 - 현상 가능 시각이 지난 FilmRoll 자동 현상 요청
 - 사진 업로드용 Presigned URL 발급
 - 사진 업로드 완료 처리 및 사진 목록 조회
@@ -27,6 +27,8 @@
 ## 공개 API
 
 ```text
+GET  /api/users/me/review-mode
+
 POST /api/film-rolls
 GET  /api/film-rolls/current
 GET  /api/film-rolls/{filmRollId}
@@ -47,7 +49,9 @@ GET  /api/film-rolls/{filmRollId}/results
 
 방문 인증은 프론트가 GPS와 거리 검증을 완료한 뒤 `placeId`만 전달합니다. 백엔드는 GPS 좌표·정확도·거리·이동 경로를 받거나 저장하지 않습니다. 현상에는 `TOURISM`, `FOOD`, `CAFE_DESSERT` 세 유형을 각각 1곳 이상 방문한 기록이 필요합니다.
 
-지역 이탈 역시 프론트가 GPS·행정구역·연속 외부 판정과 사용자 확인을 완료한 뒤 `/exit`만 호출합니다. 이탈 시점에 Visit 3유형 조건과 사진 1장 이상을 모두 충족한 필름 롤은 `exitedAt`과 `developAvailableAt(exitedAt + 1시간)`을 저장하고, 1시간 전 `/develop` 요청을 차단합니다. Visit 조건 또는 사진 조건이 하나라도 부족한 필름 롤은 이탈 사실을 기록한 뒤 `EXPIRED`로 종료하여 새 지역 필름 롤을 시작할 수 있게 합니다. 시간이 지난 FilmRoll은 스케줄러가 기존 SQS 현상 파이프라인을 자동으로 재사용합니다.
+지역 이탈 역시 프론트가 GPS·행정구역·연속 외부 판정과 사용자 확인을 완료한 뒤 `/exit`만 호출합니다. 이탈 시점에 Visit 3유형 조건과 사진 1장 이상을 모두 충족한 필름 롤은 `exitedAt`과 `developAvailableAt`을 저장합니다. 일반 사용자와 서버에서 지정한 심사용 계정 모두 `developAvailableAt = exitedAt + 1시간`을 저장하며, 심사용 계정은 `/develop` 요청 시 서버에서 1시간 대기 검사만 면제합니다. Visit 조건 또는 사진 조건이 하나라도 부족한 필름 롤은 심사용 계정도 동일하게 이탈 사실을 기록한 뒤 `EXPIRED`로 종료합니다. 현상 가능 시각이 지난 FilmRoll은 스케줄러가 기존 SQS 현상 파이프라인을 자동으로 재사용합니다.
+
+심사용 계정은 `GET /api/users/me/review-mode`에서 공주 지역과 `TOURISM`, `FOOD`, `CAFE_DESSERT` 테스트 장소 3곳의 실제 DB `placeId`, 제목, 카테고리, 주소, 좌표를 받습니다. 심사용 모드는 방문 성공을 우회하지 않으며, 프론트는 해당 좌표를 `ReviewLocationProvider`에 공급해 기존 정확도·거리 검증을 그대로 수행해야 합니다. 사진 촬영·업로드, Photo 상태 검증, Visit 생성과 이후 현상 파이프라인은 운영 흐름을 그대로 사용합니다.
 
 ## 필름 롤 상태
 

@@ -1,10 +1,12 @@
 package com.chaerok.backend.user.controller;
 
 import com.chaerok.backend.auth.security.AuthenticatedUser;
+import com.chaerok.backend.user.dto.ReviewModeResponse;
 import com.chaerok.backend.user.dto.UpdateNicknameRequest;
 import com.chaerok.backend.user.dto.UserResponse;
 import com.chaerok.backend.user.dto.UserWithdrawalRequest;
 import com.chaerok.backend.user.entity.User;
+import com.chaerok.backend.user.service.ReviewModeService;
 import com.chaerok.backend.user.service.UserService;
 import com.chaerok.backend.user.service.UserWithdrawalService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final ReviewModeService reviewModeService;
     private final UserWithdrawalService userWithdrawalService;
 
     @Operation(
@@ -36,6 +39,21 @@ public class UserController {
                 authenticatedUser.userId()
         );
         UserResponse response = UserResponse.from(user);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "심사용 모드 조회",
+            description = "인증된 사용자의 심사용 모드 여부와 서버 지정 테스트 장소를 조회합니다."
+    )
+    @GetMapping("/me/review-mode")
+    public ResponseEntity<ReviewModeResponse> getReviewMode(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser
+    ) {
+        ReviewModeResponse response = reviewModeService.getReviewMode(
+                authenticatedUser.userId()
+        );
 
         return ResponseEntity.ok(response);
     }
