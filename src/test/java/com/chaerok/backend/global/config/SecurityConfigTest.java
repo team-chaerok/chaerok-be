@@ -28,7 +28,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({
         SecurityConfig.class,
         JwtAuthenticationFilter.class,
-        JwtAuthenticationEntryPoint.class
+        JwtAuthenticationEntryPoint.class,
+        SecurityTestController.class
 })
 @ActiveProfiles("test")
 @TestPropertySource(properties = {
