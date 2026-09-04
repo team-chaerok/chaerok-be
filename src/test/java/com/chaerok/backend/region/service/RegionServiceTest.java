@@ -164,4 +164,73 @@ class RegionServiceTest {
                         "예산군"
                 );
     }
+
+    @Test
+    @DisplayName("부여 축약형을 부여군으로 변환한다")
+    void resolveBuyeoAlias() {
+        ResolveRegionRequest request =
+                new ResolveRegionRequest("충남", "부여");
+
+        when(regionRepository
+                .findByProvinceNameAndCityCountyNameAndServiceEnabledTrue(
+                        "충청남도",
+                        "부여군"
+                ))
+                .thenReturn(Optional.of(region));
+
+        when(region.getId()).thenReturn(2L);
+        when(region.getProvinceName()).thenReturn("충청남도");
+        when(region.getCityCountyName()).thenReturn("부여군");
+
+        RegionResponse response = regionService.resolve(request);
+
+        assertThat(response.serviceArea()).isTrue();
+        assertThat(response.cityCountyName()).isEqualTo("부여군");
+    }
+
+    @Test
+    @DisplayName("서산 축약형을 서산시로 변환한다")
+    void resolveSeosanAlias() {
+        ResolveRegionRequest request =
+                new ResolveRegionRequest("충남", "서산");
+
+        when(regionRepository
+                .findByProvinceNameAndCityCountyNameAndServiceEnabledTrue(
+                        "충청남도",
+                        "서산시"
+                ))
+                .thenReturn(Optional.of(region));
+
+        when(region.getId()).thenReturn(3L);
+        when(region.getProvinceName()).thenReturn("충청남도");
+        when(region.getCityCountyName()).thenReturn("서산시");
+
+        RegionResponse response = regionService.resolve(request);
+
+        assertThat(response.serviceArea()).isTrue();
+        assertThat(response.cityCountyName()).isEqualTo("서산시");
+    }
+
+    @Test
+    @DisplayName("예산 축약형을 예산군으로 변환한다")
+    void resolveYesanAlias() {
+        ResolveRegionRequest request =
+                new ResolveRegionRequest("충남", "예산");
+
+        when(regionRepository
+                .findByProvinceNameAndCityCountyNameAndServiceEnabledTrue(
+                        "충청남도",
+                        "예산군"
+                ))
+                .thenReturn(Optional.of(region));
+
+        when(region.getId()).thenReturn(4L);
+        when(region.getProvinceName()).thenReturn("충청남도");
+        when(region.getCityCountyName()).thenReturn("예산군");
+
+        RegionResponse response = regionService.resolve(request);
+
+        assertThat(response.serviceArea()).isTrue();
+        assertThat(response.cityCountyName()).isEqualTo("예산군");
+    }
 }

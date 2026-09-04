@@ -1,8 +1,11 @@
 package com.chaerok.backend.heritage.service;
 
+import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.heritage.dto.HeritagePlaceResponse;
+import com.chaerok.backend.heritage.exception.HeritageErrorCode;
 import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryDetail;
+import com.chaerok.backend.place.exception.PlaceErrorCode;
 import com.chaerok.backend.place.external.TourApiPlaceClient;
 import com.chaerok.backend.place.external.TourApiPlaceItem;
 import com.chaerok.backend.place.repository.PlaceRepository;
@@ -16,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -163,6 +167,64 @@ class HeritageServiceTest {
 
         // then
         assertThat(response.heritage()).isFalse();
+    }
+
+    @Test
+    void 존재하지_않는_장소는_PLACE_NOT_FOUND_예외를_반환한다() {
+        // given
+        Long placeId = 1L;
+
+        when(placeRepository.findById(placeId))
+                .thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() ->
+                heritageService.getHeritagePlace(placeId)
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(PlaceErrorCode.PLACE_NOT_FOUND)
+        );
+    }
+
+    @Test
+    void TourAPI_contentId가_null이면_NOT_TOUR_API_PLACE_예외를_반환한다() {
+        // given
+        Long placeId = 1L;
+
+        when(placeRepository.findById(placeId))
+                .thenReturn(Optional.of(place));
+        when(place.getTourContentId())
+                .thenReturn(null);
+
+        // when & then
+        assertThatThrownBy(() ->
+                heritageService.getHeritagePlace(placeId)
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(HeritageErrorCode.NOT_TOUR_API_PLACE)
+        );
+    }
+
+    @Test
+    void TourAPI_contentId가_빈값이면_NOT_TOUR_API_PLACE_예외를_반환한다() {
+        // given
+        Long placeId = 1L;
+
+        when(placeRepository.findById(placeId))
+                .thenReturn(Optional.of(place));
+        when(place.getTourContentId())
+                .thenReturn(" ");
+
+        // when & then
+        assertThatThrownBy(() ->
+                heritageService.getHeritagePlace(placeId)
+        ).isInstanceOfSatisfying(
+                BusinessException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(HeritageErrorCode.NOT_TOUR_API_PLACE)
+        );
     }
 
     private void givenPlace(

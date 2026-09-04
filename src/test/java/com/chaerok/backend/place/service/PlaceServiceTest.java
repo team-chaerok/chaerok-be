@@ -24,16 +24,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class PlaceServiceTest {
@@ -688,6 +684,289 @@ class PlaceServiceTest {
         verifyNoInteractions(regionCenterProvider);
     }
 
+    @Test
+    @DisplayName("Kakao 장소가 기존 TourAPI 장소와 이름과 주소가 같으면 중복으로 제외한다")
+    void getExternalPlacesExcludesKakaoDuplicateByTitleAndAddress() {
+        // given
+        Long regionId = 1L;
+
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("150");
+        when(region.getCityCountyName()).thenReturn("공주시");
+
+        TourApiPlaceItem tourApiFood = new TourApiPlaceItem(
+                "2002",
+                "공주 음식점",
+                "충청남도 공주시 중동",
+                "36.4500000",
+                "127.1200000",
+                null,
+                "44",
+                "150",
+                "FD",
+                "FD01",
+                "FD010100",
+                null
+        );
+
+        when(tourApiPlaceClient.getPlacesByRegion("44", "150"))
+                .thenReturn(List.of(tourApiFood));
+
+        RegionCenterProvider.RegionCenter center =
+                new RegionCenterProvider.RegionCenter(
+                        new BigDecimal("127.1190"),
+                        new BigDecimal("36.4465")
+                );
+
+        when(regionCenterProvider.getCenter(region))
+                .thenReturn(center);
+
+        KakaoPlaceItem duplicateFood = new KakaoPlaceItem(
+                "kakao-food-1",
+                "공주 음식점",
+                "음식점 > 한식",
+                "FD6",
+                "음식점",
+                "충청남도 공주시 중동",
+                "충청남도 공주시 중동",
+                "127.1300",
+                "36.4600",
+                "https://place.map.kakao.com/1"
+        );
+
+        when(kakaoLocalClient.searchPlacesByCategory(
+                "FD6",
+                center.longitude(),
+                center.latitude(),
+                20000
+        )).thenReturn(List.of(duplicateFood));
+
+        when(kakaoLocalClient.searchPlacesByCategory(
+                "CE7",
+                center.longitude(),
+                center.latitude(),
+                20000
+        )).thenReturn(List.of());
+
+        // when
+        List<PlaceListResponse> responses =
+                placeService.getExternalPlaces(regionId);
+
+        // then
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).source())
+                .isEqualTo(PlaceSource.TOUR_API);
+        assertThat(responses.get(0).title())
+                .isEqualTo("공주 음식점");
+    }
+
+    @Test
+    @DisplayName("Kakao 장소가 기존 장소와 이름이 유사하고 30m 이내이면 중복으로 제외한다")
+    void getExternalPlacesExcludesKakaoDuplicateBySimilarTitleAndDistance() {
+        // given
+        Long regionId = 1L;
+
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("150");
+        when(region.getCityCountyName()).thenReturn("공주시");
+
+        TourApiPlaceItem tourApiCafe = new TourApiPlaceItem(
+                "2003",
+                "공주 카페",
+                "충청남도 공주시 중동 1",
+                "36.4510000",
+                "127.1210000",
+                null,
+                "44",
+                "150",
+                "FD",
+                "FD05",
+                "FD050100",
+                null
+        );
+
+        when(tourApiPlaceClient.getPlacesByRegion("44", "150"))
+                .thenReturn(List.of(tourApiCafe));
+
+        RegionCenterProvider.RegionCenter center =
+                new RegionCenterProvider.RegionCenter(
+                        new BigDecimal("127.1190"),
+                        new BigDecimal("36.4465")
+                );
+
+        when(regionCenterProvider.getCenter(region))
+                .thenReturn(center);
+
+        when(kakaoLocalClient.searchPlacesByCategory(
+                "FD6",
+                center.longitude(),
+                center.latitude(),
+                20000
+        )).thenReturn(List.of());
+
+        KakaoPlaceItem duplicateCafe = new KakaoPlaceItem(
+                "kakao-cafe-1",
+                "공주카페 본점",
+                "음식점 > 카페",
+                "CE7",
+                "카페",
+                "충청남도 공주시 중동 2",
+                "충청남도 공주시 웅진로 10",
+                "127.1210500",
+                "36.4510500",
+                "https://place.map.kakao.com/2"
+        );
+
+        when(kakaoLocalClient.searchPlacesByCategory(
+                "CE7",
+                center.longitude(),
+                center.latitude(),
+                20000
+        )).thenReturn(List.of(duplicateCafe));
+
+        // when
+        List<PlaceListResponse> responses =
+                placeService.getExternalPlaces(regionId);
+
+        // then
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).source())
+                .isEqualTo(PlaceSource.TOUR_API);
+        assertThat(responses.get(0).title())
+                .isEqualTo("공주 카페");
+    }
+
+    @Test
+    @DisplayName("TourAPI 음식점과 카페가 제한 수량을 충족하면 Kakao Local을 조회하지 않는다")
+    void getExternalPlacesSkipsKakaoWhenTourApiHasEnoughPlaces() {
+        // given
+        Long regionId = 1L;
+
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("150");
+
+        List<TourApiPlaceItem> items = new ArrayList<>();
+        items.addAll(createFoodItems(15));
+        items.addAll(createCafeItems(15));
+
+        when(tourApiPlaceClient.getPlacesByRegion("44", "150"))
+                .thenReturn(items);
+
+        // when
+        List<PlaceListResponse> responses =
+                placeService.getExternalPlaces(regionId);
+
+        // then
+        assertThat(responses).hasSize(30);
+
+        assertThat(responses)
+                .filteredOn(response ->
+                        response.categoryGroup()
+                                == PlaceCategoryGroup.FOOD
+                )
+                .hasSize(15);
+
+        assertThat(responses)
+                .filteredOn(response ->
+                        response.categoryGroup()
+                                == PlaceCategoryGroup.CAFE_DESSERT
+                )
+                .hasSize(15);
+
+        verifyNoInteractions(regionCenterProvider);
+        verifyNoInteractions(kakaoLocalClient);
+    }
+
+    @Test
+    @DisplayName("Kakao 후보가 많아도 TourAPI 부족 수량만큼만 추가한다")
+    void getExternalPlacesAddsOnlyShortageFromKakao() {
+        // given
+        Long regionId = 1L;
+
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("150");
+        when(region.getCityCountyName()).thenReturn("공주시");
+
+        List<TourApiPlaceItem> items = new ArrayList<>();
+        items.addAll(createFoodItems(14));
+        items.addAll(createCafeItems(15));
+
+        when(tourApiPlaceClient.getPlacesByRegion("44", "150"))
+                .thenReturn(items);
+
+        RegionCenterProvider.RegionCenter center =
+                new RegionCenterProvider.RegionCenter(
+                        new BigDecimal("127.1190"),
+                        new BigDecimal("36.4465")
+                );
+
+        when(regionCenterProvider.getCenter(region))
+                .thenReturn(center);
+
+        KakaoPlaceItem food1 = createKakaoFood(
+                "kakao-food-1",
+                "카카오 음식점 1",
+                "127.2000",
+                "36.5000"
+        );
+
+        KakaoPlaceItem food2 = createKakaoFood(
+                "kakao-food-2",
+                "카카오 음식점 2",
+                "127.2100",
+                "36.5100"
+        );
+
+        KakaoPlaceItem food3 = createKakaoFood(
+                "kakao-food-3",
+                "카카오 음식점 3",
+                "127.2200",
+                "36.5200"
+        );
+
+        when(kakaoLocalClient.searchPlacesByCategory(
+                "FD6",
+                center.longitude(),
+                center.latitude(),
+                20000
+        )).thenReturn(List.of(
+                food1,
+                food2,
+                food3
+        ));
+
+        // when
+        List<PlaceListResponse> responses =
+                placeService.getExternalPlaces(regionId);
+
+        // then
+        assertThat(responses).hasSize(30);
+
+        assertThat(responses)
+                .extracting(PlaceListResponse::title)
+                .contains("카카오 음식점 1")
+                .doesNotContain(
+                        "카카오 음식점 2",
+                        "카카오 음식점 3"
+                );
+
+        verify(kakaoLocalClient, never())
+                .searchPlacesByCategory(
+                        "CE7",
+                        center.longitude(),
+                        center.latitude(),
+                        20000
+                );
+    }
+
     private void mockPlaceForListResponse() {
         when(place.getId()).thenReturn(1L);
         when(place.getTourContentId()).thenReturn("1001");
@@ -786,6 +1065,68 @@ class PlaceServiceTest {
                 "FD05",
                 "FD050100",
                 null
+        );
+    }
+
+    private List<TourApiPlaceItem> createFoodItems(int count) {
+        return IntStream.range(0, count)
+                .mapToObj(index ->
+                        new TourApiPlaceItem(
+                                "food-" + index,
+                                "공주 음식점 " + index,
+                                "충청남도 공주시 음식점길 " + index,
+                                "36.45" + String.format("%03d", index),
+                                "127.12" + String.format("%03d", index),
+                                null,
+                                "44",
+                                "150",
+                                "FD",
+                                "FD01",
+                                "FD010100",
+                                null
+                        )
+                )
+                .toList();
+    }
+
+    private List<TourApiPlaceItem> createCafeItems(int count) {
+        return IntStream.range(0, count)
+                .mapToObj(index ->
+                        new TourApiPlaceItem(
+                                "cafe-" + index,
+                                "공주 카페 " + index,
+                                "충청남도 공주시 카페길 " + index,
+                                "36.46" + String.format("%03d", index),
+                                "127.13" + String.format("%03d", index),
+                                null,
+                                "44",
+                                "150",
+                                "FD",
+                                "FD05",
+                                "FD050100",
+                                null
+                        )
+                )
+                .toList();
+    }
+
+    private KakaoPlaceItem createKakaoFood(
+            String id,
+            String title,
+            String longitude,
+            String latitude
+    ) {
+        return new KakaoPlaceItem(
+                id,
+                title,
+                "음식점 > 한식",
+                "FD6",
+                "음식점",
+                "충청남도 공주시 중동",
+                "충청남도 공주시 음식점길 " + id,
+                longitude,
+                latitude,
+                "https://place.map.kakao.com/" + id
         );
     }
 }
