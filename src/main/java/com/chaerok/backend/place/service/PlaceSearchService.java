@@ -134,6 +134,12 @@ public class PlaceSearchService {
             return false;
         }
 
-        return address.contains(region.getCityCountyName());
+        String cityCountyName = region.getCityCountyName();
+
+        if (cityCountyName == null || cityCountyName.isBlank()) {
+            return false;
+        }
+
+        return address.contains(cityCountyName);
     }
 }

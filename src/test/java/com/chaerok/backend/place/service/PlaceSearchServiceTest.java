@@ -415,6 +415,61 @@ class PlaceSearchServiceTest {
     }
 
     @Test
+    @DisplayName("지역의 시군명이 비어 있으면 Kakao 검색 결과에서 제외한다")
+    void searchPlacesExcludesKakaoResultWhenCityCountyNameIsBlank() {
+        // given
+        Long regionId = 1L;
+        String keyword = "카페";
+
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("150");
+        when(region.getCityCountyName()).thenReturn("");
+
+        when(tourApiPlaceClient.searchPlacesByKeyword(
+                keyword,
+                "44",
+                "150"
+        )).thenReturn(List.of());
+
+        RegionCenterProvider.RegionCenter center =
+                new RegionCenterProvider.RegionCenter(
+                        new BigDecimal("127.1190"),
+                        new BigDecimal("36.4465")
+                );
+
+        when(regionCenterProvider.getCenter(region))
+                .thenReturn(center);
+
+        KakaoPlaceItem kakaoItem = new KakaoPlaceItem(
+                "kakao-1",
+                "제민천 카페",
+                "음식점 > 카페",
+                "CE7",
+                "카페",
+                "충청남도 공주시 중동",
+                "충청남도 공주시 웅진로 10",
+                "127.1200",
+                "36.4500",
+                "https://place.map.kakao.com/1"
+        );
+
+        when(kakaoLocalClient.searchPlacesByKeyword(
+                keyword,
+                center.longitude(),
+                center.latitude()
+        )).thenReturn(List.of(kakaoItem));
+
+        // when
+        List<PlaceSearchResponse> responses =
+                placeSearchService.searchPlaces(regionId, keyword);
+
+        // then
+        assertThat(responses).isEmpty();
+    }
+
+    @Test
     @DisplayName("지원하지 않는 지역이면 Kakao 검색 없이 TourAPI 검색 결과만 반환한다")
     void searchPlacesSkipsKakaoWhenRegionCenterIsMissing() {
         // given
