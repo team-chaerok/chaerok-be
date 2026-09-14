@@ -179,6 +179,7 @@ class PlaceSearchServiceTest {
                 .thenReturn(Optional.of(region));
         when(region.getLdongRegnCd()).thenReturn("44");
         when(region.getLdongSignguCd()).thenReturn("150");
+        when(region.getCityCountyName()).thenReturn("공주시");
 
         when(tourApiPlaceClient.searchPlacesByKeyword(
                 keyword,
@@ -229,6 +230,243 @@ class PlaceSearchServiceTest {
                         "공주 카페",
                         "제민천 카페"
                 );
+    }
+
+    @Test
+    @DisplayName("Kakao 검색 결과 중 요청한 지역이 아닌 장소는 제외한다")
+    void searchPlacesExcludesKakaoResultsOutsideRegion() {
+        // given
+        Long regionId = 1L;
+        String keyword = "카페";
+
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("150");
+        when(region.getCityCountyName()).thenReturn("공주시");
+
+        when(tourApiPlaceClient.searchPlacesByKeyword(
+                keyword,
+                "44",
+                "150"
+        )).thenReturn(List.of());
+
+        RegionCenterProvider.RegionCenter center =
+                new RegionCenterProvider.RegionCenter(
+                        new BigDecimal("127.1190"),
+                        new BigDecimal("36.4465")
+                );
+
+        when(regionCenterProvider.getCenter(region))
+                .thenReturn(center);
+
+        KakaoPlaceItem inRegion = new KakaoPlaceItem(
+                "kakao-1",
+                "공주 카페",
+                "음식점 > 카페",
+                "CE7",
+                "카페",
+                "충청남도 공주시 중동",
+                "충청남도 공주시 웅진로 10",
+                "127.1200",
+                "36.4500",
+                "https://place.map.kakao.com/1"
+        );
+
+        KakaoPlaceItem outsideRegion = new KakaoPlaceItem(
+                "kakao-2",
+                "부여 카페",
+                "음식점 > 카페",
+                "CE7",
+                "카페",
+                "충청남도 부여군 부여읍",
+                "충청남도 부여군 사비로 10",
+                "126.9100",
+                "36.2800",
+                "https://place.map.kakao.com/2"
+        );
+
+        when(kakaoLocalClient.searchPlacesByKeyword(
+                keyword,
+                center.longitude(),
+                center.latitude()
+        )).thenReturn(List.of(
+                inRegion,
+                outsideRegion
+        ));
+
+        // when
+        List<PlaceSearchResponse> responses =
+                placeSearchService.searchPlaces(regionId, keyword);
+
+        // then
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).title()).isEqualTo("공주 카페");
+    }
+
+    @Test
+    @DisplayName("Kakao 결과에 도로명 주소가 없으면 지번 주소로 지역을 확인한다")
+    void searchPlacesUsesAddressNameWhenRoadAddressIsMissing() {
+        // given
+        Long regionId = 1L;
+        String keyword = "카페";
+
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("150");
+        when(region.getCityCountyName()).thenReturn("공주시");
+
+        when(tourApiPlaceClient.searchPlacesByKeyword(
+                keyword,
+                "44",
+                "150"
+        )).thenReturn(List.of());
+
+        RegionCenterProvider.RegionCenter center =
+                new RegionCenterProvider.RegionCenter(
+                        new BigDecimal("127.1190"),
+                        new BigDecimal("36.4465")
+                );
+
+        when(regionCenterProvider.getCenter(region))
+                .thenReturn(center);
+
+        KakaoPlaceItem kakaoItem = new KakaoPlaceItem(
+                "kakao-1",
+                "제민천 카페",
+                "음식점 > 카페",
+                "CE7",
+                "카페",
+                "충청남도 공주시 중동",
+                null,
+                "127.1200",
+                "36.4500",
+                "https://place.map.kakao.com/1"
+        );
+
+        when(kakaoLocalClient.searchPlacesByKeyword(
+                keyword,
+                center.longitude(),
+                center.latitude()
+        )).thenReturn(List.of(kakaoItem));
+
+        // when
+        List<PlaceSearchResponse> responses =
+                placeSearchService.searchPlaces(regionId, keyword);
+
+        // then
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).title()).isEqualTo("제민천 카페");
+    }
+
+    @Test
+    @DisplayName("Kakao 결과에 주소 정보가 없으면 검색 결과에서 제외한다")
+    void searchPlacesExcludesKakaoResultWithoutAddress() {
+        // given
+        Long regionId = 1L;
+        String keyword = "카페";
+
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("150");
+
+        when(tourApiPlaceClient.searchPlacesByKeyword(
+                keyword,
+                "44",
+                "150"
+        )).thenReturn(List.of());
+
+        RegionCenterProvider.RegionCenter center =
+                new RegionCenterProvider.RegionCenter(
+                        new BigDecimal("127.1190"),
+                        new BigDecimal("36.4465")
+                );
+
+        when(regionCenterProvider.getCenter(region))
+                .thenReturn(center);
+
+        KakaoPlaceItem kakaoItem = new KakaoPlaceItem(
+                "kakao-1",
+                "주소 없는 카페",
+                "음식점 > 카페",
+                "CE7",
+                "카페",
+                null,
+                null,
+                "127.1200",
+                "36.4500",
+                "https://place.map.kakao.com/1"
+        );
+
+        when(kakaoLocalClient.searchPlacesByKeyword(
+                keyword,
+                center.longitude(),
+                center.latitude()
+        )).thenReturn(List.of(kakaoItem));
+
+        // when
+        List<PlaceSearchResponse> responses =
+                placeSearchService.searchPlaces(regionId, keyword);
+
+        // then
+        assertThat(responses).isEmpty();
+    }
+
+    @Test
+    @DisplayName("지역의 시군명이 비어 있으면 Kakao 검색 결과에서 제외한다")
+    void searchPlacesExcludesKakaoResultWhenCityCountyNameIsBlank() {
+        // given
+        Long regionId = 1L;
+        String keyword = "카페";
+
+        when(regionRepository.findById(regionId))
+                .thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("150");
+        when(region.getCityCountyName()).thenReturn("");
+
+        when(tourApiPlaceClient.searchPlacesByKeyword(
+                keyword,
+                "44",
+                "150"
+        )).thenReturn(List.of());
+
+        RegionCenterProvider.RegionCenter center =
+                new RegionCenterProvider.RegionCenter(
+                        new BigDecimal("127.1190"),
+                        new BigDecimal("36.4465")
+                );
+
+        when(regionCenterProvider.getCenter(region))
+                .thenReturn(center);
+
+        KakaoPlaceItem kakaoItem = new KakaoPlaceItem(
+                "kakao-1",
+                "제민천 카페",
+                "음식점 > 카페",
+                "CE7",
+                "카페",
+                "충청남도 공주시 중동",
+                "충청남도 공주시 웅진로 10",
+                "127.1200",
+                "36.4500",
+                "https://place.map.kakao.com/1"
+        );
+
+        when(kakaoLocalClient.searchPlacesByKeyword(
+                keyword,
+                center.longitude(),
+                center.latitude()
+        )).thenReturn(List.of(kakaoItem));
+
+        // when
+        List<PlaceSearchResponse> responses =
+                placeSearchService.searchPlaces(regionId, keyword);
+
+        // then
+        assertThat(responses).isEmpty();
     }
 
     @Test
@@ -296,6 +534,7 @@ class PlaceSearchServiceTest {
                 .thenReturn(Optional.of(region));
         when(region.getLdongRegnCd()).thenReturn("44");
         when(region.getLdongSignguCd()).thenReturn("150");
+        when(region.getCityCountyName()).thenReturn("공주시");
 
         TourApiPlaceItem tourApiItem = new TourApiPlaceItem(
                 "1001",
@@ -366,6 +605,7 @@ class PlaceSearchServiceTest {
                 .thenReturn(Optional.of(region));
         when(region.getLdongRegnCd()).thenReturn("44");
         when(region.getLdongSignguCd()).thenReturn("150");
+        when(region.getCityCountyName()).thenReturn("공주시");
 
         TourApiPlaceItem tourApiItem = new TourApiPlaceItem(
                 "1001",

@@ -81,6 +81,7 @@ public class PlaceSearchService {
         );
 
         return items.stream()
+                .filter(item -> isInRegion(item, region))
                 .map(PlaceSearchResponse::fromKakao)
                 .toList();
     }
@@ -117,5 +118,28 @@ public class PlaceSearchService {
 
         return value.replaceAll("\\s+", "")
                 .toLowerCase();
+    }
+
+    private boolean isInRegion(
+            KakaoPlaceItem item,
+            Region region
+    ) {
+        String address = item.roadAddressName();
+
+        if (address == null || address.isBlank()) {
+            address = item.addressName();
+        }
+
+        if (address == null || address.isBlank()) {
+            return false;
+        }
+
+        String cityCountyName = region.getCityCountyName();
+
+        if (cityCountyName == null || cityCountyName.isBlank()) {
+            return false;
+        }
+
+        return address.contains(cityCountyName);
     }
 }
