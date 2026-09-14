@@ -137,8 +137,25 @@ public class TourApiPlaceClient {
 
         int pageNo = 1;
 
+        long deadlineNanos =
+                System.nanoTime() + AREA_TOTAL_TIMEOUT.toNanos();
+
         try {
             while (!remainingContentIds.isEmpty()) {
+                if (System.nanoTime() >= deadlineNanos) {
+                    log.warn(
+                            "TourAPI areaBasedList2 matching total timeout. " +
+                                    "pageNo={}, matchedPlaces={}, remainingContentIds={}, " +
+                                    "lDongRegnCd={}, lDongSignguCd={}",
+                            pageNo,
+                            matchedPlaces.size(),
+                            remainingContentIds.size(),
+                            lDongRegnCd,
+                            lDongSignguCd
+                    );
+                    break;
+                }
+
                 TourApiPlaceResponse response = requestPlacesByRegionPage(
                         lDongRegnCd,
                         lDongSignguCd,
@@ -151,7 +168,8 @@ public class TourApiPlaceClient {
 
                 if (!response.isSuccess()) {
                     log.warn(
-                            "TourAPI areaBasedList2 failed while matching. pageNo={}, resultCode={}, resultMsg={}",
+                            "TourAPI areaBasedList2 failed while matching. " +
+                                    "pageNo={}, resultCode={}, resultMsg={}",
                             pageNo,
                             response.getResultCode(),
                             response.getResultMsg()
@@ -177,7 +195,8 @@ public class TourApiPlaceClient {
 
                 int totalCount = response.getTotalCount();
 
-                if (items.isEmpty() || totalCount <= pageNo * AREA_PAGE_SIZE) {
+                if (items.isEmpty()
+                        || totalCount <= pageNo * AREA_PAGE_SIZE) {
                     break;
                 }
 
