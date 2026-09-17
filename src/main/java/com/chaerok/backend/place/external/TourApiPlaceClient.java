@@ -19,6 +19,7 @@ public class TourApiPlaceClient {
     private static final String AREA_BASED_LIST_PATH = "/areaBasedList2";
     private static final String SEARCH_KEYWORD_PATH = "/searchKeyword2";
     private static final String DETAIL_COMMON_PATH = "/detailCommon2";
+    private static final String DETAIL_INTRO_PATH = "/detailIntro2";
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration AREA_TOTAL_TIMEOUT = Duration.ofSeconds(10);
@@ -393,6 +394,82 @@ public class TourApiPlaceClient {
             log.error(
                     "TourAPI detailCommon2 unexpected error. contentId={}, message={}",
                     contentId,
+                    e.getMessage(),
+                    e
+            );
+            return null;
+        }
+    }
+
+    public TourApiPlaceIntroItem getPlaceIntro(
+            String contentId,
+            String contentTypeId
+    ) {
+        if (contentId == null || contentId.isBlank()
+                || contentTypeId == null || contentTypeId.isBlank()) {
+            return null;
+        }
+
+        try {
+            TourApiPlaceIntroResponse response = tourApiWebClient
+                    .get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path(DETAIL_INTRO_PATH)
+                            .queryParam("serviceKey", serviceKey)
+                            .queryParam("MobileOS", "ETC")
+                            .queryParam("MobileApp", "Chaerok")
+                            .queryParam("_type", "json")
+                            .queryParam("contentId", contentId)
+                            .queryParam("contentTypeId", contentTypeId)
+                            .queryParam("numOfRows", 10)
+                            .queryParam("pageNo", 1)
+                            .build())
+                    .retrieve()
+                    .bodyToMono(TourApiPlaceIntroResponse.class)
+                    .timeout(REQUEST_TIMEOUT)
+                    .block();
+
+            if (response == null) {
+                return null;
+            }
+
+            if (!response.isSuccess()) {
+                log.warn(
+                        "TourAPI detailIntro2 failed. contentId={}, contentTypeId={}, resultCode={}, resultMsg={}",
+                        contentId,
+                        contentTypeId,
+                        response.getResultCode(),
+                        response.getResultMsg()
+                );
+                return null;
+            }
+
+            return response.getFirstItem();
+
+        } catch (WebClientResponseException e) {
+            log.warn(
+                    "TourAPI detailIntro2 response error. contentId={}, contentTypeId={}, status={}, body={}",
+                    contentId,
+                    contentTypeId,
+                    e.getStatusCode(),
+                    e.getResponseBodyAsString()
+            );
+            return null;
+
+        } catch (WebClientRequestException e) {
+            log.warn(
+                    "TourAPI detailIntro2 request error. contentId={}, contentTypeId={}, message={}",
+                    contentId,
+                    contentTypeId,
+                    e.getMessage()
+            );
+            return null;
+
+        } catch (RuntimeException e) {
+            log.error(
+                    "TourAPI detailIntro2 unexpected error. contentId={}, contentTypeId={}, message={}",
+                    contentId,
+                    contentTypeId,
                     e.getMessage(),
                     e
             );

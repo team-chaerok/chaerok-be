@@ -19,6 +19,7 @@ class PlaceSearchResponseTest {
     void fromTourApi() {
         TourApiPlaceItem item = new TourApiPlaceItem(
                 "1001",
+                null,
                 "공산성",
                 "충청남도 공주시 웅진로 280",
                 "36.4623000",

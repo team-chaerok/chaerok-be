@@ -248,6 +248,7 @@ class HeritageServiceTest {
     ) {
         return new TourApiPlaceItem(
                 contentId,
+                null,
                 "공산성",
                 "충남 공주시",
                 null,

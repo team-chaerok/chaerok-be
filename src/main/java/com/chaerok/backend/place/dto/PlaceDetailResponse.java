@@ -4,6 +4,7 @@ import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryDetail;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
 import com.chaerok.backend.place.entity.PlaceSource;
+import com.chaerok.backend.place.external.TourApiPlaceIntroItem;
 import com.chaerok.backend.place.external.TourApiPlaceItem;
 
 import java.math.BigDecimal;
@@ -30,7 +31,9 @@ public record PlaceDetailResponse(
         PlaceCategoryGroup categoryGroup,
         PlaceCategoryDetail categoryDetail,
         boolean isRepresentative,
-        PlaceSource source
+        PlaceSource source,
+        String openingHours,
+        String phone
 ) {
 
     public static PlaceDetailResponse from(Place place) {
@@ -53,11 +56,24 @@ public record PlaceDetailResponse(
                 place.getCategoryGroup(),
                 place.getCategoryDetail(),
                 place.isRepresentative(),
-                place.getSource()
+                place.getSource(),
+                null,
+                null
         );
     }
 
-    public static PlaceDetailResponse from(Place place, TourApiPlaceItem item) {
+    public static PlaceDetailResponse from(
+            Place place,
+            TourApiPlaceItem item
+    ) {
+        return from(place, item, null);
+    }
+
+    public static PlaceDetailResponse from(
+            Place place,
+            TourApiPlaceItem item,
+            TourApiPlaceIntroItem introItem
+    ) {
         return new PlaceDetailResponse(
                 place.getId(),
                 place.getRegion().getId(),
@@ -77,7 +93,9 @@ public record PlaceDetailResponse(
                 place.getCategoryGroup(),
                 place.getCategoryDetail(),
                 place.isRepresentative(),
-                place.getSource()
+                place.getSource(),
+                introItem == null ? null : introItem.openingHours(),
+                introItem == null ? null : introItem.phone()
         );
     }
 }

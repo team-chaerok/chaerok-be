@@ -8,10 +8,7 @@ import com.chaerok.backend.place.entity.PlaceCategoryDetail;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
 import com.chaerok.backend.place.entity.PlaceSource;
 import com.chaerok.backend.place.exception.PlaceErrorCode;
-import com.chaerok.backend.place.external.KakaoLocalClient;
-import com.chaerok.backend.place.external.KakaoPlaceItem;
-import com.chaerok.backend.place.external.TourApiPlaceClient;
-import com.chaerok.backend.place.external.TourApiPlaceItem;
+import com.chaerok.backend.place.external.*;
 import com.chaerok.backend.place.repository.PlaceRepository;
 import com.chaerok.backend.region.entity.Region;
 import com.chaerok.backend.region.exception.RegionErrorCode;
@@ -452,6 +449,7 @@ class PlaceServiceTest {
 
         TourApiPlaceItem unsupportedItem = new TourApiPlaceItem(
                 "3001",
+                null,
                 "일반 쇼핑 매장",
                 "충청남도 공주시",
                 "36.4500000",
@@ -512,6 +510,7 @@ class PlaceServiceTest {
 
         TourApiPlaceItem resort = new TourApiPlaceItem(
                 "3002",
+                "12",
                 "공주리조트",
                 "충청남도 공주시",
                 "36.4500000",
@@ -575,6 +574,16 @@ class PlaceServiceTest {
         when(tourApiPlaceClient.getPlaceDetail("1001"))
                 .thenReturn(tourApiItem);
 
+        TourApiPlaceIntroItem introItem = new TourApiPlaceIntroItem(
+                "09:00~18:00",
+                "041-000-0000",
+                null,
+                null
+        );
+
+        when(tourApiPlaceClient.getPlaceIntro("1001", "12"))
+                .thenReturn(introItem);
+
         // when
         PlaceDetailResponse response =
                 placeService.getPlace(placeId);
@@ -597,9 +606,12 @@ class PlaceServiceTest {
         assertThat(response.source())
                 .isEqualTo(PlaceSource.TOUR_API);
         assertThat(response.isRepresentative()).isFalse();
+        assertThat(response.openingHours()).isEqualTo("09:00~18:00");
+        assertThat(response.phone()).isEqualTo("041-000-0000");
 
         verify(placeRepository).findById(placeId);
         verify(tourApiPlaceClient).getPlaceDetail("1001");
+        verify(tourApiPlaceClient).getPlaceIntro("1001", "12");
     }
 
     @Test
@@ -635,9 +647,13 @@ class PlaceServiceTest {
         assertThat(response.source())
                 .isEqualTo(PlaceSource.TOUR_API);
         assertThat(response.isRepresentative()).isFalse();
+        assertThat(response.openingHours()).isNull();
+        assertThat(response.phone()).isNull();
 
         verify(placeRepository).findById(placeId);
         verify(tourApiPlaceClient).getPlaceDetail("1001");
+        verify(tourApiPlaceClient, never())
+                .getPlaceIntro(anyString(), anyString());
     }
 
     @Test
@@ -698,6 +714,7 @@ class PlaceServiceTest {
 
         TourApiPlaceItem tourApiFood = new TourApiPlaceItem(
                 "2002",
+                "39",
                 "공주 음식점",
                 "충청남도 공주시 중동",
                 "36.4500000",
@@ -776,6 +793,7 @@ class PlaceServiceTest {
 
         TourApiPlaceItem tourApiCafe = new TourApiPlaceItem(
                 "2003",
+                "39",
                 "공주 카페",
                 "충청남도 공주시 중동 1",
                 "36.4510000",
@@ -1003,6 +1021,7 @@ class PlaceServiceTest {
     private TourApiPlaceItem createTourApiPlaceItem() {
         return new TourApiPlaceItem(
                 "1001",
+                "12", // contentTypeId
                 "TourAPI 공산성",
                 "TourAPI 충청남도 공주시 웅진로 280",
                 "36.4623000",
@@ -1020,6 +1039,7 @@ class PlaceServiceTest {
     private TourApiPlaceItem createTourismItem() {
         return new TourApiPlaceItem(
                 "2001",
+                "12",
                 "공산성",
                 "충청남도 공주시 웅진로 280",
                 "36.4623000",
@@ -1037,6 +1057,7 @@ class PlaceServiceTest {
     private TourApiPlaceItem createFoodItem() {
         return new TourApiPlaceItem(
                 "2002",
+                "39",
                 "공주 음식점",
                 "충청남도 공주시 중동",
                 "36.4500000",
@@ -1054,6 +1075,7 @@ class PlaceServiceTest {
     private TourApiPlaceItem createCafeItem() {
         return new TourApiPlaceItem(
                 "2003",
+                "39",
                 "공주 카페",
                 "충청남도 공주시 중동",
                 "36.4510000",
@@ -1073,6 +1095,7 @@ class PlaceServiceTest {
                 .mapToObj(index ->
                         new TourApiPlaceItem(
                                 "food-" + index,
+                                "39",
                                 "공주 음식점 " + index,
                                 "충청남도 공주시 음식점길 " + index,
                                 "36.45" + String.format("%03d", index),
@@ -1094,6 +1117,7 @@ class PlaceServiceTest {
                 .mapToObj(index ->
                         new TourApiPlaceItem(
                                 "cafe-" + index,
+                                "39",
                                 "공주 카페 " + index,
                                 "충청남도 공주시 카페길 " + index,
                                 "36.46" + String.format("%03d", index),
@@ -1128,5 +1152,41 @@ class PlaceServiceTest {
                 latitude,
                 "https://place.map.kakao.com/" + id
         );
+    }
+
+    @Test
+    @DisplayName("TourAPI 추가 정보 조회에 실패해도 기존 장소 상세 정보를 반환한다")
+    void getPlaceWithIntroFallback() {
+        // given
+        Long placeId = 1L;
+
+        when(placeRepository.findById(placeId))
+                .thenReturn(Optional.of(place));
+
+        mockPlaceForDetailResponse();
+
+        TourApiPlaceItem tourApiItem = createTourApiPlaceItem();
+
+        when(tourApiPlaceClient.getPlaceDetail("1001"))
+                .thenReturn(tourApiItem);
+
+        when(tourApiPlaceClient.getPlaceIntro("1001", "12"))
+                .thenReturn(null);
+
+        // when
+        PlaceDetailResponse response =
+                placeService.getPlace(placeId);
+
+        // then
+        assertThat(response.id()).isEqualTo(1L);
+        assertThat(response.title()).isEqualTo("TourAPI 공산성");
+        assertThat(response.overview())
+                .isEqualTo("TourAPI 공산성 소개 문구입니다.");
+
+        assertThat(response.openingHours()).isNull();
+        assertThat(response.phone()).isNull();
+
+        verify(tourApiPlaceClient).getPlaceDetail("1001");
+        verify(tourApiPlaceClient).getPlaceIntro("1001", "12");
     }
 }

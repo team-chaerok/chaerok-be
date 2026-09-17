@@ -218,6 +218,7 @@ class PlaceSyncServiceTest {
     ) {
         return new TourApiPlaceItem(
                 contentId,
+                "12",
                 title,
                 "충남 공주시 웅진로 280",
                 latitude,

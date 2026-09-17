@@ -6,6 +6,9 @@ public record TourApiPlaceItem(
         @JsonProperty("contentid")
         String contentId,
 
+        @JsonProperty("contenttypeid")
+        String contentTypeId,
+
         @JsonProperty("title")
         String title,
 
