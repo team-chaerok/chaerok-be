@@ -108,7 +108,9 @@ class PlaceControllerTest {
                 PlaceCategoryGroup.TOURISM,
                 PlaceCategoryDetail.HERITAGE,
                 false,
-                PlaceSource.TOUR_API
+                PlaceSource.TOUR_API,
+                "09:00~18:00",
+                "041-000-0000"
         );
 
         when(placeService.getPlace(placeId))
@@ -135,7 +137,9 @@ class PlaceControllerTest {
                 .andExpect(jsonPath("$.categoryGroup").value("TOURISM"))
                 .andExpect(jsonPath("$.categoryDetail").value("HERITAGE"))
                 .andExpect(jsonPath("$.isRepresentative").value(false))
-                .andExpect(jsonPath("$.source").value("TOUR_API"));
+                .andExpect(jsonPath("$.source").value("TOUR_API"))
+                .andExpect(jsonPath("$.openingHours").value("09:00~18:00"))
+                .andExpect(jsonPath("$.phone").value("041-000-0000"));
     }
 
     @Test

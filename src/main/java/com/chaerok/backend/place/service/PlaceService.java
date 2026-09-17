@@ -6,10 +6,7 @@ import com.chaerok.backend.place.dto.PlaceListResponse;
 import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
 import com.chaerok.backend.place.exception.PlaceErrorCode;
-import com.chaerok.backend.place.external.KakaoLocalClient;
-import com.chaerok.backend.place.external.KakaoPlaceItem;
-import com.chaerok.backend.place.external.TourApiPlaceClient;
-import com.chaerok.backend.place.external.TourApiPlaceItem;
+import com.chaerok.backend.place.external.*;
 import com.chaerok.backend.place.repository.PlaceRepository;
 import com.chaerok.backend.region.entity.Region;
 import com.chaerok.backend.region.exception.RegionErrorCode;
@@ -396,6 +393,12 @@ public class PlaceService {
             return PlaceDetailResponse.from(place);
         }
 
-        return PlaceDetailResponse.from(place, tourApiItem);
+        TourApiPlaceIntroItem introItem =
+                tourApiPlaceClient.getPlaceIntro(
+                        tourApiItem.contentId(),
+                        tourApiItem.contentTypeId()
+                );
+
+        return PlaceDetailResponse.from(place, tourApiItem, introItem);
     }
 }

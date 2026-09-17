@@ -122,6 +122,7 @@ class PlaceSearchServiceTest {
 
         TourApiPlaceItem unsupportedItem = new TourApiPlaceItem(
                 "1002",
+                null,
                 "일반 쇼핑 매장",
                 "충청남도 공주시",
                 "36.4623",
@@ -538,6 +539,7 @@ class PlaceSearchServiceTest {
 
         TourApiPlaceItem tourApiItem = new TourApiPlaceItem(
                 "1001",
+                "12",
                 "공산성",
                 "충청남도 공주시 웅진로 280",
                 "36.4623",
@@ -609,6 +611,7 @@ class PlaceSearchServiceTest {
 
         TourApiPlaceItem tourApiItem = new TourApiPlaceItem(
                 "1001",
+                "12",
                 "공 산 성",
                 "충청남도 공주시 웅진로 280",
                 "36.4623",
@@ -668,6 +671,7 @@ class PlaceSearchServiceTest {
     ) {
         return new TourApiPlaceItem(
                 contentId,
+                "12",
                 title,
                 "충청남도 공주시",
                 "36.4623",

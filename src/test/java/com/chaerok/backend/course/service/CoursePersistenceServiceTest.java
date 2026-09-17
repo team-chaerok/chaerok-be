@@ -724,6 +724,7 @@ class CoursePersistenceServiceTest {
     private TourApiPlaceItem createTourApiPlaceItem() {
         return new TourApiPlaceItem(
                 "126204",
+                null,
                 "공산성",
                 "충남 공주시 금성동",
                 "36.4650",
