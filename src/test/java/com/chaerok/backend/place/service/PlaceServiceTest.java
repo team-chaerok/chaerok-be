@@ -575,10 +575,18 @@ class PlaceServiceTest {
                 .thenReturn(tourApiItem);
 
         TourApiPlaceIntroItem introItem = new TourApiPlaceIntroItem(
-                "09:00~18:00",
-                "041-000-0000",
-                null,
-                null
+                "09:00~18:00",   // useTime
+                "041-000-0000", // infoCenter
+                null,           // openTimeFood
+                null,           // infoCenterFood
+                null,           // useTimeCulture
+                null,           // infoCenterCulture
+                null,           // useTimeLeports
+                null,           // infoCenterLeports
+                null,           // openTime
+                null,           // playTime
+                null,           // sponsor1Tel
+                null            // sponsor2Tel
         );
 
         when(tourApiPlaceClient.getPlaceIntro("1001", "12"))

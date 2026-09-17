@@ -1,5 +1,6 @@
 package com.chaerok.backend.place.external;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -75,6 +76,7 @@ public record TourApiPlaceIntroResponse(
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Items(
             @JsonProperty("item")
+            @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
             List<TourApiPlaceIntroItem> item
     ) {
     }
