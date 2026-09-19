@@ -15,11 +15,13 @@ import com.chaerok.backend.place.entity.PlaceSource;
 import com.chaerok.backend.place.external.TourApiPlaceItem;
 import com.chaerok.backend.place.repository.PlaceRepository;
 import com.chaerok.backend.region.entity.Region;
+import com.chaerok.backend.user.entity.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -30,9 +32,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CoursePersistenceServiceTest {
@@ -660,6 +660,42 @@ class CoursePersistenceServiceTest {
         verify(coursePlaceRepository,
                 org.mockito.Mockito.times(3))
                 .save(any(CoursePlace.class));
+    }
+
+    @Test
+    @DisplayName("기존 ACTIVE 코스를 비활성화하고 flush한 후 신규 코스를 저장한다")
+    void createCourseFlushesInactiveCourseBeforeSavingNewCourse() {
+        // given
+        Long userId = 39L;
+        User user = org.mockito.Mockito.mock(User.class);
+        Course existingCourse = org.mockito.Mockito.mock(Course.class);
+
+        when(user.getId()).thenReturn(userId);
+
+        when(courseRepository.findAllByUserIdAndStatus(
+                userId,
+                CourseStatus.ACTIVE
+        )).thenReturn(List.of(existingCourse));
+
+        when(courseRepository.save(any(Course.class)))
+                .thenReturn(course);
+
+        mockSuccessfulCourse();
+
+        // when
+        persistenceService.createCourse(
+                user,
+                region,
+                "새로운 공주 여행",
+                List.of()
+        );
+
+        // then
+        InOrder inOrder = inOrder(existingCourse, courseRepository);
+
+        inOrder.verify(existingCourse).inactive();
+        inOrder.verify(courseRepository).flush();
+        inOrder.verify(courseRepository).save(any(Course.class));
     }
 
     private void mockSuccessfulCourse() {

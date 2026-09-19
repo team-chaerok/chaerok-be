@@ -53,6 +53,9 @@ public class CoursePersistenceService {
     ) {
         inactiveActiveCourses(user.getId());
 
+        // 기존 ACTIVE 코스의 UPDATE를 신규 INSERT보다 먼저 실행
+        courseRepository.flush();
+
         Course course = courseRepository.save(
                 Course.create(user, region, title)
         );
