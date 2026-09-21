@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface VisitRepository extends JpaRepository<Visit, Long> {
@@ -16,6 +17,11 @@ public interface VisitRepository extends JpaRepository<Visit, Long> {
     );
 
     boolean existsByPhoto_Id(Long photoId);
+
+    boolean existsByFilmRollIdAndCreatedAtGreaterThanEqual(
+            Long filmRollId,
+            LocalDateTime cutoff
+    );
 
     @Query("""
             select distinct visit.categoryGroup
