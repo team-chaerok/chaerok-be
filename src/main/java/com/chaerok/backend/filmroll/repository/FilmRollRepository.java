@@ -3,6 +3,7 @@ package com.chaerok.backend.filmroll.repository;
 import com.chaerok.backend.filmroll.entity.FilmRoll;
 import com.chaerok.backend.filmroll.entity.FilmRollStatus;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -43,6 +44,16 @@ public interface FilmRollRepository
             @Param("userId") Long userId
     );
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select filmRoll
+            from FilmRoll filmRoll
+            where filmRoll.id = :filmRollId
+            """)
+    Optional<FilmRoll> findByIdForUpdate(
+            @Param("filmRollId") Long filmRollId
+    );
+
     List<FilmRoll> findAllByUserIdOrderByCreatedAtDesc(
             Long userId
     );
@@ -50,6 +61,32 @@ public interface FilmRollRepository
     boolean existsByUserIdAndStatusAndExitedAtIsNull(
             Long userId,
             FilmRollStatus status
+    );
+
+    @Query("""
+            select filmRoll.id
+            from FilmRoll filmRoll
+            where filmRoll.status = :status
+              and filmRoll.exitedAt is null
+              and filmRoll.updatedAt < :cutoff
+              and not exists (
+                    select photo.id
+                    from Photo photo
+                    where photo.filmRoll.id = filmRoll.id
+                      and photo.updatedAt >= :cutoff
+              )
+              and not exists (
+                    select visit.id
+                    from Visit visit
+                    where visit.filmRoll.id = filmRoll.id
+                      and visit.createdAt >= :cutoff
+              )
+            order by filmRoll.updatedAt asc, filmRoll.id asc
+            """)
+    List<Long> findStaleCapturingIds(
+            @Param("status") FilmRollStatus status,
+            @Param("cutoff") LocalDateTime cutoff,
+            Pageable pageable
     );
 
     @Query("""
