@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 1720 930" xmlns="http://www.w3.org/2000/svg" width="1720" height="930"><style>
+    text {
+      font-family: Pretendard, "Noto Sans KR", "Noto Sans CJK KR",
+                   "Apple SD Gothic Neo", "Malgun Gothic", Arial, sans-serif;
+    }
+  </style>
+    <defs>
+      <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L9,3 z" fill="#7d8a6b"/>
+      </marker>
+      <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L9,3 z" fill="#6f8ba5"/>
+      </marker>
+      <marker id="arrowPurple" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L9,3 z" fill="#8f73b7"/>
+      </marker>
+      <marker id="arrowOrange" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L9,3 z" fill="#bf8754"/>
+      </marker>
+      <marker id="arrowGray" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L9,3 z" fill="#7b857e"/>
+      </marker>
+      <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000" flood-opacity=".08"/>
+      </filter>
+    </defs>
+
+    <!-- COLUMN HEADERS -->
+    <text x="90" y="64" font-size="14" font-weight="800" fill="#7d8a6b">CLIENT</text>
+    <text x="500" y="64" font-size="14" font-weight="800" fill="#7d8a6b">BACKEND</text>
+    <text x="1080" y="64" font-size="14" font-weight="800" fill="#6f8ba5">DATA / EXTERNAL</text>
+
+    <!-- CLIENT -->
+    <g filter="url(#shadow)">
+      <rect x="70" y="130" rx="20" width="270" height="110" fill="#dfe7d9" stroke="#bcc8b6"/>
+      <text x="205" y="168" text-anchor="middle" font-size="21" font-weight="800">사용자</text>
+      <text x="205" y="196" text-anchor="middle" font-size="13" fill="#687167">관광 탐색 · 촬영 · 방문 인증</text>
+      <text x="205" y="218" text-anchor="middle" font-size="13" fill="#687167">현상 결과 확인</text>
+
+      <rect x="70" y="315" rx="20" width="270" height="150" fill="#ffffff" stroke="#bcc8b6"/>
+      <text x="205" y="355" text-anchor="middle" font-size="21" font-weight="800">Flutter App</text>
+      <text x="205" y="386" text-anchor="middle" font-size="13" fill="#687167">위치 · 지도 · 카메라 · 오디오</text>
+      <text x="205" y="408" text-anchor="middle" font-size="13" fill="#687167">릴스 · 결과 화면</text>
+      <text x="205" y="438" text-anchor="middle" font-size="12" font-weight="800" fill="#7d8a6b">OAuth / JWT · REST API</text>
+    </g>
+
+    <line x1="205" y1="240" x2="205" y2="315" stroke="#7d8a6b" stroke-width="2.2" marker-end="url(#arrowGreen)"/>
+
+    <!-- BACKEND -->
+    <rect x="445" y="105" rx="26" width="455" height="430" fill="#fbfcfa" stroke="#cad4c7" stroke-width="2" stroke-dasharray="8 7"/>
+    <text x="470" y="136" font-size="13" font-weight="800" fill="#7d8a6b">Render</text>
+
+    <g filter="url(#shadow)">
+      <rect x="495" y="165" rx="22" width="355" height="220" fill="#eef3ea" stroke="#bcc8b6"/>
+      <text x="672" y="209" text-anchor="middle" font-size="23" font-weight="800">Spring Boot API Server</text>
+      <text x="672" y="239" text-anchor="middle" font-size="13" fill="#677367">Java 17 · Spring Boot · Security · JPA</text>
+
+      <rect x="525" y="275" rx="10" width="135" height="40" fill="#fff" stroke="#d7ded3"/>
+      <text x="592" y="300" text-anchor="middle" font-size="12" font-weight="700">Auth / User</text>
+
+      <rect x="685" y="275" rx="10" width="135" height="40" fill="#fff" stroke="#d7ded3"/>
+      <text x="752" y="300" text-anchor="middle" font-size="12" font-weight="700">Place / Course</text>
+
+      <rect x="525" y="330" rx="10" width="135" height="40" fill="#fff" stroke="#d7ded3"/>
+      <text x="592" y="355" text-anchor="middle" font-size="12" font-weight="700">FilmRoll / Visit</text>
+
+      <rect x="685" y="330" rx="10" width="135" height="40" fill="#fff" stroke="#d7ded3"/>
+      <text x="752" y="355" text-anchor="middle" font-size="12" font-weight="700">Render / Notify</text>
+
+      <rect x="495" y="425" rx="16" width="145" height="72" fill="#fff" stroke="#cfd7cc"/>
+      <text x="567" y="455" text-anchor="middle" font-size="15" font-weight="700">Scheduler</text>
+      <text x="567" y="478" text-anchor="middle" font-size="11" fill="#687167">자동 현상 · 복구</text>
+
+      <rect x="675" y="425" rx="16" width="175" height="72" fill="#fff" stroke="#cfd7cc"/>
+      <text x="762" y="455" text-anchor="middle" font-size="14.5" font-weight="700">Notification Outbox</text>
+      <text x="762" y="478" text-anchor="middle" font-size="11" fill="#687167">알림 요청 저장</text>
+    </g>
+
+    <!-- Flutter -> Backend -->
+    <path d="M340 390 L405 390 L405 270 L495 270" fill="none" stroke="#7d8a6b" stroke-width="2.3" marker-end="url(#arrowGreen)"/>
+    <text x="345" y="334" font-size="10.5" fill="#667267">REST / JWT</text>
+
+    <!-- DATA / EXTERNAL -->
+    <rect x="1005" y="105" rx="26" width="640" height="305" fill="#fbfcfd" stroke="#d1dce5" stroke-width="2" stroke-dasharray="8 7"/>
+    <text x="1030" y="136" font-size="13" font-weight="800" fill="#6f8ba5">Data &amp; External Services</text>
+
+    <g filter="url(#shadow)">
+      <rect x="1045" y="170" rx="16" width="210" height="95" fill="#eaf1f7" stroke="#b8c8d6"/>
+      <text x="1150" y="210" text-anchor="middle" font-size="17" font-weight="800">Supabase PostgreSQL</text>
+      <text x="1150" y="238" text-anchor="middle" font-size="11" fill="#667584">서비스 데이터 저장</text>
+
+      <rect x="1310" y="145" rx="14" width="285" height="62" fill="#faf3e6" stroke="#dfc79f"/>
+      <text x="1452" y="171" text-anchor="middle" font-size="14" font-weight="800">TourAPI</text>
+      <text x="1452" y="190" text-anchor="middle" font-size="11" fill="#746854">관광 데이터</text>
+
+      <rect x="1310" y="230" rx="14" width="285" height="62" fill="#faf3e6" stroke="#dfc79f"/>
+      <text x="1452" y="256" text-anchor="middle" font-size="14" font-weight="800">Kakao Local API</text>
+      <text x="1452" y="275" text-anchor="middle" font-size="11" fill="#746854">장소 정보 보완</text>
+
+      <rect x="1310" y="315" rx="14" width="285" height="62" fill="#faf3e6" stroke="#dfc79f"/>
+      <text x="1452" y="341" text-anchor="middle" font-size="14" font-weight="800">Odii API</text>
+      <text x="1452" y="360" text-anchor="middle" font-size="11" fill="#746854">오디오 가이드</text>
+    </g>
+
+    <!-- Backend -> Data : one line per group -->
+    <line x1="850" y1="215" x2="1045" y2="215" stroke="#6f8ba5" stroke-width="2.2" marker-end="url(#arrowBlue)"/>
+    <text x="930" y="203" font-size="11" fill="#5d7f9b">JDBC</text>
+
+    <!-- Spring Boot -> External APIs -->
+    <line x1="850" y1="292" x2="1285" y2="292" stroke="#7d8a6b" stroke-width="2.2" marker-end="url(#arrowGreen)"/>
+    <text x="1060" y="312" font-size="11" fill="#667267">TourAPI · Kakao Local · Odii</text>
+
+    <!-- AWS MEDIA PIPELINE -->
+    <rect x="1005" y="535" rx="24" width="640" height="295" fill="#fcfbff" stroke="#d7cce7" stroke-width="2" stroke-dasharray="8 7"/>
+    <text x="1030" y="567" font-size="13" font-weight="800" fill="#8f73b7">AWS Media Pipeline</text>
+
+    <g filter="url(#shadow)">
+      <rect x="1045" y="620" rx="16" width="145" height="90" fill="#f1ecf7" stroke="#cbb7df"/>
+      <text x="1117" y="653" text-anchor="middle" font-size="15" font-weight="800">Request SQS</text>
+      <text x="1117" y="679" text-anchor="middle" font-size="11" fill="#6f6380">현상 요청 큐</text>
+
+      <rect x="1230" y="620" rx="16" width="145" height="90" fill="#f1ecf7" stroke="#cbb7df"/>
+      <text x="1302" y="653" text-anchor="middle" font-size="15" font-weight="800">AWS Lambda</text>
+      <text x="1302" y="679" text-anchor="middle" font-size="11" fill="#6f6380">필터 · ZIP · FFmpeg</text>
+
+      <rect x="1415" y="620" rx="16" width="145" height="90" fill="#f1ecf7" stroke="#cbb7df"/>
+      <text x="1487" y="653" text-anchor="middle" font-size="15" font-weight="800">Amazon S3</text>
+      <text x="1487" y="679" text-anchor="middle" font-size="11" fill="#6f6380">원본 · 결과 파일</text>
+
+      <rect x="1230" y="750" rx="16" width="145" height="44" fill="#f1ecf7" stroke="#cbb7df"/>
+      <text x="1302" y="777" text-anchor="middle" font-size="14" font-weight="800">Result SQS</text>
+    </g>
+
+    <!-- Render / Notify -> Request SQS : upper outgoing lane -->
+    <path d="M820 338 L970 338 L970 665 L1045 665" fill="none" stroke="#8f73b7" stroke-width="2.3" marker-end="url(#arrowPurple)"/>
+    <text x="982" y="490" font-size="11" fill="#8065a5">현상 요청</text>
+
+    <!-- AWS chain -->
+    <line x1="1190" y1="665" x2="1230" y2="665" stroke="#8f73b7" stroke-width="2.2" marker-end="url(#arrowPurple)"/>
+    <line x1="1375" y1="665" x2="1415" y2="665" stroke="#8f73b7" stroke-width="2.2" marker-end="url(#arrowPurple)"/>
+    <line x1="1302" y1="710" x2="1302" y2="750" stroke="#8f73b7" stroke-width="2.2" marker-end="url(#arrowPurple)"/>
+
+    <!-- Result SQS -> Render / Notify : lower incoming lane -->
+    <path d="M1230 772 L935 772 L935 356 L820 356" fill="none" stroke="#8f73b7" stroke-width="2.2" marker-end="url(#arrowPurple)"/>
+    <text x="878" y="590" font-size="11" fill="#8065a5">결과 반영</text>
+
+    <!-- SUPPORT CLUSTER -->
+    <rect x="600" y="585" rx="22" width="225" height="245" fill="#fffdf9" stroke="#ead7bd" stroke-width="2" stroke-dasharray="8 7"/>
+    <text x="625" y="616" font-size="12" font-weight="800" fill="#b0874d">알림 / 모니터링</text>
+
+    <g filter="url(#shadow)">
+      <rect x="630" y="650" rx="16" width="165" height="72" fill="#f8ede4" stroke="#ddb996"/>
+      <text x="712" y="680" text-anchor="middle" font-size="15" font-weight="800">Firebase FCM</text>
+      <text x="712" y="702" text-anchor="middle" font-size="10.5" fill="#7b6654">현상 상태 · 완료 알림</text>
+
+      <rect x="630" y="750" rx="16" width="165" height="48" fill="#eef1ee" stroke="#c7d0c5"/>
+      <text x="712" y="779" text-anchor="middle" font-size="14" font-weight="800">Monitoring</text>
+    </g>
+
+    <!-- Notification Outbox -> FCM -->
+    <path d="M762 497 L762 620 L712 620 L712 650" fill="none" stroke="#bf8754" stroke-width="2.0" marker-end="url(#arrowOrange)"/>
+
+    <!-- Spring Boot API Server -> Monitoring -->
+    <path d="M495 315 L472 315 L472 774 L630 774" fill="none" stroke="#7b857e" stroke-width="1.9" marker-end="url(#arrowGray)"/>
+    <text x="425" y="615" font-size="11" fill="#6f7771">metrics</text>
+
+    <!-- FCM -> Flutter -->
+    <path d="M630 686 L365 686 L365 430 L340 430" fill="none" stroke="#bf8754" stroke-width="2.0" marker-end="url(#arrowOrange)"/>
+    <text x="492" y="674" font-size="11" fill="#a66f3e">Push</text>
+
+    <!-- Flutter -> S3 : dedicated bottom-most path -->
+    <path d="M205 465 L205 885 L1625 885 L1625 665 L1560 665" fill="none" stroke="#8f73b7" stroke-width="2.0" marker-end="url(#arrowPurple)"/>
+    <text x="900" y="868" font-size="11" fill="#8065a5">Presigned Upload</text>
+
+  </svg>
