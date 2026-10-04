@@ -1,190 +1,305 @@
-# 채록 비동기 필름 현상 파이프라인
+# Chaerok (채록)
 
-채록 백엔드의 필름 롤 촬영, 현상 요청, Lambda 렌더링, 결과 반영 흐름을 구현합니다.
+> **충남 소도시의 여행 순간을 필름처럼 기록하고, 지역 이탈 후 감성 콘텐츠로 자동 현상하는 관광 기록 서비스**
 
-## 구현 범위
+📱 **2026 관광데이터 활용 공모전 웹·앱 개발 부문 참가**  
+🍎 [App Store: 채록 - 충남 여행 기록](https://apps.apple.com/kr/app/%EC%B1%84%EB%A1%9D-%EC%B6%A9%EB%82%A8-%EC%97%AC%ED%96%89-%EA%B8%B0%EB%A1%9D/id6807424163) 출시  
+▶️ **Google Play 심사 승인 · 프로덕션 출시 준비 중**
 
-- 사용자당 미완료 필름 롤 최대 1개 정책
-- 필름 롤 생성, 현재 롤 조회, 상세 조회
-- FilmRoll별 방문 인증과 관광지·식당·카페 방문 진행도 조회
-- 프론트 판정 기반 지역 이탈 확정과 계정 정책 기반 현상 대기
-- 현상 가능 시각이 지난 FilmRoll 자동 현상 요청
-- 사진 업로드용 Presigned URL 발급
-- 사진 업로드 완료 처리 및 사진 목록 조회
-- 통합 현상 요청 API
-- 요청 SQS를 통한 Lambda 비동기 실행
-- 지역별 필름 필터 적용
-- 이미지 밝기 기반 `LANDSCAPE`·`NIGHT` 자동 판정
-- 필터 JPEG, ZIP, 1080×1920 H.264 MP4 생성
-- `manifest.json` 기반 Lambda 멱등 처리
-- 결과 SQS 발행 및 Spring 결과 소비
-- `FilmRoll`, `Photo`, `RenderJob` 상태 반영
-- 완료 결과 Presigned 다운로드 URL 제공
-- 실패 재시도, 중복 결과, 이전 작업 지연 결과 처리
-- 한국 시간 기준 완료·만료 시각 처리
-- 만료된 결과 다운로드 차단
+---
 
-## 공개 API
+## 프로젝트 소개
+
+**채록**은 충남 소도시를 여행하며 방문한 장소와 촬영한 순간을 하나의 **필름 롤**에 기록하고,   
+여행이 끝난 뒤 사진과 릴스 형태의 콘텐츠로 자동 현상해주는 위치 기반 관광 기록 서비스입니다.
+
+한국관광공사 **TourAPI**를 중심으로 지역 관광 정보를 제공하고, 부족한 음식점·카페 정보는 **Kakao Local API**로 보완합니다.  
+사용자는 관광지·음식점·카페를 탐방하며 사진과 방문 기록을 쌓고,   
+현상 조건을 만족한 뒤 지역을 이탈하면 서버가 필름 롤의 현상 가능 시점을 관리합니다.
+
+현상 시에는 촬영한 사진에 지역별 필름 프리셋을 적용하고,   
+**AWS SQS · Lambda · S3와 FFmpeg**를 활용한 비동기 미디어 파이프라인을 통해   
+필터 사진 세트와 9:16 릴스 영상을 생성합니다.
+
+---
+
+## 주요 기능
+
+### 🗺️ 관광 탐색 및 코스 추천
+
+- TourAPI 기반 충남 관광지·음식점·카페 정보 제공
+- Kakao Local API를 활용한 음식점·카페 정보 보완
+- 관광지 · 음식점 · 카페 세 유형을 포함하는 소도시 탐방 코스 추천
+- 장소 검색 및 관광지 상세 정보 제공
+
+### 🎞️ 여행 기록 및 필름 롤
+
+- 지역별 필름 롤 생성 및 최대 24장의 여행 사진 기록
+- 방문 장소와 촬영 사진을 연결한 방문 기록 관리
+- 관광지 · 음식점 · 카페 세 유형의 방문 진행도 관리
+- 지역 이탈 및 현상 조건에 따른 자동 현상
+
+### 📷 사진 및 필름 콘텐츠
+
+- S3 Presigned URL 기반 사진 업로드
+- 지역별 사전 제작 필름 프리셋 적용
+- 필터 사진 세트 및 ZIP 결과 제공
+- 이미지 특성을 분석한 프리셋 세부 보정
+
+### 🎬 자동 현상
+
+- SQS · Lambda 기반 비동기 미디어 처리
+- FFmpeg 기반 9:16 릴스 영상 생성
+- 현상 결과 상태 관리 및 다운로드 제공
+
+### 🏛️ 유적지 콘텐츠
+
+- TourAPI 기반 역사 테마 장소 판별
+- Odii API 기반 오디오 가이드 조회
+- 오디오 가이드가 없는 경우 TourAPI 관광 소개 정보로 대체
+
+### 🔐 사용자 및 알림
+
+- Kakao · Google · Apple OAuth 로그인
+- JWT 기반 인증 및 토큰 재발급
+- FCM 기반 푸시 알림
+- 모바일 스토어 심사용 Review Mode
+
+---
+
+## 시스템 아키텍처
+
+![채록 시스템 아키텍처](docs/images/system-architecture.svg)
+
+---
+
+## 기술 스택
+
+| 구분 | 기술 |
+| --- | --- |
+| **Backend** | Java 17, Spring Boot 3.5, Spring Data JPA, Spring Security |
+| **Database** | Supabase PostgreSQL, Flyway |
+| **Authentication** | Kakao OAuth, Google OAuth, Apple OAuth, JWT |
+| **Tourism Data** | 한국관광공사 TourAPI, Kakao Local API, Odii API |
+| **Cloud / Async** | AWS S3, AWS SQS, AWS Lambda |
+| **Media** | Java2D, ImageIO, FFmpeg |
+| **Notification** | Firebase Cloud Messaging |
+| **Monitoring** | Spring Boot Actuator, Micrometer, Prometheus, Grafana |
+| **API Docs** | Springdoc OpenAPI, Swagger |
+| **Deployment** | Render, AWS |
+
+---
+
+## 핵심 구현
+
+### 1. TourAPI 우선 · Kakao Local 보완 관광 데이터 통합
+
+한국관광공사 데이터를 중심으로 일관된 관광 정보 체계를 유지하기 위해 TourAPI를 주 데이터 소스로 사용하고,   
+부족한 음식점·카페 정보는 Kakao Local API로 보완합니다.
+
+지역별 추가 장소 조회에서는 TourAPI 관광 자원 분류체계를   
+채록의 `TOURISM` · `FOOD` · `CAFE_DESSERT` 유형으로 매핑한 뒤 필요한 수량을 우선 구성합니다.
+
+TourAPI만으로 음식점·카페가 부족한 경우 Kakao Local API를 추가 호출하며,   
+두 API의 결과를 합치는 과정에서는 장소명·주소를 정규화하고 좌표 간 거리를 비교하여 중복 장소를 제거합니다.
+
+장소 검색 역시 TourAPI를 먼저 조회하고 충분한 결과를 얻지 못한 경우에만 Kakao Local API 결과를 추가합니다.
+
+---
+
+### 2. 세 가지 관광 유형을 보장하는 탐방 코스 추천
+
+지역 대표 관광지를 앵커(Anchor)로 선택하고 주변의 음식점과 카페를 조합해 소도시 탐방 코스를 구성합니다.
 
 ```text
-GET  /api/users/me/review-mode
-
-POST /api/film-rolls
-GET  /api/film-rolls/current
-GET  /api/film-rolls/{filmRollId}
-POST /api/film-rolls/{filmRollId}/exit
-
-POST /api/film-rolls/{filmRollId}/visits
-GET  /api/film-rolls/{filmRollId}/visits
-
-POST /api/film-rolls/{filmRollId}/photos/upload-url
-POST /api/film-rolls/{filmRollId}/photos/{photoId}/complete
-GET  /api/film-rolls/{filmRollId}/photos
-
-POST /api/film-rolls/{filmRollId}/develop
-GET  /api/film-rolls/{filmRollId}/results
+대표 관광지
+    ↓
+반경 2km 음식점 · 카페 탐색
+    ↓ 결과 부족
+반경 5km까지 탐색 범위 확장
+    ↓
+TOURISM + FOOD + CAFE_DESSERT
 ```
 
-기존 `/ready`, `/render-jobs` API는 하위 호환을 위해 유지하지만 Swagger에서는 숨깁니다.
+추천 결과는 `TOURISM` · `FOOD` · `CAFE_DESSERT` 세 유형이 모두 포함된 경우에만 완성된 코스로 제공합니다.
 
-방문 인증은 프론트가 GPS와 거리 검증을 완료한 뒤 `placeId`만 전달합니다. 백엔드는 GPS 좌표·정확도·거리·이동 경로를 받거나 저장하지 않습니다. 현상에는 `TOURISM`, `FOOD`, `CAFE_DESSERT` 세 유형을 각각 1곳 이상 방문한 기록이 필요합니다.
+Kakao Local API에서 적절한 후보를 찾지 못한 경우 지역의 대표 장소 중 가장 가까운 동일 유형 장소를 대체 후보로 활용합니다.
 
-지역 이탈 역시 프론트가 GPS·행정구역·연속 외부 판정과 사용자 확인을 완료한 뒤 `/exit`만 호출합니다. 이탈 시점에 Visit 3유형 조건과 사진 1장 이상을 모두 충족한 필름 롤은 `exitedAt`과 `developAvailableAt`을 저장합니다. 일반 사용자와 서버에서 지정한 심사용 계정 모두 `developAvailableAt = exitedAt + 1시간`을 저장하며, 심사용 계정은 `/develop` 요청 시 서버에서 1시간 대기 검사만 면제합니다. Visit 조건 또는 사진 조건이 하나라도 부족한 필름 롤은 심사용 계정도 동일하게 이탈 사실을 기록한 뒤 `EXPIRED`로 종료합니다. 현상 가능 시각이 지난 FilmRoll은 스케줄러가 기존 SQS 현상 파이프라인을 자동으로 재사용합니다.
+---
 
-심사용 계정은 `GET /api/users/me/review-mode`에서 공주 지역과 `TOURISM`, `FOOD`, `CAFE_DESSERT` 테스트 장소 3곳의 실제 DB `placeId`, 제목, 카테고리, 주소, 좌표를 받습니다. 심사용 모드는 방문 성공을 우회하지 않으며, 프론트는 해당 좌표를 `ReviewLocationProvider`에 공급해 기존 정확도·거리 검증을 그대로 수행해야 합니다. 사진 촬영·업로드, Photo 상태 검증, Visit 생성과 이후 현상 파이프라인은 운영 흐름을 그대로 사용합니다.
+### 3. OAuth + JWT 인증 구조
 
-## 필름 롤 상태
+Kakao · Google · Apple을 하나의 OAuth 인증 흐름으로 처리하기 위해   
+Provider별 Token Verifier와 Resolver 구조를 구성했습니다.
+
+```text
+OAuth ID Token 검증
+→ 기존 사용자 여부 확인
+→ 신규 사용자: Signup Token 발급
+→ 약관 동의 및 회원가입
+→ Access Token + Refresh Token 발급
+```
+
+Refresh Token은 원문을 DB에 저장하지 않고 Hash 값으로 관리하며,   
+토큰 재발급 시 기존 Refresh Token을 폐기하고 새로운 토큰을 발급하는 Rotation 방식을 적용했습니다.
+
+Apple 로그인에서는 nonce를 함께 검증하고,   
+회원 탈퇴 시 Apple Revoke API와 연동하여 Provider 특성에 맞는 계정 처리 흐름을 구성했습니다.
+
+---
+
+### 4. 상태 기반 필름 롤 라이프사이클
+
+필름 롤의 촬영부터 현상 완료까지를 상태로 관리하여 각 단계에서 허용되는 작업을 제한합니다.
 
 ```text
 CAPTURING
+    ↓
 READY
+    ↓
 QUEUED
+    ↓
 PROCESSING
+    ↓
 COMPLETED
-FAILED
-EXPIRED
+
+FAILED   : 동일 필름 롤 현상 재시도 가능
+EXPIRED  : 조건 미충족 또는 결과 보관 기간 종료
 ```
 
-`FAILED`는 동일한 필름 롤로 현상을 재시도할 수 있는 미완료 상태입니다.
+클라이언트에서 지역 이탈이 확정된 후 서버는 관광지 · 음식점 · 카페 방문 여부와 업로드된 사진 존재 여부를 다시 검증합니다.
 
-## 필터 프리셋
+현상 조건을 충족하면 `exitedAt`과 현상 가능 시점을 기록하고,   
+지정된 시점이 지난 필름 롤은 Scheduler가 기존 현상 파이프라인을 자동으로 실행합니다.
+
+장기간 `CAPTURING` 상태로 남은 필름 롤 또한 Scheduler를 통해 정리하여 불완전한 데이터가 계속 누적되지 않도록 관리합니다.
+
+---
+
+### 5. S3 Presigned URL 기반 사진 업로드
+
+촬영 이미지 전체가 Spring Boot 서버를 통과하지 않도록 S3 Presigned URL 기반 직접 업로드 방식을 사용합니다.
 
 ```text
-gongju / 공주
-buyeo  / 부여
-seosan / 서산
-yesan  / 예산
+Flutter
+→ 업로드 URL 요청
+→ Spring Boot
+→ Presigned URL 발급
+→ Flutter → S3 직접 업로드
+→ 업로드 완료 요청
+→ Spring Boot가 S3 객체 검증
 ```
 
-프론트는 `hasFace`나 `sceneType`을 전달하지 않습니다. Lambda가 이미지 밝기와 어두운 픽셀 비율을 분석해 `LANDSCAPE` 또는 `NIGHT`를 자동 결정합니다.
+서버에서는 업로드 완료 처리 시   
+실제 S3 객체의 존재 여부와 크기, Content-Type을 확인한 뒤에만 사진을 `UPLOADED` 상태로 변경합니다.
 
-## 현상 요청 메시지
+이를 통해 이미지 바이너리가 애플리케이션 서버를 불필요하게 경유하지 않도록 하고,   
+실제 S3 업로드 상태와 서버의 사진 상태를 일치시키도록 구성했습니다.
 
-Spring이 요청 SQS에 발행하는 메시지 스키마는 버전 2입니다.
+---
 
-```json
-{
-  "schemaVersion": 2,
-  "renderJobId": "133d6ee3-a120-4df3-8ba3-f60adbdd64d6",
-  "filmRollId": 999001,
-  "userId": 999001,
-  "regionId": 1,
-  "filterId": "gongju",
-  "photos": [
-    {
-      "photoId": 1,
-      "sequence": 1,
-      "originalObjectKey": "users/999001/rolls/999001/original/001.jpg",
-      "takenAt": "2026-08-07T00:10:00"
-    }
-  ]
-}
-```
+### 6. SQS · Lambda 기반 비동기 자동 현상
 
-## 결과 메시지
+필터 처리와 FFmpeg 영상 생성은 CPU 사용량과 처리 시간이 큰 작업이므로 일반 API 요청과 분리했습니다.
 
-Lambda가 결과 SQS에 발행하는 결과 메시지 스키마는 버전 1입니다.
-
-```json
-{
-  "schemaVersion": 1,
-  "eventType": "CHAEROK_RENDER_COMPLETED",
-  "requestMessageId": "request-sqs-message-id",
-  "renderJobId": "133d6ee3-a120-4df3-8ba3-f60adbdd64d6",
-  "filmRollId": 999001,
-  "userId": 999001,
-  "status": "COMPLETED",
-  "attempt": 1,
-  "retryable": false,
-  "filteredPhotos": [],
-  "zipObjectKey": "...zip",
-  "reelObjectKey": "...mp4",
-  "manifestObjectKey": ".../manifest.json",
-  "occurredAt": "2026-08-07T00:00:00Z",
-  "errorCode": null,
-  "errorMessage": null
-}
-```
-
-## 결과 S3 경로
+지역별 프리셋은 고정된 기준으로 선택하고, 각 이미지의 밝기·장면 특성을 분석해 적용 강도를 세부 조정합니다.
 
 ```text
-users/{userId}/rolls/{filmRollId}/render-jobs/{renderJobId}/
-├─ filtered/001.jpg
-├─ filtered/002.jpg
-├─ export/chaerok_{regionId}_{filmRollId}_{job8}.zip
-├─ export/chaerok_{regionId}_{filmRollId}_{job8}.mp4
-└─ manifest.json
+Spring Boot
+→ Render Request SQS
+→ AWS Lambda
+→ S3 원본 다운로드
+→ 지역 필터 적용
+→ JPEG · ZIP 생성
+→ FFmpeg 릴스 생성
+→ S3 업로드
+→ Render Result SQS
+→ Spring Boot
 ```
 
-같은 `renderJobId`가 다시 처리되면 기존 `manifest.json`을 사용해 완료 결과를 재발행합니다. Spring 결과 소비자는 `renderJobId` 기준으로 멱등 처리합니다.
+Spring Boot는 RenderJob과 사진·필터 정보를 SQS에 전달하고, Lambda는 독립적으로 미디어 생성 작업을 수행합니다.
 
-## 테스트
+처리 결과는 별도의 Result SQS를 통해 다시 Spring Boot로 전달하여 `FilmRoll`, `Photo`, `RenderJob` 상태에 반영합니다.
 
-Spring 전체 테스트:
+---
 
-```powershell
-.\gradlew.bat clean test --no-build-cache --rerun-tasks
-```
+### 7. 렌더링 멱등성 및 실패 복구
 
-Lambda 전체 테스트:
+SQS 메시지는 중복 전달될 수 있고 Lambda 역시 재실행될 수 있으므로,   
+동일 RenderJob이 여러 번 처리되는 상황을 고려해 설계했습니다.
 
-```powershell
-.\gradlew.bat -p lambda\render clean test --no-build-cache --rerun-tasks
-```
+Lambda는 렌더링 완료 후 `manifest.json`을 S3에 저장하고,   
+동일 `renderJobId`가 다시 처리되면 Manifest를 확인해 이미 생성된 결과를 재사용합니다.
 
-로컬 Lambda 테스트:
+Spring Boot 결과 소비자에서도 RenderJob ID, FilmRoll, S3 경로, 사진 개수와 상태를 검증하여   
+중복 또는 지연된 결과가 현재 상태를 잘못 덮어쓰지 않도록 처리합니다.
 
-```powershell
-cd D:\chaerok-be\lambda\render
-.\scripts\build-local.ps1
-.\scripts\run-local.ps1
-.\scripts\invoke-local.ps1
-```
+또한 일정 시간 이상 `CREATED` 상태에 머문 RenderJob을 Scheduler가 탐지하여 재처리하고,   
+`FAILED` 상태의 필름 롤은 동일한 필름 롤을 기준으로 다시 현상할 수 있도록 구성했습니다.
 
-## 배포 전 확인
+---
 
-요청 메시지 스키마와 필터 ID가 변경됐으므로 Spring과 Lambda를 같은 버전으로 배포해야 합니다.
+### 8. Notification Outbox 기반 푸시 알림
+
+비즈니스 처리 성공 여부가 FCM 전송 결과에 의존하지 않도록,   
+알림 요청을 Outbox에 저장하고 별도의 Dispatcher가 비동기로 전송합니다.
 
 ```text
-요청 schemaVersion: 2
-결과 schemaVersion: 1
-필터 ID: gongju, buyeo, seosan, yesan
+비즈니스 처리
+→ Notification Outbox 저장
+→ Scheduler
+→ Dispatcher
+→ Firebase FCM
+→ 사용자 기기
 ```
 
-배포 후 실제 AWS 흐름을 다시 검증합니다.
+사용자의 FCM Registration Token을 별도로 관리하며, 재등록과 등록 해제를 지원합니다.
 
-```text
-Spring 현상 요청
-→ 요청 SQS
-→ Lambda
-→ S3 필터 JPEG·ZIP·MP4
-→ 결과 SQS
-→ Spring DB 반영
-→ 결과 조회 API
+---
+
+## 운영 및 모니터링
+
+- Render 기반 Spring Boot 애플리케이션 배포
+- Supabase PostgreSQL 운영 데이터베이스 구성
+- AWS S3 · SQS · Lambda 기반 미디어 처리 환경 구성
+- Spring Boot Actuator · Micrometer · Prometheus · Grafana 기반 서버 메트릭 모니터링
+- Render 환경 JVM 메모리 제한 및 Metaspace 관련 운영 이슈 분석·조정
+- TourAPI 등 외부 API 지연 대응을 위한 Timeout 정책 조정
+- `/api/health` 기반 서버 상태 확인
+- App Store · Google Play 위치 기반 앱 심사용 Review Mode 및 테스트 환경 구성
+
+---
+
+## 테스트 및 검증
+
+도메인 서비스와 외부 시스템 연동 경계를 중심으로 단위·통합 테스트를 구성했습니다.
+
+- OAuth Provider별 Token 검증 및 인증 흐름 검증
+- 사용자 조회·수정 및 회원 탈퇴 로직 검증
+- TourAPI · Kakao 장소 조회 및 카테고리 매핑 검증
+- 장소 검색·중복 제거 및 추천 코스 구성 검증
+- 방문 기록 중복 방지 및 관광 유형 진행도 검증
+- 필름 롤 상태 전이 및 지역 이탈 조건 검증
+- 사진 업로드 및 S3 객체 검증
+- RenderJob 요청 · 결과 처리 · 중복 결과 검증
+- 렌더링 실패 및 복구 처리 검증
+- Notification Outbox 및 FCM 전송 처리 검증
+- Lambda 필터 · ZIP · 릴스 생성 파이프라인 검증
+
+```bash
+# Spring Boot
+./gradlew clean test
+
+# Render Lambda
+./gradlew -p lambda/render clean test
 ```
 
-## 남은 범위
+---
 
-- FCM 현상 완료 알림
-- 운영 배포 설정 정리
+## 한계 및 개선 방향
+
+- TourAPI 등 외부 API 장애·지연에 대비한 Circuit Breaker · Retry 정책 고도화
+- RenderJob 반복 실패에 대한 DLQ 및 재시도 정책 명확화
+- 실제 운영 트래픽 기반 모니터링 지표와 알림 임계값 정교화
+- 미디어 결과물 생성 시간과 비용을 기반으로 한 Lambda 처리 성능 최적화
+- 관광지 및 사용자 확대에 따른 장소 데이터 조회·캐싱 전략 검토
