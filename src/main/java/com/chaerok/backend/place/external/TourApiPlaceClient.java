@@ -7,9 +7,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 @Component
@@ -337,6 +339,8 @@ public class TourApiPlaceClient {
             return null;
         }
 
+        long startedAt = System.nanoTime();
+        AtomicInteger httpStatus = new AtomicInteger();
         try {
             TourApiPlaceResponse response = tourApiWebClient
                     .get()
@@ -350,8 +354,13 @@ public class TourApiPlaceClient {
                             .queryParam("numOfRows", 10)
                             .queryParam("pageNo", 1)
                             .build())
-                    .retrieve()
-                    .bodyToMono(TourApiPlaceResponse.class)
+                    .exchangeToMono(clientResponse -> {
+                        httpStatus.set(clientResponse.statusCode().value());
+                        if (clientResponse.statusCode().isError()) {
+                            return clientResponse.createException().flatMap(Mono::error);
+                        }
+                        return clientResponse.bodyToMono(TourApiPlaceResponse.class);
+                    })
                     .timeout(REQUEST_TIMEOUT)
                     .block();
 
@@ -375,29 +384,31 @@ public class TourApiPlaceClient {
 
         } catch (WebClientResponseException e) {
             log.warn(
-                    "TourAPI detailCommon2 response error. contentId={}, status={}, body={}",
+                    "TourAPI detailCommon2 response error. contentId={}, status={}",
                     contentId,
-                    e.getStatusCode(),
-                    e.getResponseBodyAsString()
+                    e.getStatusCode()
             );
             return null;
 
         } catch (WebClientRequestException e) {
             log.warn(
-                    "TourAPI detailCommon2 request error. contentId={}, message={}",
+                    "TourAPI detailCommon2 request error. contentId={}, exception={}",
                     contentId,
-                    e.getMessage()
+                    e.getClass().getSimpleName()
             );
             return null;
 
         } catch (RuntimeException e) {
             log.error(
-                    "TourAPI detailCommon2 unexpected error. contentId={}, message={}",
+                    "TourAPI detailCommon2 unexpected error. contentId={}, exception={}",
                     contentId,
-                    e.getMessage(),
-                    e
+                    e.getClass().getSimpleName()
             );
             return null;
+        } finally {
+            log.info("TourAPI detailCommon2 call. elapsedMs={}, httpStatus={}, retryCount=0",
+                    Duration.ofNanos(System.nanoTime() - startedAt).toMillis(),
+                    httpStatus.get() == 0 ? "unavailable" : httpStatus.get());
         }
     }
 

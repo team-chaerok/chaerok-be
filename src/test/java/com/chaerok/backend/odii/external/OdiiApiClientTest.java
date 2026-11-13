@@ -2,6 +2,9 @@ package com.chaerok.backend.odii.external;
 
 import com.chaerok.backend.odii.config.OdiiProperties;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -14,7 +17,9 @@ import reactor.core.publisher.Mono;
 
 import java.net.ConnectException;
 import java.net.URI;
+import java.time.Duration;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -62,7 +67,8 @@ class OdiiApiClientTest {
     }
 
     @Test
-    void 테마와_스토리의_타임아웃을_전달한다() {
+    @ExtendWith(OutputCaptureExtension.class)
+    void 테마와_스토리의_타임아웃을_전달한다(CapturedOutput output) {
         OdiiApiClient client = clientWithError(new TimeoutException("timeout"));
 
         assertThatThrownBy(() -> client.searchThemes("공산성"))
@@ -71,19 +77,24 @@ class OdiiApiClientTest {
         assertThatThrownBy(() -> client.getStories("theme-1", "list-1"))
                 .isInstanceOf(OdiiApiException.class)
                 .hasCauseInstanceOf(TimeoutException.class);
+        assertThat(output).contains("exceptionType=TimeoutException");
     }
 
     @Test
-    void 연결_실패를_전달한다() {
+    @ExtendWith(OutputCaptureExtension.class)
+    void 연결_실패를_전달한다(CapturedOutput output) {
         OdiiApiClient client = clientWithError(new WebClientRequestException(
                 new ConnectException("connection refused"),
                 HttpMethod.GET,
-                URI.create("https://odii.example.com/themeSearchList"),
+                URI.create("https://odii.example.com/themeSearchList?serviceKey=secret-value"),
                 HttpHeaders.EMPTY
         ));
 
         assertThatThrownBy(() -> client.searchThemes("공산성"))
                 .isInstanceOf(OdiiApiException.class);
+        assertThat(output).contains("exceptionType=WebClientRequestException")
+                .doesNotContain("secret-value")
+                .doesNotContain("https://odii.example.com/themeSearchList");
     }
 
     @Test
@@ -175,6 +186,127 @@ class OdiiApiClientTest {
             assertThatThrownBy(() -> client.getStories("theme-1", "list-1"))
                     .isInstanceOf(OdiiApiException.class);
         }
+    }
+
+    @Test
+    void http500IsRetriedOnceAndThenSucceedsForThemesAndStories() {
+        AtomicInteger themeAttempts = new AtomicInteger();
+        OdiiApiClient themeClient = clientWithExchange(request -> response(
+                themeAttempts.incrementAndGet() == 1 ? HttpStatus.INTERNAL_SERVER_ERROR : HttpStatus.OK,
+                successBody("{}")));
+        AtomicInteger storyAttempts = new AtomicInteger();
+        OdiiApiClient storyClient = clientWithExchange(request -> response(
+                storyAttempts.incrementAndGet() == 1 ? HttpStatus.INTERNAL_SERVER_ERROR : HttpStatus.OK,
+                successBody("{}")));
+
+        assertThat(themeClient.searchThemes("공산성", Duration.ofSeconds(2))).isEmpty();
+        assertThat(storyClient.getStories("theme-1", "list-1", Duration.ofSeconds(2))).isEmpty();
+        assertThat(themeAttempts).hasValue(2);
+        assertThat(storyAttempts).hasValue(2);
+    }
+
+    @Test
+    void consecutiveHttp500FailsAfterOneRetry() {
+        AtomicInteger attempts = new AtomicInteger();
+        OdiiApiClient client = clientWithExchange(request -> {
+            attempts.incrementAndGet();
+            return response(HttpStatus.INTERNAL_SERVER_ERROR, "error");
+        });
+
+        assertThatThrownBy(() -> client.searchThemes("공산성", Duration.ofSeconds(2)))
+                .isInstanceOf(OdiiApiException.class);
+        assertThatThrownBy(() -> client.getStories("theme-1", "list-1", Duration.ofSeconds(2)))
+                .isInstanceOf(OdiiApiException.class);
+        assertThat(attempts).hasValue(4);
+    }
+
+    @Test
+    void http4xxEmptyAndMalformedResultsAreNotRetried() {
+        for (HttpStatus status : new HttpStatus[]{HttpStatus.BAD_REQUEST, HttpStatus.TOO_MANY_REQUESTS}) {
+            AtomicInteger attempts = new AtomicInteger();
+            OdiiApiClient client = clientWithExchange(request -> {
+                attempts.incrementAndGet();
+                return response(status, "error");
+            });
+
+            assertThatThrownBy(() -> client.searchThemes("공산성", Duration.ofSeconds(2)))
+                    .isInstanceOf(OdiiApiException.class);
+            assertThatThrownBy(() -> client.getStories("theme-1", "list-1", Duration.ofSeconds(2)))
+                    .isInstanceOf(OdiiApiException.class);
+            assertThat(attempts).hasValue(2);
+        }
+
+        AtomicInteger emptyAttempts = new AtomicInteger();
+        OdiiApiClient emptyClient = clientWithExchange(request -> {
+            emptyAttempts.incrementAndGet();
+            return response(HttpStatus.OK, emptyStringBody(0));
+        });
+        assertThat(emptyClient.searchThemes("향천사", Duration.ofSeconds(2))).isEmpty();
+        assertThat(emptyClient.getStories("theme-1", "list-1", Duration.ofSeconds(2))).isEmpty();
+        assertThat(emptyAttempts).hasValue(2);
+
+        AtomicInteger malformedAttempts = new AtomicInteger();
+        OdiiApiClient malformedClient = clientWithExchange(request -> {
+            malformedAttempts.incrementAndGet();
+            return response(HttpStatus.OK, "{invalid");
+        });
+        assertThatThrownBy(() -> malformedClient.searchThemes("공산성", Duration.ofSeconds(2)))
+                .isInstanceOf(OdiiApiException.class);
+        assertThatThrownBy(() -> malformedClient.getStories("theme-1", "list-1", Duration.ofSeconds(2)))
+                .isInstanceOf(OdiiApiException.class);
+        assertThat(malformedAttempts).hasValue(2);
+    }
+
+    @Test
+    void themeAndStoryTimeoutsDoNotRetry() {
+        AtomicInteger attempts = new AtomicInteger();
+        OdiiApiClient client = clientWithExchange(request -> {
+            attempts.incrementAndGet();
+            return Mono.never();
+        });
+
+        assertThatThrownBy(() -> client.searchThemes("공산성", Duration.ofMillis(100)))
+                .isInstanceOf(OdiiApiException.class);
+        assertThatThrownBy(() -> client.getStories("theme-1", "list-1", Duration.ofMillis(100)))
+                .isInstanceOf(OdiiApiException.class);
+        assertThat(attempts).hasValue(2);
+    }
+
+    @Test
+    void retryBackoffIsIncludedInTotalTimeBudget() {
+        AtomicInteger attempts = new AtomicInteger();
+        OdiiApiClient client = clientWithExchange(request -> {
+            attempts.incrementAndGet();
+            return response(HttpStatus.INTERNAL_SERVER_ERROR, "error");
+        });
+        long startedAt = System.nanoTime();
+
+        assertThatThrownBy(() -> client.searchThemes("공산성", Duration.ofMillis(50)))
+                .isInstanceOf(OdiiApiException.class);
+        assertThat(Duration.ofNanos(System.nanoTime() - startedAt)).isLessThan(Duration.ofSeconds(1));
+        assertThat(attempts).hasValue(1);
+    }
+
+    @Test
+    void secondAttemptIsStoppedByTotalTimeBudget() {
+        AtomicInteger attempts = new AtomicInteger();
+        OdiiApiClient client = clientWithExchange(request ->
+                attempts.incrementAndGet() == 1
+                        ? response(HttpStatus.INTERNAL_SERVER_ERROR, "error")
+                        : Mono.never());
+        long startedAt = System.nanoTime();
+
+        assertThatThrownBy(() -> client.getStories("theme-1", "list-1", Duration.ofMillis(350)))
+                .isInstanceOf(OdiiApiException.class);
+        assertThat(Duration.ofNanos(System.nanoTime() - startedAt)).isLessThan(Duration.ofSeconds(1));
+        assertThat(attempts).hasValue(2);
+    }
+
+    private Mono<ClientResponse> response(HttpStatus status, String body) {
+        return Mono.just(ClientResponse.create(status)
+                .header("Content-Type", "application/json")
+                .body(body)
+                .build());
     }
 
     private String emptyStringBody(int totalCount) {
