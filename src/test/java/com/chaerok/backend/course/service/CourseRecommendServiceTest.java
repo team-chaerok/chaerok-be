@@ -18,15 +18,25 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongSupplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -81,10 +91,11 @@ class CourseRecommendServiceTest {
         );
 
         when(kakaoLocalClient.searchPlacesByCategory(
-                "FD6",
-                ANCHOR_LONGITUDE,
-                ANCHOR_LATITUDE,
-                2000
+                eq("FD6"),
+                eq(ANCHOR_LONGITUDE),
+                eq(ANCHOR_LATITUDE),
+                eq(2000),
+                any(Duration.class)
         )).thenReturn(List.of(food));
 
         mockDefaultCafeSearch();
@@ -106,10 +117,11 @@ class CourseRecommendServiceTest {
 
         verify(kakaoLocalClient, never())
                 .searchPlacesByCategory(
-                        "FD6",
-                        ANCHOR_LONGITUDE,
-                        ANCHOR_LATITUDE,
-                        5000
+                        eq("FD6"),
+                        eq(ANCHOR_LONGITUDE),
+                        eq(ANCHOR_LATITUDE),
+                        eq(5000),
+                        any(Duration.class)
                 );
     }
 
@@ -134,17 +146,19 @@ class CourseRecommendServiceTest {
         );
 
         when(kakaoLocalClient.searchPlacesByCategory(
-                "FD6",
-                ANCHOR_LONGITUDE,
-                ANCHOR_LATITUDE,
-                2000
+                eq("FD6"),
+                eq(ANCHOR_LONGITUDE),
+                eq(ANCHOR_LATITUDE),
+                eq(2000),
+                any(Duration.class)
         )).thenReturn(List.of(outsideFood));
 
         when(kakaoLocalClient.searchPlacesByCategory(
-                "FD6",
-                ANCHOR_LONGITUDE,
-                ANCHOR_LATITUDE,
-                5000
+                eq("FD6"),
+                eq(ANCHOR_LONGITUDE),
+                eq(ANCHOR_LATITUDE),
+                eq(5000),
+                any(Duration.class)
         )).thenReturn(List.of(expandedFood));
 
         mockDefaultCafeSearch();
@@ -167,10 +181,11 @@ class CourseRecommendServiceTest {
 
         verify(kakaoLocalClient)
                 .searchPlacesByCategory(
-                        "FD6",
-                        ANCHOR_LONGITUDE,
-                        ANCHOR_LATITUDE,
-                        5000
+                        eq("FD6"),
+                        eq(ANCHOR_LONGITUDE),
+                        eq(ANCHOR_LATITUDE),
+                        eq(5000),
+                        any(Duration.class)
                 );
     }
 
@@ -202,17 +217,19 @@ class CourseRecommendServiceTest {
         );
 
         when(kakaoLocalClient.searchPlacesByCategory(
-                "FD6",
-                ANCHOR_LONGITUDE,
-                ANCHOR_LATITUDE,
-                2000
+                eq("FD6"),
+                eq(ANCHOR_LONGITUDE),
+                eq(ANCHOR_LATITUDE),
+                eq(2000),
+                any(Duration.class)
         )).thenReturn(List.of(outsideDefault));
 
         when(kakaoLocalClient.searchPlacesByCategory(
-                "FD6",
-                ANCHOR_LONGITUDE,
-                ANCHOR_LATITUDE,
-                5000
+                eq("FD6"),
+                eq(ANCHOR_LONGITUDE),
+                eq(ANCHOR_LATITUDE),
+                eq(5000),
+                any(Duration.class)
         )).thenReturn(List.of(
                 outsideExpanded,
                 sameRegionExpanded
@@ -261,17 +278,19 @@ class CourseRecommendServiceTest {
         );
 
         when(kakaoLocalClient.searchPlacesByCategory(
-                "FD6",
-                ANCHOR_LONGITUDE,
-                ANCHOR_LATITUDE,
-                2000
+                eq("FD6"),
+                eq(ANCHOR_LONGITUDE),
+                eq(ANCHOR_LATITUDE),
+                eq(2000),
+                any(Duration.class)
         )).thenReturn(List.of(outsideDefault));
 
         when(kakaoLocalClient.searchPlacesByCategory(
-                "FD6",
-                ANCHOR_LONGITUDE,
-                ANCHOR_LATITUDE,
-                5000
+                eq("FD6"),
+                eq(ANCHOR_LONGITUDE),
+                eq(ANCHOR_LATITUDE),
+                eq(5000),
+                any(Duration.class)
         )).thenReturn(List.of(outsideExpanded));
 
         mockDefaultCafeSearch();
@@ -306,17 +325,19 @@ class CourseRecommendServiceTest {
                 .thenReturn(List.of(anchor, foodFallback));
 
         when(kakaoLocalClient.searchPlacesByCategory(
-                "FD6",
-                ANCHOR_LONGITUDE,
-                ANCHOR_LATITUDE,
-                2000
+                eq("FD6"),
+                eq(ANCHOR_LONGITUDE),
+                eq(ANCHOR_LATITUDE),
+                eq(2000),
+                any(Duration.class)
         )).thenReturn(List.of());
 
         when(kakaoLocalClient.searchPlacesByCategory(
-                "FD6",
-                ANCHOR_LONGITUDE,
-                ANCHOR_LATITUDE,
-                5000
+                eq("FD6"),
+                eq(ANCHOR_LONGITUDE),
+                eq(ANCHOR_LATITUDE),
+                eq(5000),
+                any(Duration.class)
         )).thenReturn(List.of());
 
         mockDefaultCafeSearch();
@@ -385,24 +406,27 @@ class CourseRecommendServiceTest {
         );
 
         when(kakaoLocalClient.searchPlacesByCategory(
-                "FD6",
-                ANCHOR_LONGITUDE,
-                ANCHOR_LATITUDE,
-                2000
+                eq("FD6"),
+                eq(ANCHOR_LONGITUDE),
+                eq(ANCHOR_LATITUDE),
+                eq(2000),
+                any(Duration.class)
         )).thenReturn(List.of(food));
 
         when(kakaoLocalClient.searchPlacesByCategory(
-                "CE7",
-                ANCHOR_LONGITUDE,
-                ANCHOR_LATITUDE,
-                2000
+                eq("CE7"),
+                eq(ANCHOR_LONGITUDE),
+                eq(ANCHOR_LATITUDE),
+                eq(2000),
+                any(Duration.class)
         )).thenReturn(List.of());
 
         when(kakaoLocalClient.searchPlacesByCategory(
-                "CE7",
-                ANCHOR_LONGITUDE,
-                ANCHOR_LATITUDE,
-                5000
+                eq("CE7"),
+                eq(ANCHOR_LONGITUDE),
+                eq(ANCHOR_LATITUDE),
+                eq(5000),
+                any(Duration.class)
         )).thenReturn(List.of());
 
         // when
@@ -491,31 +515,35 @@ class CourseRecommendServiceTest {
 
         // 첫 번째 Anchor: FOOD/CAFE 모두 실패 → 불완전 코스
         when(kakaoLocalClient.searchPlacesByCategory(
-                "FD6",
-                new BigDecimal("127.1200"),
-                new BigDecimal("36.4500"),
-                2000
+                eq("FD6"),
+                eq(new BigDecimal("127.1200")),
+                eq(new BigDecimal("36.4500")),
+                eq(2000),
+                any(Duration.class)
         )).thenReturn(List.of());
 
         when(kakaoLocalClient.searchPlacesByCategory(
-                "FD6",
-                new BigDecimal("127.1200"),
-                new BigDecimal("36.4500"),
-                5000
+                eq("FD6"),
+                eq(new BigDecimal("127.1200")),
+                eq(new BigDecimal("36.4500")),
+                eq(5000),
+                any(Duration.class)
         )).thenReturn(List.of());
 
         when(kakaoLocalClient.searchPlacesByCategory(
-                "CE7",
-                new BigDecimal("127.1200"),
-                new BigDecimal("36.4500"),
-                2000
+                eq("CE7"),
+                eq(new BigDecimal("127.1200")),
+                eq(new BigDecimal("36.4500")),
+                eq(2000),
+                any(Duration.class)
         )).thenReturn(List.of());
 
         when(kakaoLocalClient.searchPlacesByCategory(
-                "CE7",
-                new BigDecimal("127.1200"),
-                new BigDecimal("36.4500"),
-                5000
+                eq("CE7"),
+                eq(new BigDecimal("127.1200")),
+                eq(new BigDecimal("36.4500")),
+                eq(5000),
+                any(Duration.class)
         )).thenReturn(List.of());
 
         // 두 번째 Anchor: 정상 FOOD / CAFE 후보 존재
@@ -534,17 +562,19 @@ class CourseRecommendServiceTest {
         );
 
         when(kakaoLocalClient.searchPlacesByCategory(
-                "FD6",
-                new BigDecimal("127.1300"),
-                new BigDecimal("36.4600"),
-                2000
+                eq("FD6"),
+                eq(new BigDecimal("127.1300")),
+                eq(new BigDecimal("36.4600")),
+                eq(2000),
+                any(Duration.class)
         )).thenReturn(List.of(food));
 
         when(kakaoLocalClient.searchPlacesByCategory(
-                "CE7",
-                new BigDecimal("127.1300"),
-                new BigDecimal("36.4600"),
-                2000
+                eq("CE7"),
+                eq(new BigDecimal("127.1300")),
+                eq(new BigDecimal("36.4600")),
+                eq(2000),
+                any(Duration.class)
         )).thenReturn(List.of(cafe));
 
         // when
@@ -564,6 +594,258 @@ class CourseRecommendServiceTest {
                         "두 번째 식당",
                         "두 번째 카페"
                 );
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void lastKakaoCallExhaustionIsLogged(CapturedOutput output) {
+        mockAnchor();
+
+        AtomicLong clock = new AtomicLong();
+        ReflectionTestUtils.setField(courseRecommendService, "nanoTime", (LongSupplier) clock::get);
+        KakaoPlaceItem food = createKakaoPlace(
+                "food-1", "Kakao food", "FD6", "충남 공주시 금성동 10");
+        KakaoPlaceItem cafe = createKakaoPlace(
+                "cafe-1", "Kakao cafe", "CE7", "충남 공주시 금성동 20");
+        when(kakaoLocalClient.searchPlacesByCategory(
+                eq("FD6"), eq(ANCHOR_LONGITUDE), eq(ANCHOR_LATITUDE),
+                eq(2000), any(Duration.class)))
+                .thenReturn(List.of(food));
+        when(kakaoLocalClient.searchPlacesByCategory(
+                eq("CE7"), eq(ANCHOR_LONGITUDE), eq(ANCHOR_LATITUDE),
+                eq(2000), any(Duration.class)))
+                .thenAnswer(invocation -> {
+                    clock.addAndGet(Duration.ofSeconds(8).toNanos());
+                    return List.of(cafe);
+                });
+
+        CourseRecommendResponse response = courseRecommendService.recommendCourses(REGION_ID, ANCHOR_ID);
+
+        assertThat(response.courses()).hasSize(1);
+        assertThat(output).contains("Kakao calls=2, elapsedMs=8000, budgetExhausted=true, dbFallbackUsed=false");
+    }
+
+    @Test
+    void budgetExhaustionKeepsKakaoFoodAndUsesDatabaseCafe() {
+        mockAnchor();
+        Place cafeFallback = mockPlace(
+                30L, "DB cafe", PlaceCategoryGroup.CAFE_DESSERT,
+                PlaceCategoryDetail.CAFE, "36.4520", "127.1220");
+        when(placeRepository.findByRegionIdAndRepresentativeTrue(REGION_ID))
+                .thenReturn(List.of(anchor, cafeFallback));
+
+        AtomicLong clock = new AtomicLong();
+        ReflectionTestUtils.setField(courseRecommendService, "nanoTime", (LongSupplier) clock::get);
+        KakaoPlaceItem food = createKakaoPlace(
+                "food-1", "Kakao food", "FD6", "충남 공주시 금성동 10");
+        when(kakaoLocalClient.searchPlacesByCategory(
+                eq("FD6"), eq(ANCHOR_LONGITUDE), eq(ANCHOR_LATITUDE),
+                eq(2000), any(Duration.class)))
+                .thenAnswer(invocation -> {
+                    clock.addAndGet(Duration.ofSeconds(8).toNanos());
+                    return List.of(food);
+                });
+
+        CourseRecommendResponse response = courseRecommendService.recommendCourses(REGION_ID, ANCHOR_ID);
+
+        assertThat(response.courses()).hasSize(1);
+        assertThat(response.courses().get(0).places())
+                .extracting(CoursePlaceResponse::title)
+                .contains("Kakao food", "DB cafe");
+        verify(kakaoLocalClient, times(1)).searchPlacesByCategory(
+                eq("FD6"), eq(ANCHOR_LONGITUDE), eq(ANCHOR_LATITUDE),
+                eq(2000), any(Duration.class));
+        verify(kakaoLocalClient, never()).searchPlacesByCategory(
+                eq("CE7"), eq(ANCHOR_LONGITUDE), eq(ANCHOR_LATITUDE),
+                eq(2000), any(Duration.class));
+    }
+
+    @Test
+    void exhaustedBudgetIsSharedByRegionAnchors() {
+        Place secondAnchor = org.mockito.Mockito.mock(Place.class);
+        mockRegionAnchor(anchor, ANCHOR_ID, "first", PlaceCategoryDetail.HERITAGE,
+                "36.4500", "127.1200");
+        mockRegionAnchor(secondAnchor, 20L, "second", PlaceCategoryDetail.NATURE,
+                "36.4600", "127.1300");
+        Place foodFallback = mockPlace(
+                30L, "DB food", PlaceCategoryGroup.FOOD,
+                PlaceCategoryDetail.RESTAURANT, "36.4510", "127.1210");
+        Place cafeFallback = mockPlace(
+                40L, "DB cafe", PlaceCategoryGroup.CAFE_DESSERT,
+                PlaceCategoryDetail.CAFE, "36.4520", "127.1220");
+        when(regionRepository.existsById(REGION_ID)).thenReturn(true);
+        when(placeRepository.findByRegionIdAndRepresentativeTrue(REGION_ID))
+                .thenReturn(List.of(anchor, secondAnchor, foodFallback, cafeFallback));
+
+        AtomicLong clock = new AtomicLong();
+        ReflectionTestUtils.setField(courseRecommendService, "nanoTime", (LongSupplier) clock::get);
+        when(kakaoLocalClient.searchPlacesByCategory(
+                eq("FD6"), eq(ANCHOR_LONGITUDE), eq(ANCHOR_LATITUDE),
+                eq(2000), any(Duration.class)))
+                .thenAnswer(invocation -> {
+                    clock.addAndGet(Duration.ofSeconds(8).toNanos());
+                    return List.of();
+                });
+
+        CourseRecommendResponse response = courseRecommendService.recommendCourses(REGION_ID, null);
+
+        assertThat(response.courses()).hasSize(2);
+        assertThat(response.anchorPlaceId()).isEqualTo(ANCHOR_ID);
+        assertThat(response.courses().get(0).places())
+                .extracting(CoursePlaceResponse::title)
+                .contains("DB food", "DB cafe");
+        verify(kakaoLocalClient, times(1)).searchPlacesByCategory(
+                eq("FD6"), eq(ANCHOR_LONGITUDE), eq(ANCHOR_LATITUDE),
+                eq(2000), any(Duration.class));
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void anchorBudgetsResetWhileTotalBudgetIsShared(CapturedOutput output) {
+        Place secondAnchor = org.mockito.Mockito.mock(Place.class);
+        Place thirdAnchor = org.mockito.Mockito.mock(Place.class);
+        mockRegionAnchor(anchor, ANCHOR_ID, "first", PlaceCategoryDetail.HERITAGE,
+                "36.4500", "127.1200");
+        mockRegionAnchor(secondAnchor, 20L, "second", PlaceCategoryDetail.NATURE,
+                "36.4600", "127.1300");
+        mockRegionAnchor(thirdAnchor, 30L, "third", PlaceCategoryDetail.WALK,
+                "36.4700", "127.1400");
+        Place cafeFallback = mockPlace(
+                40L, "DB cafe", PlaceCategoryGroup.CAFE_DESSERT,
+                PlaceCategoryDetail.CAFE, "36.4520", "127.1220");
+        when(regionRepository.existsById(REGION_ID)).thenReturn(true);
+        when(placeRepository.findByRegionIdAndRepresentativeTrue(REGION_ID))
+                .thenReturn(List.of(anchor, secondAnchor, thirdAnchor, cafeFallback));
+
+        AtomicLong clock = new AtomicLong();
+        ReflectionTestUtils.setField(courseRecommendService, "nanoTime", (LongSupplier) clock::get);
+        KakaoPlaceItem food = createKakaoPlace(
+                "food-1", "Kakao food", "FD6", "충남 공주시 금성동 10");
+        when(kakaoLocalClient.searchPlacesByCategory(
+                eq("FD6"), eq(new BigDecimal("127.1200")), eq(new BigDecimal("36.4500")),
+                eq(2000), any(Duration.class)))
+                .thenAnswer(invocation -> {
+                    assertThat(invocation.getArgument(4, Duration.class)).isEqualTo(Duration.ofSeconds(3));
+                    clock.addAndGet(Duration.ofSeconds(3).toNanos());
+                    return List.of(food);
+                });
+        when(kakaoLocalClient.searchPlacesByCategory(
+                eq("FD6"), eq(new BigDecimal("127.1300")), eq(new BigDecimal("36.4600")),
+                eq(2000), any(Duration.class)))
+                .thenAnswer(invocation -> {
+                    assertThat(invocation.getArgument(4, Duration.class)).isEqualTo(Duration.ofSeconds(3));
+                    clock.addAndGet(Duration.ofSeconds(3).toNanos());
+                    return List.of(food);
+                });
+        when(kakaoLocalClient.searchPlacesByCategory(
+                eq("FD6"), eq(new BigDecimal("127.1400")), eq(new BigDecimal("36.4700")),
+                eq(2000), any(Duration.class)))
+                .thenAnswer(invocation -> {
+                    assertThat(invocation.getArgument(4, Duration.class)).isEqualTo(Duration.ofSeconds(2));
+                    clock.addAndGet(Duration.ofSeconds(2).toNanos());
+                    return List.of(food);
+                });
+
+        CourseRecommendResponse response = courseRecommendService.recommendCourses(REGION_ID, null);
+
+        assertThat(response.courses()).hasSize(3);
+        assertThat(response.anchorPlaceId()).isEqualTo(ANCHOR_ID);
+        assertThat(response.courses().get(0).places())
+                .extracting(CoursePlaceResponse::title)
+                .contains("Kakao food", "DB cafe");
+        assertThat(output).contains("Kakao calls=3, elapsedMs=8000, budgetExhausted=true, dbFallbackUsed=true");
+        assertThat(output).contains("anchorPlaceId=10, kakaoCalls=1, kakaoElapsedMs=3000, anchorBudgetExhausted=true");
+        assertThat(output).contains("anchorPlaceId=20, kakaoCalls=1, kakaoElapsedMs=3000, anchorBudgetExhausted=true");
+        assertThat(output).contains("anchorPlaceId=30, kakaoCalls=1, kakaoElapsedMs=2000, anchorBudgetExhausted=false");
+        verify(kakaoLocalClient).searchPlacesByCategory(
+                eq("FD6"), eq(new BigDecimal("127.1200")), eq(new BigDecimal("36.4500")),
+                eq(2000), any(Duration.class));
+        verify(kakaoLocalClient).searchPlacesByCategory(
+                eq("FD6"), eq(new BigDecimal("127.1300")), eq(new BigDecimal("36.4600")),
+                eq(2000), any(Duration.class));
+        verify(kakaoLocalClient).searchPlacesByCategory(
+                eq("FD6"), eq(new BigDecimal("127.1400")), eq(new BigDecimal("36.4700")),
+                eq(2000), any(Duration.class));
+        verifyNoMoreInteractions(kakaoLocalClient);
+    }
+
+    @Test
+    void foodRadiiAndCafeShareAnchorBudget() {
+        mockAnchor();
+        Place cafeFallback = mockPlace(
+                30L, "DB cafe", PlaceCategoryGroup.CAFE_DESSERT,
+                PlaceCategoryDetail.CAFE, "36.4520", "127.1220");
+        when(placeRepository.findByRegionIdAndRepresentativeTrue(REGION_ID))
+                .thenReturn(List.of(anchor, cafeFallback));
+
+        AtomicLong clock = new AtomicLong();
+        ReflectionTestUtils.setField(courseRecommendService, "nanoTime", (LongSupplier) clock::get);
+        KakaoPlaceItem food = createKakaoPlace(
+                "food-1", "Kakao food", "FD6", "충남 공주시 금성동 10");
+        when(kakaoLocalClient.searchPlacesByCategory(
+                eq("FD6"), eq(ANCHOR_LONGITUDE), eq(ANCHOR_LATITUDE),
+                eq(2000), any(Duration.class)))
+                .thenAnswer(invocation -> {
+                    assertThat(invocation.getArgument(4, Duration.class)).isEqualTo(Duration.ofSeconds(3));
+                    clock.addAndGet(Duration.ofSeconds(2).toNanos());
+                    return List.of();
+                });
+        when(kakaoLocalClient.searchPlacesByCategory(
+                eq("FD6"), eq(ANCHOR_LONGITUDE), eq(ANCHOR_LATITUDE),
+                eq(5000), any(Duration.class)))
+                .thenAnswer(invocation -> {
+                    assertThat(invocation.getArgument(4, Duration.class)).isEqualTo(Duration.ofSeconds(1));
+                    clock.addAndGet(Duration.ofSeconds(1).toNanos());
+                    return List.of(food);
+                });
+
+        CourseRecommendResponse response = courseRecommendService.recommendCourses(REGION_ID, ANCHOR_ID);
+
+        assertThat(response.courses()).hasSize(1);
+        assertThat(response.courses().get(0).places())
+                .extracting(CoursePlaceResponse::title)
+                .contains("Kakao food", "DB cafe");
+        verify(kakaoLocalClient).searchPlacesByCategory(
+                eq("FD6"), eq(ANCHOR_LONGITUDE), eq(ANCHOR_LATITUDE),
+                eq(2000), any(Duration.class));
+        verify(kakaoLocalClient).searchPlacesByCategory(
+                eq("FD6"), eq(ANCHOR_LONGITUDE), eq(ANCHOR_LATITUDE),
+                eq(5000), any(Duration.class));
+        verifyNoMoreInteractions(kakaoLocalClient);
+    }
+
+    @Test
+    void anchorRemainingBelowThresholdSkipsFurtherKakaoCalls() {
+        mockAnchor();
+        Place foodFallback = mockPlace(
+                20L, "DB food", PlaceCategoryGroup.FOOD,
+                PlaceCategoryDetail.RESTAURANT, "36.4510", "127.1210");
+        Place cafeFallback = mockPlace(
+                30L, "DB cafe", PlaceCategoryGroup.CAFE_DESSERT,
+                PlaceCategoryDetail.CAFE, "36.4520", "127.1220");
+        when(placeRepository.findByRegionIdAndRepresentativeTrue(REGION_ID))
+                .thenReturn(List.of(anchor, foodFallback, cafeFallback));
+
+        AtomicLong clock = new AtomicLong();
+        ReflectionTestUtils.setField(courseRecommendService, "nanoTime", (LongSupplier) clock::get);
+        when(kakaoLocalClient.searchPlacesByCategory(
+                eq("FD6"), eq(ANCHOR_LONGITUDE), eq(ANCHOR_LATITUDE),
+                eq(2000), any(Duration.class)))
+                .thenAnswer(invocation -> {
+                    clock.addAndGet(Duration.ofMillis(2751).toNanos());
+                    return List.of();
+                });
+
+        CourseRecommendResponse response = courseRecommendService.recommendCourses(REGION_ID, ANCHOR_ID);
+
+        assertThat(response.courses()).hasSize(1);
+        assertThat(response.courses().get(0).places())
+                .extracting(CoursePlaceResponse::title)
+                .contains("DB food", "DB cafe");
+        verify(kakaoLocalClient).searchPlacesByCategory(
+                eq("FD6"), eq(ANCHOR_LONGITUDE), eq(ANCHOR_LATITUDE),
+                eq(2000), any(Duration.class));
+        verifyNoMoreInteractions(kakaoLocalClient);
     }
 
     private void mockRegionAnchor(
@@ -647,10 +929,11 @@ class CourseRecommendServiceTest {
         );
 
         when(kakaoLocalClient.searchPlacesByCategory(
-                "CE7",
-                ANCHOR_LONGITUDE,
-                ANCHOR_LATITUDE,
-                2000
+                eq("CE7"),
+                eq(ANCHOR_LONGITUDE),
+                eq(ANCHOR_LATITUDE),
+                eq(2000),
+                any(Duration.class)
         )).thenReturn(List.of(cafe));
     }
 

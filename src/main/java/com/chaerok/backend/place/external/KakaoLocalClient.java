@@ -84,11 +84,25 @@ public class KakaoLocalClient {
             BigDecimal latitude,
             int radius
     ) {
+        return searchPlacesByCategory(categoryGroupCode, longitude, latitude, radius, REQUEST_TIMEOUT);
+    }
+
+    public List<KakaoPlaceItem> searchPlacesByCategory(
+            String categoryGroupCode,
+            BigDecimal longitude,
+            BigDecimal latitude,
+            int radius,
+            Duration timeout
+    ) {
         if (categoryGroupCode == null || categoryGroupCode.isBlank()) {
             return List.of();
         }
 
         if (longitude == null || latitude == null) {
+            return List.of();
+        }
+
+        if (timeout == null || timeout.isZero() || timeout.isNegative()) {
             return List.of();
         }
 
@@ -109,7 +123,7 @@ public class KakaoLocalClient {
                     .header("Authorization", "KakaoAK " + restApiKey)
                     .retrieve()
                     .bodyToMono(KakaoPlaceResponse.class)
-                    .timeout(REQUEST_TIMEOUT)
+                    .timeout(timeout.compareTo(REQUEST_TIMEOUT) < 0 ? timeout : REQUEST_TIMEOUT)
                     .block();
 
             if (response == null) {
