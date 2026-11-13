@@ -57,6 +57,10 @@ external:
     language-code: ko
     total-timeout: ${ODII_TOTAL_TIMEOUT:9s}
 
+course:
+  recommend:
+    kakao-total-timeout: ${COURSE_RECOMMEND_KAKAO_TOTAL_TIMEOUT:8s}
+
 oauth:
   kakao:
     client-id: ${KAKAO_NATIVE_APP_KEY}

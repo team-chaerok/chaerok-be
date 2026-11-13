@@ -14,16 +14,22 @@ import com.chaerok.backend.place.external.KakaoPlaceItem;
 import com.chaerok.backend.place.repository.PlaceRepository;
 import com.chaerok.backend.region.exception.RegionErrorCode;
 import com.chaerok.backend.region.repository.RegionRepository;
+import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.LongSupplier;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -39,10 +45,17 @@ public class CourseRecommendService {
     private static final int EXTENDED_SEARCH_RADIUS = 5000;
     private static final int MAX_REGION_ANCHOR_COUNT = 3;
     private static final int MAX_COURSE_PLACE_COUNT = 3;
+    private static final Duration MIN_KAKAO_CALL_TIME = Duration.ofMillis(250);
+    private static final Duration ANCHOR_KAKAO_TIMEOUT = Duration.ofSeconds(3);
 
     private final RegionRepository regionRepository;
     private final PlaceRepository placeRepository;
     private final KakaoLocalClient kakaoLocalClient;
+
+    @Value("${course.recommend.kakao-total-timeout:8s}")
+    private Duration kakaoTotalTimeout = Duration.ofSeconds(8);
+
+    private LongSupplier nanoTime = System::nanoTime;
 
     public CourseRecommendResponse recommendCourses(
             Long regionId,
@@ -53,43 +66,51 @@ public class CourseRecommendService {
         List<Place> representativePlaces =
                 placeRepository.findByRegionIdAndRepresentativeTrue(regionId);
 
-        if (anchorPlaceId != null) {
-            Place anchor = findAnchor(regionId, anchorPlaceId);
+        KakaoBudget budget = new KakaoBudget(kakaoTotalTimeout);
 
-            CourseResponse course = createCourse(anchor, representativePlaces);
+        try {
+            if (anchorPlaceId != null) {
+                Place anchor = findAnchor(regionId, anchorPlaceId);
+
+                CourseResponse course = createCourse(anchor, representativePlaces, budget);
+
+                return new CourseRecommendResponse(
+                        regionId,
+                        RECOMMENDATION_TYPE_ANCHOR,
+                        anchor.getId(),
+                        isCompleteCourse(course) ? List.of(course) : List.of()
+                );
+            }
+
+            List<Place> anchors = findRegionAnchors(representativePlaces);
+
+            List<AnchorCourse> validCourses = anchors.stream()
+                    .map(anchor -> new AnchorCourse(
+                            anchor,
+                            createCourse(anchor, representativePlaces, budget)
+                    ))
+                    .filter(anchorCourse -> isCompleteCourse(anchorCourse.course()))
+                    .toList();
+
+            List<CourseResponse> courses = validCourses.stream()
+                    .map(AnchorCourse::course)
+                    .toList();
+
+            Long firstAnchorPlaceId = validCourses.isEmpty()
+                    ? null
+                    : validCourses.get(0).anchor().getId();
 
             return new CourseRecommendResponse(
                     regionId,
-                    RECOMMENDATION_TYPE_ANCHOR,
-                    anchor.getId(),
-                    isCompleteCourse(course) ? List.of(course) : List.of()
+                    RECOMMENDATION_TYPE_REGION,
+                    firstAnchorPlaceId,
+                    courses
             );
+        } finally {
+            log.info("Course recommendation Kakao calls={}, elapsedMs={}, budgetExhausted={}, dbFallbackUsed={}",
+                    budget.callCount, Duration.ofNanos(budget.elapsedNanos).toMillis(),
+                    budget.exhausted, budget.dbFallbackUsed);
         }
-
-        List<Place> anchors = findRegionAnchors(representativePlaces);
-
-        List<AnchorCourse> validCourses = anchors.stream()
-                .map(anchor -> new AnchorCourse(
-                        anchor,
-                        createCourse(anchor, representativePlaces)
-                ))
-                .filter(anchorCourse -> isCompleteCourse(anchorCourse.course()))
-                .toList();
-
-        List<CourseResponse> courses = validCourses.stream()
-                .map(AnchorCourse::course)
-                .toList();
-
-        Long firstAnchorPlaceId = validCourses.isEmpty()
-                ? null
-                : validCourses.get(0).anchor().getId();
-
-        return new CourseRecommendResponse(
-                regionId,
-                RECOMMENDATION_TYPE_REGION,
-                firstAnchorPlaceId,
-                courses
-        );
     }
 
     private boolean isCompleteCourse(CourseResponse course) {
@@ -158,57 +179,78 @@ public class CourseRecommendService {
 
     private CourseResponse createCourse(
             Place anchor,
-            List<Place> representativePlaces
+            List<Place> representativePlaces,
+            KakaoBudget budget
     ) {
+        budget.startAnchor();
         List<CoursePlaceResponse> places = new ArrayList<>();
 
         places.add(CoursePlaceResponse.fromPlace(anchor));
 
-        findFirstFoodCandidate(anchor)
+        Optional<KakaoPlaceItem> foodCandidate = findFirstFoodCandidate(anchor, budget);
+        foodCandidate
                 .map(CoursePlaceResponse::fromKakaoFood)
                 .or(() -> findFallbackPlace(
                         anchor,
                         representativePlaces,
                         PlaceCategoryGroup.FOOD
-                ).map(CoursePlaceResponse::fromPlace))
+                ).map(place -> {
+                    budget.dbFallbackUsed = true;
+                    budget.anchorDbFallbackUsed = true;
+                    return CoursePlaceResponse.fromPlace(place);
+                }))
                 .ifPresent(places::add);
 
-        findFirstCafeCandidate(anchor)
+        Optional<KakaoPlaceItem> cafeCandidate = findFirstCafeCandidate(anchor, budget);
+        cafeCandidate
                 .map(CoursePlaceResponse::fromKakaoCafe)
                 .or(() -> findFallbackPlace(
                         anchor,
                         representativePlaces,
                         PlaceCategoryGroup.CAFE_DESSERT
-                ).map(CoursePlaceResponse::fromPlace))
+                ).map(place -> {
+                    budget.dbFallbackUsed = true;
+                    budget.anchorDbFallbackUsed = true;
+                    return CoursePlaceResponse.fromPlace(place);
+                }))
                 .ifPresent(places::add);
 
-        return new CourseResponse(
+        CourseResponse course = new CourseResponse(
                 createCourseTitle(anchor),
                 calculateScore(anchor, places),
                 places
         );
+        log.info("Course recommendation anchor. anchorPlaceId={}, kakaoCalls={}, kakaoElapsedMs={}, "
+                        + "anchorBudgetExhausted={}, kakaoFoodUsed={}, kakaoCafeUsed={}, dbFallbackUsed={}",
+                anchor.getId(), budget.anchorCallCount,
+                Duration.ofNanos(budget.anchorElapsedNanos).toMillis(),
+                budget.anchorExhausted, foodCandidate.isPresent(), cafeCandidate.isPresent(),
+                budget.anchorDbFallbackUsed);
+        return course;
     }
 
-    private java.util.Optional<KakaoPlaceItem> findFirstFoodCandidate(Place anchor) {
-        return searchKakaoCandidates(anchor, KAKAO_CATEGORY_FOOD).stream()
+    private java.util.Optional<KakaoPlaceItem> findFirstFoodCandidate(Place anchor, KakaoBudget budget) {
+        return searchKakaoCandidates(anchor, KAKAO_CATEGORY_FOOD, budget).stream()
                 .findFirst();
     }
 
-    private java.util.Optional<KakaoPlaceItem> findFirstCafeCandidate(Place anchor) {
-        return searchKakaoCandidates(anchor, KAKAO_CATEGORY_CAFE).stream()
+    private java.util.Optional<KakaoPlaceItem> findFirstCafeCandidate(Place anchor, KakaoBudget budget) {
+        return searchKakaoCandidates(anchor, KAKAO_CATEGORY_CAFE, budget).stream()
                 .findFirst();
     }
 
     private List<KakaoPlaceItem> searchKakaoCandidates(
             Place anchor,
-            String categoryGroupCode
+            String categoryGroupCode,
+            KakaoBudget budget
     ) {
         List<KakaoPlaceItem> candidates = filterCandidatesByRegion(
-                kakaoLocalClient.searchPlacesByCategory(
+                searchKakaoWithBudget(
                         categoryGroupCode,
                         anchor.getLongitude(),
                         anchor.getLatitude(),
-                        DEFAULT_SEARCH_RADIUS
+                        DEFAULT_SEARCH_RADIUS,
+                        budget
                 ),
                 anchor
         );
@@ -218,14 +260,77 @@ public class CourseRecommendService {
         }
 
         return filterCandidatesByRegion(
-                kakaoLocalClient.searchPlacesByCategory(
+                searchKakaoWithBudget(
                         categoryGroupCode,
                         anchor.getLongitude(),
                         anchor.getLatitude(),
-                        EXTENDED_SEARCH_RADIUS
+                        EXTENDED_SEARCH_RADIUS,
+                        budget
                 ),
                 anchor
         );
+    }
+
+    private List<KakaoPlaceItem> searchKakaoWithBudget(
+            String categoryGroupCode,
+            BigDecimal longitude,
+            BigDecimal latitude,
+            int radius,
+            KakaoBudget budget
+    ) {
+        Duration remaining = budget.remaining();
+        if (remaining.compareTo(MIN_KAKAO_CALL_TIME) < 0) {
+            budget.updateExhaustion();
+            return List.of();
+        }
+
+        long startedAt = nanoTime.getAsLong();
+        budget.callCount++;
+        budget.anchorCallCount++;
+        try {
+            return kakaoLocalClient.searchPlacesByCategory(
+                    categoryGroupCode, longitude, latitude, radius, remaining);
+        } finally {
+            long elapsedNanos = Math.max(0, nanoTime.getAsLong() - startedAt);
+            budget.elapsedNanos += elapsedNanos;
+            budget.anchorElapsedNanos += elapsedNanos;
+            budget.updateExhaustion();
+        }
+    }
+
+    private static class KakaoBudget {
+        private final long limitNanos;
+        private long elapsedNanos;
+        private long anchorElapsedNanos;
+        private int callCount;
+        private int anchorCallCount;
+        private boolean exhausted;
+        private boolean anchorExhausted;
+        private boolean dbFallbackUsed;
+        private boolean anchorDbFallbackUsed;
+
+        private KakaoBudget(Duration timeout) {
+            this.limitNanos = Math.max(0, timeout.toNanos());
+        }
+
+        private void startAnchor() {
+            anchorElapsedNanos = 0;
+            anchorCallCount = 0;
+            anchorExhausted = false;
+            anchorDbFallbackUsed = false;
+        }
+
+        private Duration remaining() {
+            long totalRemaining = Math.max(0, limitNanos - elapsedNanos);
+            long anchorRemaining = Math.max(0, ANCHOR_KAKAO_TIMEOUT.toNanos() - anchorElapsedNanos);
+            return Duration.ofNanos(Math.min(totalRemaining, anchorRemaining));
+        }
+
+        private void updateExhaustion() {
+            exhausted = limitNanos - elapsedNanos < MIN_KAKAO_CALL_TIME.toNanos();
+            anchorExhausted = ANCHOR_KAKAO_TIMEOUT.toNanos() - anchorElapsedNanos
+                    < MIN_KAKAO_CALL_TIME.toNanos();
+        }
     }
 
     private List<KakaoPlaceItem> filterCandidatesByRegion(
