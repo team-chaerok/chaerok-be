@@ -2,6 +2,7 @@ package com.chaerok.backend.odii.service;
 
 import com.chaerok.backend.heritage.dto.HeritagePlaceResponse;
 import com.chaerok.backend.heritage.service.HeritageService;
+import com.chaerok.backend.odii.config.OdiiProperties;
 import com.chaerok.backend.odii.dto.OdiiGuideResponse;
 import com.chaerok.backend.odii.dto.OdiiGuideResponse.OdiiStatus;
 import com.chaerok.backend.odii.external.OdiiApiClient;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
@@ -34,8 +36,10 @@ public class OdiiService {
 
     private final HeritageService heritageService;
     private final OdiiApiClient odiiApiClient;
+    private final OdiiProperties odiiProperties;
 
     public OdiiGuideResponse getAudioGuide(Long placeId) {
+        long deadline = System.nanoTime() + odiiProperties.getTotalTimeout().toNanos();
         HeritagePlaceResponse heritagePlace =
                 heritageService.getHeritagePlace(placeId);
 
@@ -53,7 +57,7 @@ public class OdiiService {
 
         List<OdiiThemeItem> themes;
         try {
-            themes = odiiApiClient.searchThemes(keyword);
+            themes = odiiApiClient.searchThemes(keyword, remainingTime(deadline));
         } catch (OdiiApiException exception) {
             return odiiError(heritagePlace);
         }
@@ -75,7 +79,7 @@ public class OdiiService {
 
         List<OdiiStoryItem> stories;
         try {
-            stories = odiiApiClient.getStories(theme.tid(), theme.tlid());
+            stories = odiiApiClient.getStories(theme.tid(), theme.tlid(), remainingTime(deadline));
         } catch (OdiiApiException exception) {
             return odiiError(heritagePlace);
         }
@@ -128,6 +132,14 @@ public class OdiiService {
                 heritagePlace.overview(),
                 OdiiStatus.ERROR
         );
+    }
+
+    private Duration remainingTime(long deadline) {
+        long remainingNanos = deadline - System.nanoTime();
+        if (remainingNanos <= 0) {
+            throw new OdiiApiException("Odii 조회 시간 예산 초과");
+        }
+        return Duration.ofNanos(remainingNanos);
     }
 
     private String resolveSearchKeyword(String placeTitle) {

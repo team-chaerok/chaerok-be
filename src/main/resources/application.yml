@@ -55,6 +55,7 @@ external:
     mobile-os: AND
     mobile-app: Chaerok
     language-code: ko
+    total-timeout: ${ODII_TOTAL_TIMEOUT:9s}
 
 oauth:
   kakao:

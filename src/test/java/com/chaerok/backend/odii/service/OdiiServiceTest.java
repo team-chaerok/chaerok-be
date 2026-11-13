@@ -2,6 +2,7 @@ package com.chaerok.backend.odii.service;
 
 import com.chaerok.backend.heritage.dto.HeritagePlaceResponse;
 import com.chaerok.backend.heritage.service.HeritageService;
+import com.chaerok.backend.odii.config.OdiiProperties;
 import com.chaerok.backend.odii.dto.OdiiGuideResponse;
 import com.chaerok.backend.odii.dto.OdiiGuideResponse.OdiiStatus;
 import com.chaerok.backend.odii.external.OdiiApiClient;
@@ -16,10 +17,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -34,13 +38,22 @@ class OdiiServiceTest {
     private OdiiApiClient odiiApiClient;
 
     private OdiiService odiiService;
+    private OdiiProperties properties;
 
     @BeforeEach
     void setUp() {
+        properties = new OdiiProperties();
+        properties.setTotalTimeout(Duration.ofSeconds(9));
         odiiService = new OdiiService(
                 heritageService,
-                odiiApiClient
+                odiiApiClient,
+                properties
         );
+        lenient().when(odiiApiClient.searchThemes(anyString(), any(Duration.class)))
+                .thenAnswer(invocation -> odiiApiClient.searchThemes(invocation.getArgument(0)));
+        lenient().when(odiiApiClient.getStories(anyString(), anyString(), any(Duration.class)))
+                .thenAnswer(invocation -> odiiApiClient.getStories(
+                        invocation.getArgument(0), invocation.getArgument(1)));
     }
 
     @Test
@@ -357,6 +370,38 @@ class OdiiServiceTest {
 
         assertThat(response.odiiStatus()).isEqualTo(OdiiStatus.ERROR);
         assertThat(response.fallbackOverview()).isEqualTo("공산성 소개");
+    }
+
+    @Test
+    void totalBudgetIncludesHeritageLookupAndKeepsFallbackOverview() {
+        properties.setTotalTimeout(Duration.ofMillis(20));
+        when(heritageService.getHeritagePlace(15L)).thenAnswer(invocation -> {
+            Thread.sleep(40);
+            return createHeritagePlace(15L, "공주 공산성", "공산성 소개");
+        });
+
+        OdiiGuideResponse response = odiiService.getAudioGuide(15L);
+
+        assertThat(response.odiiStatus()).isEqualTo(OdiiStatus.ERROR);
+        assertThat(response.fallbackOverview()).isEqualTo("공산성 소개");
+        verify(odiiApiClient, never()).searchThemes(anyString());
+    }
+
+    @Test
+    void expiredBudgetAfterThemePreventsStoryLookup() {
+        properties.setTotalTimeout(Duration.ofMillis(20));
+        when(heritageService.getHeritagePlace(16L))
+                .thenReturn(createHeritagePlace(16L, "공주 공산성", "공산성 소개"));
+        when(odiiApiClient.searchThemes("공산성")).thenAnswer(invocation -> {
+            Thread.sleep(40);
+            return List.of(createTheme("theme-1", "list-1", "공주 공산성"));
+        });
+
+        OdiiGuideResponse response = odiiService.getAudioGuide(16L);
+
+        assertThat(response.odiiStatus()).isEqualTo(OdiiStatus.ERROR);
+        assertThat(response.fallbackOverview()).isEqualTo("공산성 소개");
+        verify(odiiApiClient, never()).getStories(anyString(), anyString());
     }
 
     @Test

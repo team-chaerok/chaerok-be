@@ -7,12 +7,17 @@ import org.springframework.core.codec.CodecException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientException;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 @Component
@@ -24,6 +29,7 @@ public class OdiiApiClient {
     private static final String SUCCESS_CODE = "0000";
 
     private static final Duration API_TIMEOUT = Duration.ofSeconds(15);
+    private static final Duration RETRY_DELAY = Duration.ofMillis(150);
 
     private final WebClient webClient;
     private final OdiiProperties properties;
@@ -42,12 +48,16 @@ public class OdiiApiClient {
      * @return 검색된 관광지 목록
      */
     public List<OdiiThemeItem> searchThemes(String keyword) {
+        return searchThemes(keyword, API_TIMEOUT);
+    }
+
+    public List<OdiiThemeItem> searchThemes(String keyword, Duration remainingTime) {
         if (keyword == null || keyword.isBlank()) {
             return Collections.emptyList();
         }
 
         try {
-            JsonNode root = webClient.get()
+            JsonNode root = fetch(webClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/themeSearchList")
                             .queryParam("numOfRows", DEFAULT_NUM_OF_ROWS)
@@ -58,13 +68,7 @@ public class OdiiApiClient {
                             .queryParam("_type", RESPONSE_TYPE)
                             .queryParam("keyword", keyword)
                             .queryParam("langCode", properties.getLanguageCode())
-                            .build())
-                    .retrieve()
-                    .bodyToMono(JsonNode.class)
-                    .timeout(API_TIMEOUT)
-                    .onErrorMap(this::isExternalFailure,
-                            exception -> new OdiiApiException("themeSearchList 호출 실패", exception))
-                    .block();
+                            .build()), "themeSearchList", remainingTime);
 
             validateResponse(root, "themeSearchList", "keyword=" + keyword);
 
@@ -91,13 +95,6 @@ public class OdiiApiClient {
 
             return items;
         } catch (OdiiApiException e) {
-            log.warn(
-                    "Odii themeSearchList 호출 중 예외 발생. keyword={}, exception={}, message={}",
-                    keyword,
-                    e.getCause() == null ? e.getClass().getSimpleName() : e.getCause().getClass().getSimpleName(),
-                    e.getCause() == null ? e.getMessage() : e.getCause().getMessage()
-            );
-
             throw e;
         }
     }
@@ -110,6 +107,10 @@ public class OdiiApiClient {
      * @return 관광지 이야기 목록
      */
     public List<OdiiStoryItem> getStories(String tid, String tlid) {
+        return getStories(tid, tlid, API_TIMEOUT);
+    }
+
+    public List<OdiiStoryItem> getStories(String tid, String tlid, Duration remainingTime) {
         if (tid == null
                 || tid.isBlank()
                 || tlid == null
@@ -119,7 +120,7 @@ public class OdiiApiClient {
         }
 
         try {
-            JsonNode root = webClient.get()
+            JsonNode root = fetch(webClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/storyBasedList")
                             .queryParam("numOfRows", DEFAULT_NUM_OF_ROWS)
@@ -131,13 +132,7 @@ public class OdiiApiClient {
                             .queryParam("langCode", properties.getLanguageCode())
                             .queryParam("tid", tid)
                             .queryParam("tlid", tlid)
-                            .build())
-                    .retrieve()
-                    .bodyToMono(JsonNode.class)
-                    .timeout(API_TIMEOUT)
-                    .onErrorMap(this::isExternalFailure,
-                            exception -> new OdiiApiException("storyBasedList 호출 실패", exception))
-                    .block();
+                            .build()), "storyBasedList", remainingTime);
 
             validateResponse(root, "storyBasedList", "tid=" + tid + ", tlid=" + tlid);
 
@@ -172,15 +167,57 @@ public class OdiiApiClient {
 
             return stories;
         } catch (OdiiApiException e) {
-            log.warn(
-                    "Odii storyBasedList 호출 중 예외 발생. tid={}, tlid={}, exception={}, message={}",
-                    tid,
-                    tlid,
-                    e.getCause() == null ? e.getClass().getSimpleName() : e.getCause().getClass().getSimpleName(),
-                    e.getCause() == null ? e.getMessage() : e.getCause().getMessage()
-            );
-
             throw e;
+        }
+    }
+
+    private JsonNode fetch(
+            WebClient.RequestHeadersSpec<?> request,
+            String operation,
+            Duration remainingTime
+    ) {
+        if (remainingTime == null || remainingTime.isZero() || remainingTime.isNegative()) {
+            throw new OdiiApiException("Odii 조회 시간 예산 초과");
+        }
+
+        AtomicInteger attempts = new AtomicInteger();
+        AtomicInteger httpStatus = new AtomicInteger();
+        long startedAt = System.nanoTime();
+
+        try {
+            return Mono.defer(() -> {
+                        attempts.incrementAndGet();
+                        return request.exchangeToMono(response -> {
+                            httpStatus.set(response.statusCode().value());
+                            log.info("Odii external response. operation={}, attempt={}, httpStatus={}",
+                                    operation, attempts.get(), httpStatus.get());
+                            if (response.statusCode().isError()) {
+                                return response.createException().flatMap(Mono::error);
+                            }
+                            return response.bodyToMono(JsonNode.class);
+                        }).timeout(API_TIMEOUT);
+                    })
+                    .retryWhen(Retry.fixedDelay(1, RETRY_DELAY)
+                            .filter(exception -> exception instanceof WebClientResponseException response
+                                    && response.getStatusCode().is5xxServerError())
+                            .onRetryExhaustedThrow((retrySpec, signal) -> signal.failure()))
+                    .timeout(remainingTime)
+                    .doOnError(exception -> {
+                        if (exception instanceof TimeoutException
+                                || exception instanceof WebClientRequestException) {
+                            log.warn("Odii external call failed. operation={}, exceptionType={}",
+                                    operation, exception.getClass().getSimpleName());
+                        }
+                    })
+                    .onErrorMap(this::isExternalFailure,
+                            exception -> new OdiiApiException(operation + " 호출 실패", exception))
+                    .block();
+        } finally {
+            log.info("Odii external call. operation={}, elapsedMs={}, httpStatus={}, retryCount={}",
+                    operation,
+                    Duration.ofNanos(System.nanoTime() - startedAt).toMillis(),
+                    httpStatus.get() == 0 ? "unavailable" : httpStatus.get(),
+                    Math.max(0, attempts.get() - 1));
         }
     }
 
