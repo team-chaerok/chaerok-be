@@ -20,6 +20,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -167,6 +169,51 @@ class HeritageServiceTest {
 
         // then
         assertThat(response.heritage()).isFalse();
+    }
+
+    @Test
+    void TourAPI_조회_실패시_DB_분류가_HS이면_유적지로_판별한다() {
+        Long placeId = 1L;
+        String contentId = "100";
+        givenPlace(placeId, contentId);
+        when(place.getLclsSystm1()).thenReturn("HS");
+        when(tourApiPlaceClient.getPlaceDetail(contentId)).thenReturn(null);
+
+        assertThat(heritageService.getHeritagePlace(placeId).heritage()).isTrue();
+    }
+
+    @Test
+    void TourAPI_조회_실패시_궁남지_예외를_유지한다() {
+        Long placeId = 1L;
+        String contentId = "125984";
+        givenPlace(placeId, contentId);
+        when(place.getLclsSystm1()).thenReturn("NA");
+        when(tourApiPlaceClient.getPlaceDetail(contentId)).thenReturn(null);
+
+        assertThat(heritageService.getHeritagePlace(placeId).heritage()).isTrue();
+    }
+
+    @Test
+    void TourAPI_정상_응답은_DB_분류보다_우선한다() {
+        Long placeId = 1L;
+        String contentId = "100";
+        givenPlace(placeId, contentId);
+        when(tourApiPlaceClient.getPlaceDetail(contentId))
+                .thenReturn(createTourApiItem(contentId, "NA"));
+
+        assertThat(heritageService.getHeritagePlace(placeId).heritage()).isFalse();
+    }
+
+    @Test
+    void DB_분류가_명시적으로_일반_장소이면_과거_categoryDetail을_사용하지_않는다() {
+        Long placeId = 1L;
+        String contentId = "100";
+        givenPlace(placeId, contentId);
+        when(place.getLclsSystm1()).thenReturn("NA");
+        when(tourApiPlaceClient.getPlaceDetail(contentId)).thenReturn(null);
+
+        assertThat(heritageService.getHeritagePlace(placeId).heritage()).isFalse();
+        verify(place, never()).getCategoryDetail();
     }
 
     @Test

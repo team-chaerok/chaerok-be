@@ -1,5 +1,6 @@
 package com.chaerok.backend.place.dto;
 
+import com.chaerok.backend.heritage.service.HeritagePolicy;
 import com.chaerok.backend.place.entity.PlaceCategoryDetail;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
 import com.chaerok.backend.place.entity.PlaceSource;
@@ -23,7 +24,8 @@ public record PlaceSearchResponse(
         String firstImageUrl,
         PlaceCategoryGroup categoryGroup,
         PlaceCategoryDetail categoryDetail,
-        PlaceSource source
+        PlaceSource source,
+        boolean heritage
 ) {
 
     public static PlaceSearchResponse fromTourApi(TourApiPlaceItem item) {
@@ -38,7 +40,8 @@ public record PlaceSearchResponse(
                 item.firstImageUrl(),
                 PlaceCategoryMapper.toGroup(item.lclsSystm1(), item.lclsSystm3()),
                 PlaceCategoryMapper.toDetail(item.lclsSystm1(), item.lclsSystm3()),
-                PlaceSource.TOUR_API
+                PlaceSource.TOUR_API,
+                HeritagePolicy.isHeritage(item.lclsSystm1(), item.contentId())
         );
     }
 
@@ -54,7 +57,8 @@ public record PlaceSearchResponse(
                 null,
                 PlaceCategoryMapper.toGroupFromKakao(item.categoryGroupCode(), item.categoryName()),
                 PlaceCategoryMapper.toDetailFromKakao(item.categoryGroupCode(), item.categoryName()),
-                PlaceSource.KAKAO_LOCAL
+                PlaceSource.KAKAO_LOCAL,
+                false
         );
     }
 }

@@ -4,7 +4,6 @@ import com.chaerok.backend.global.exception.BusinessException;
 import com.chaerok.backend.heritage.dto.HeritagePlaceResponse;
 import com.chaerok.backend.heritage.exception.HeritageErrorCode;
 import com.chaerok.backend.place.entity.Place;
-import com.chaerok.backend.place.entity.PlaceCategoryDetail;
 import com.chaerok.backend.place.exception.PlaceErrorCode;
 import com.chaerok.backend.place.external.TourApiPlaceClient;
 import com.chaerok.backend.place.external.TourApiPlaceItem;
@@ -17,8 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class HeritageService {
-
-    private static final String GUNGNAMJI_CONTENT_ID = "125984";
 
     private final PlaceRepository placeRepository;
     private final TourApiPlaceClient tourApiPlaceClient;
@@ -53,7 +50,7 @@ public class HeritageService {
             );
         }
 
-        boolean heritage = isHeritage(item);
+        boolean heritage = HeritagePolicy.isHeritage(item.lclsSystm1(), item.contentId());
 
         return HeritagePlaceResponse.of(
                 place.getId(),
@@ -67,9 +64,7 @@ public class HeritageService {
             Place place,
             String regionName
     ) {
-        boolean heritage =
-                place.getCategoryDetail()
-                        == PlaceCategoryDetail.HERITAGE;
+        boolean heritage = HeritagePolicy.isHeritage(place);
 
         return HeritagePlaceResponse.fromPlace(
                 place,
@@ -78,15 +73,4 @@ public class HeritageService {
         );
     }
 
-    private boolean isHeritage(TourApiPlaceItem item) {
-        boolean heritageCategory =
-                "HS".equals(item.lclsSystm1());
-
-        boolean heritageException =
-                GUNGNAMJI_CONTENT_ID.equals(
-                        item.contentId()
-                );
-
-        return heritageCategory || heritageException;
-    }
 }

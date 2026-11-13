@@ -59,7 +59,8 @@ class PlaceControllerTest {
                 PlaceCategoryGroup.TOURISM,
                 PlaceCategoryDetail.HERITAGE,
                 false,
-                PlaceSource.TOUR_API
+                PlaceSource.TOUR_API,
+                true
         );
 
         when(placeService.getPlacesByRegion(regionId))
@@ -80,7 +81,8 @@ class PlaceControllerTest {
                 .andExpect(jsonPath("$[0].categoryGroup").value("TOURISM"))
                 .andExpect(jsonPath("$[0].categoryDetail").value("HERITAGE"))
                 .andExpect(jsonPath("$[0].isRepresentative").value(false))
-                .andExpect(jsonPath("$[0].source").value("TOUR_API"));
+                .andExpect(jsonPath("$[0].source").value("TOUR_API"))
+                .andExpect(jsonPath("$[0].heritage").value(true));
     }
 
     @Test
@@ -160,7 +162,8 @@ class PlaceControllerTest {
                 "https://example.com/image.jpg",
                 PlaceCategoryGroup.TOURISM,
                 PlaceCategoryDetail.HERITAGE,
-                PlaceSource.TOUR_API
+                PlaceSource.TOUR_API,
+                true
         );
 
         when(placeSearchService.searchPlaces(regionId, keyword))
@@ -181,7 +184,8 @@ class PlaceControllerTest {
                 .andExpect(jsonPath("$[0].firstImageUrl").value("https://example.com/image.jpg"))
                 .andExpect(jsonPath("$[0].categoryGroup").value("TOURISM"))
                 .andExpect(jsonPath("$[0].categoryDetail").value("HERITAGE"))
-                .andExpect(jsonPath("$[0].source").value("TOUR_API"));
+                .andExpect(jsonPath("$[0].source").value("TOUR_API"))
+                .andExpect(jsonPath("$[0].heritage").value(true));
     }
 
     @Test
@@ -218,7 +222,8 @@ class PlaceControllerTest {
                 PlaceCategoryGroup.TOURISM,
                 PlaceCategoryDetail.HERITAGE,
                 false,
-                PlaceSource.TOUR_API
+                PlaceSource.TOUR_API,
+                true
         );
 
         when(placeService.getExternalPlaces(regionId))
@@ -232,6 +237,7 @@ class PlaceControllerTest {
                 .andExpect(jsonPath("$[0].title").value("공산성"))
                 .andExpect(jsonPath("$[0].categoryGroup").value("TOURISM"))
                 .andExpect(jsonPath("$[0].categoryDetail").value("HERITAGE"))
-                .andExpect(jsonPath("$[0].source").value("TOUR_API"));
+                .andExpect(jsonPath("$[0].source").value("TOUR_API"))
+                .andExpect(jsonPath("$[0].heritage").value(true));
     }
 }

@@ -1,5 +1,6 @@
 package com.chaerok.backend.place.dto;
 
+import com.chaerok.backend.heritage.service.HeritagePolicy;
 import com.chaerok.backend.place.entity.Place;
 import com.chaerok.backend.place.entity.PlaceCategoryDetail;
 import com.chaerok.backend.place.entity.PlaceCategoryGroup;
@@ -26,7 +27,8 @@ public record PlaceListResponse(
         PlaceCategoryGroup categoryGroup,
         PlaceCategoryDetail categoryDetail,
         boolean isRepresentative,
-        PlaceSource source
+        PlaceSource source,
+        boolean heritage
 ) {
 
     public static PlaceListResponse from(Place place) {
@@ -42,7 +44,8 @@ public record PlaceListResponse(
                 place.getCategoryGroup(),
                 place.getCategoryDetail(),
                 place.isRepresentative(),
-                place.getSource()
+                place.getSource(),
+                HeritagePolicy.isHeritage(place)
         );
     }
 
@@ -59,7 +62,8 @@ public record PlaceListResponse(
                 place.getCategoryGroup(),
                 place.getCategoryDetail(),
                 place.isRepresentative(),
-                place.getSource()
+                place.getSource(),
+                HeritagePolicy.isHeritage(item.lclsSystm1(), item.contentId())
         );
     }
 
@@ -76,7 +80,8 @@ public record PlaceListResponse(
                 PlaceCategoryMapper.toGroup(item.lclsSystm1(), item.lclsSystm3()),
                 PlaceCategoryMapper.toDetail(item.lclsSystm1(), item.lclsSystm3()),
                 false,
-                PlaceSource.TOUR_API
+                PlaceSource.TOUR_API,
+                HeritagePolicy.isHeritage(item.lclsSystm1(), item.contentId())
         );
     }
 
@@ -101,7 +106,8 @@ public record PlaceListResponse(
                         item.categoryName()
                 ),
                 false,
-                PlaceSource.KAKAO_LOCAL
+                PlaceSource.KAKAO_LOCAL,
+                false
         );
     }
 }
