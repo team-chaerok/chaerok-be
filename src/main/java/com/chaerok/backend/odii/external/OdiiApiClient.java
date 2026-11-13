@@ -218,12 +218,16 @@ public class OdiiApiClient {
     }
 
     private JsonNode getItemNode(JsonNode root) {
-        JsonNode items = root.path("response")
-                .path("body")
-                .path("items");
+        JsonNode body = root.path("response").path("body");
+        JsonNode items = body.path("items");
 
         if (items.isMissingNode() || items.isNull()
                 || (items.isArray() && items.isEmpty())) {
+            return null;
+        }
+        if (items.isTextual() && items.textValue().isEmpty()
+                && body.path("totalCount").isIntegralNumber()
+                && body.path("totalCount").longValue() == 0) {
             return null;
         }
         if (!items.isObject()) {

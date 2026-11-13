@@ -143,6 +143,45 @@ class OdiiApiClientTest {
                 .isInstanceOf(OdiiApiException.class);
     }
 
+    @Test
+    void emptyStringItemsWithZeroCountAreEmptyForThemesAndStories() {
+        OdiiApiClient client = clientWithResponse(HttpStatus.OK, emptyStringBody(0));
+
+        assertThat(client.searchThemes("향천사")).isEmpty();
+        assertThat(client.getStories("theme-1", "list-1")).isEmpty();
+    }
+
+    @Test
+    void nullAndEmptyArrayItemsAreEmptyForThemesAndStories() {
+        for (String items : new String[]{"null", "[]"}) {
+            OdiiApiClient client = clientWithResponse(HttpStatus.OK, successBody(items));
+
+            assertThat(client.searchThemes("향천사")).isEmpty();
+            assertThat(client.getStories("theme-1", "list-1")).isEmpty();
+        }
+    }
+
+    @Test
+    void unexpectedStringItemsRemainErrorsForThemesAndStories() {
+        for (String response : new String[]{
+                emptyStringBody(1),
+                successBody("\"\""),
+                successBody("\"unexpected\"")
+        }) {
+            OdiiApiClient client = clientWithResponse(HttpStatus.OK, response);
+
+            assertThatThrownBy(() -> client.searchThemes("향천사"))
+                    .isInstanceOf(OdiiApiException.class);
+            assertThatThrownBy(() -> client.getStories("theme-1", "list-1"))
+                    .isInstanceOf(OdiiApiException.class);
+        }
+    }
+
+    private String emptyStringBody(int totalCount) {
+        return "{\"response\":{\"header\":{\"resultCode\":\"0000\"},\"body\":{\"items\":\"\",\"totalCount\":"
+                + totalCount + "}}}";
+    }
+
     private String successBody(String items) {
         return "{\"response\":{\"header\":{\"resultCode\":\"0000\"},\"body\":{\"items\":"
                 + items + "}}}";
