@@ -9,8 +9,13 @@ public record OdiiGuideResponse(
         boolean audioAvailable,
         AudioGuide audioGuide,
         String guideScript,
-        String fallbackOverview
+        String fallbackOverview,
+        OdiiStatus odiiStatus
 ) {
+
+    public enum OdiiStatus {
+        OK, NOT_FOUND, ERROR, NOT_APPLICABLE
+    }
 
     public static OdiiGuideResponse withAudio(
             Long placeId,
@@ -24,7 +29,8 @@ public record OdiiGuideResponse(
                 true,
                 AudioGuide.from(story),
                 story.script(),
-                null
+                null,
+                OdiiStatus.OK
         );
     }
 
@@ -40,7 +46,8 @@ public record OdiiGuideResponse(
                 false,
                 null,
                 story.script(),
-                null
+                null,
+                OdiiStatus.OK
         );
     }
 
@@ -48,7 +55,8 @@ public record OdiiGuideResponse(
             Long placeId,
             String placeTitle,
             boolean heritage,
-            String fallbackOverview
+            String fallbackOverview,
+            OdiiStatus odiiStatus
     ) {
         return new OdiiGuideResponse(
                 placeId,
@@ -57,7 +65,8 @@ public record OdiiGuideResponse(
                 false,
                 null,
                 null,
-                fallbackOverview
+                fallbackOverview,
+                odiiStatus
         );
     }
 
