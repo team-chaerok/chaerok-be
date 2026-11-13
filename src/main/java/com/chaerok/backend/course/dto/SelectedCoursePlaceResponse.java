@@ -1,6 +1,7 @@
 package com.chaerok.backend.course.dto;
 
 import com.chaerok.backend.course.entity.CoursePlace;
+import com.chaerok.backend.heritage.service.HeritagePolicy;
 import com.chaerok.backend.place.entity.Place;
 
 public record SelectedCoursePlaceResponse(
@@ -10,7 +11,8 @@ public record SelectedCoursePlaceResponse(
         String categoryGroup,
         String categoryDetail,
         String address,
-        Integer sequence
+        Integer sequence,
+        boolean heritage
 ) {
 
     public static SelectedCoursePlaceResponse from(CoursePlace coursePlace) {
@@ -25,7 +27,8 @@ public record SelectedCoursePlaceResponse(
                         ? null
                         : place.getCategoryDetail().name(),
                 place.getAddress(),
-                coursePlace.getSequence()
+                coursePlace.getSequence(),
+                HeritagePolicy.isHeritage(place)
         );
     }
 }
