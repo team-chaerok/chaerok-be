@@ -3,13 +3,16 @@ package com.chaerok.backend.odii.external;
 import com.chaerok.backend.odii.config.OdiiProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.codec.CodecException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientException;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @Component
@@ -20,10 +23,6 @@ public class OdiiApiClient {
     private static final String RESPONSE_TYPE = "json";
     private static final String SUCCESS_CODE = "0000";
 
-    /*
-     * 공공데이터 API 응답 지연을 고려해 15초로 설정한다.
-     * 제한 시간을 초과하면 예외를 처리하고 빈 목록을 반환한다.
-     */
     private static final Duration API_TIMEOUT = Duration.ofSeconds(15);
 
     private final WebClient webClient;
@@ -63,17 +62,11 @@ public class OdiiApiClient {
                     .retrieve()
                     .bodyToMono(JsonNode.class)
                     .timeout(API_TIMEOUT)
+                    .onErrorMap(this::isExternalFailure,
+                            exception -> new OdiiApiException("themeSearchList 호출 실패", exception))
                     .block();
 
-            if (!isSuccess(root)) {
-                logApiFailure(
-                        "themeSearchList",
-                        root,
-                        "keyword=" + keyword
-                );
-
-                return Collections.emptyList();
-            }
+            validateResponse(root, "themeSearchList", "keyword=" + keyword);
 
             JsonNode itemNode = getItemNode(root);
 
@@ -88,24 +81,24 @@ public class OdiiApiClient {
 
             for (JsonNode node : normalizeItems(itemNode)) {
                 items.add(new OdiiThemeItem(
-                        text(node, "tid"),
-                        text(node, "tlid"),
-                        text(node, "title"),
+                        requiredText(node, "tid"),
+                        requiredText(node, "tlid"),
+                        requiredText(node, "title"),
                         text(node, "mapX"),
                         text(node, "mapY")
                 ));
             }
 
             return items;
-        } catch (Exception e) {
+        } catch (OdiiApiException e) {
             log.warn(
                     "Odii themeSearchList 호출 중 예외 발생. keyword={}, exception={}, message={}",
                     keyword,
-                    e.getClass().getSimpleName(),
-                    e.getMessage()
+                    e.getCause() == null ? e.getClass().getSimpleName() : e.getCause().getClass().getSimpleName(),
+                    e.getCause() == null ? e.getMessage() : e.getCause().getMessage()
             );
 
-            return Collections.emptyList();
+            throw e;
         }
     }
 
@@ -142,17 +135,11 @@ public class OdiiApiClient {
                     .retrieve()
                     .bodyToMono(JsonNode.class)
                     .timeout(API_TIMEOUT)
+                    .onErrorMap(this::isExternalFailure,
+                            exception -> new OdiiApiException("storyBasedList 호출 실패", exception))
                     .block();
 
-            if (!isSuccess(root)) {
-                logApiFailure(
-                        "storyBasedList",
-                        root,
-                        "tid=" + tid + ", tlid=" + tlid
-                );
-
-                return Collections.emptyList();
-            }
+            validateResponse(root, "storyBasedList", "tid=" + tid + ", tlid=" + tlid);
 
             JsonNode itemNode = getItemNode(root);
 
@@ -171,7 +158,7 @@ public class OdiiApiClient {
                         text(node, "tlid"),
                         text(node, "stid"),
                         text(node, "stlid"),
-                        text(node, "title"),
+                        requiredText(node, "title"),
                         text(node, "mapX"),
                         text(node, "mapY"),
                         text(node, "audioTitle"),
@@ -184,24 +171,44 @@ public class OdiiApiClient {
             }
 
             return stories;
-        } catch (Exception e) {
+        } catch (OdiiApiException e) {
             log.warn(
                     "Odii storyBasedList 호출 중 예외 발생. tid={}, tlid={}, exception={}, message={}",
                     tid,
                     tlid,
-                    e.getClass().getSimpleName(),
-                    e.getMessage()
+                    e.getCause() == null ? e.getClass().getSimpleName() : e.getCause().getClass().getSimpleName(),
+                    e.getCause() == null ? e.getMessage() : e.getCause().getMessage()
             );
 
-            return Collections.emptyList();
+            throw e;
         }
     }
 
-    private boolean isSuccess(JsonNode root) {
-        if (root == null) {
-            return false;
+    private void validateResponse(JsonNode root, String operation, String requestContext) {
+        if (root == null
+                || !root.path("response").isObject()
+                || !root.path("response").path("header").isObject()
+                || !root.path("response").path("header").path("resultCode").isTextual()) {
+            throw new OdiiApiException("Odii 응답 형식이 올바르지 않습니다.");
         }
 
+        if (!isSuccess(root)) {
+            logApiFailure(operation, root, requestContext);
+            throw new OdiiApiException("Odii API 오류 응답");
+        }
+
+        if (!root.path("response").path("body").isObject()) {
+            throw new OdiiApiException("Odii 응답 본문 형식이 올바르지 않습니다.");
+        }
+    }
+
+    private boolean isExternalFailure(Throwable exception) {
+        return exception instanceof WebClientException
+                || exception instanceof CodecException
+                || exception instanceof TimeoutException;
+    }
+
+    private boolean isSuccess(JsonNode root) {
         String resultCode = root.path("response")
                 .path("header")
                 .path("resultCode")
@@ -211,10 +218,18 @@ public class OdiiApiClient {
     }
 
     private JsonNode getItemNode(JsonNode root) {
-        return root.path("response")
+        JsonNode items = root.path("response")
                 .path("body")
-                .path("items")
-                .path("item");
+                .path("items");
+
+        if (items.isMissingNode() || items.isNull()
+                || (items.isArray() && items.isEmpty())) {
+            return null;
+        }
+        if (!items.isObject()) {
+            throw new OdiiApiException("Odii items 형식이 올바르지 않습니다.");
+        }
+        return items.path("item");
     }
 
     /**
@@ -224,7 +239,12 @@ public class OdiiApiClient {
     private List<JsonNode> normalizeItems(JsonNode itemNode) {
         if (itemNode.isArray()) {
             List<JsonNode> items = new ArrayList<>();
-            itemNode.forEach(items::add);
+            itemNode.forEach(node -> {
+                if (!node.isObject()) {
+                    throw new OdiiApiException("Odii item 형식이 올바르지 않습니다.");
+                }
+                items.add(node);
+            });
             return items;
         }
 
@@ -232,7 +252,15 @@ public class OdiiApiClient {
             return List.of(itemNode);
         }
 
-        return Collections.emptyList();
+        throw new OdiiApiException("Odii item 형식이 올바르지 않습니다.");
+    }
+
+    private String requiredText(JsonNode node, String fieldName) {
+        String value = text(node, fieldName);
+        if (value == null) {
+            throw new OdiiApiException("Odii 필수 필드 누락: " + fieldName);
+        }
+        return value;
     }
 
     private String text(JsonNode node, String fieldName) {

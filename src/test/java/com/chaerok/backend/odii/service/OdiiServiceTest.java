@@ -3,7 +3,9 @@ package com.chaerok.backend.odii.service;
 import com.chaerok.backend.heritage.dto.HeritagePlaceResponse;
 import com.chaerok.backend.heritage.service.HeritageService;
 import com.chaerok.backend.odii.dto.OdiiGuideResponse;
+import com.chaerok.backend.odii.dto.OdiiGuideResponse.OdiiStatus;
 import com.chaerok.backend.odii.external.OdiiApiClient;
+import com.chaerok.backend.odii.external.OdiiApiException;
 import com.chaerok.backend.odii.external.OdiiStoryItem;
 import com.chaerok.backend.odii.external.OdiiThemeItem;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -76,6 +79,7 @@ class OdiiServiceTest {
                 odiiService.getAudioGuide(placeId);
 
         assertThat(response.heritage()).isTrue();
+        assertThat(response.odiiStatus()).isEqualTo(OdiiStatus.OK);
         assertThat(response.audioAvailable()).isTrue();
         assertThat(response.audioGuide()).isNotNull();
         assertThat(response.audioGuide().storyId()).isEqualTo("story-1");
@@ -103,6 +107,7 @@ class OdiiServiceTest {
                 odiiService.getAudioGuide(placeId);
 
         assertThat(response.heritage()).isFalse();
+        assertThat(response.odiiStatus()).isEqualTo(OdiiStatus.NOT_APPLICABLE);
         assertThat(response.audioAvailable()).isFalse();
         assertThat(response.audioGuide()).isNull();
         assertThat(response.guideScript()).isNull();
@@ -143,6 +148,7 @@ class OdiiServiceTest {
         assertThat(response.guideScript()).isNull();
         assertThat(response.fallbackOverview())
                 .isEqualTo("공산성 TourAPI 소개");
+        assertThat(response.odiiStatus()).isEqualTo(OdiiStatus.NOT_FOUND);
 
         verify(odiiApiClient, never())
                 .getStories("theme-2", "theme-list-2");
@@ -188,6 +194,7 @@ class OdiiServiceTest {
         assertThat(response.guideScript()).isNull();
         assertThat(response.fallbackOverview())
                 .isEqualTo("공산성 TourAPI 소개");
+        assertThat(response.odiiStatus()).isEqualTo(OdiiStatus.NOT_FOUND);
     }
 
     @Test
@@ -229,6 +236,7 @@ class OdiiServiceTest {
         assertThat(response.audioGuide()).isNull();
         assertThat(response.guideScript())
                 .isEqualTo("해미읍성 Odii 설명입니다.");
+        assertThat(response.odiiStatus()).isEqualTo(OdiiStatus.OK);
         assertThat(response.fallbackOverview()).isNull();
     }
 
@@ -298,6 +306,69 @@ class OdiiServiceTest {
         assertThat(response.guideScript()).isNull();
         assertThat(response.fallbackOverview())
                 .isEqualTo("향천사 TourAPI 소개");
+        assertThat(response.odiiStatus()).isEqualTo(OdiiStatus.NOT_FOUND);
+    }
+
+    @Test
+    void 스토리_목록이_정상적으로_비면_NOT_FOUND를_반환한다() {
+        Long placeId = 11L;
+        when(heritageService.getHeritagePlace(placeId))
+                .thenReturn(createHeritagePlace(placeId, "공주 공산성", "공산성 소개"));
+        when(odiiApiClient.searchThemes("공산성"))
+                .thenReturn(List.of(createTheme("theme-1", "list-1", "공주 공산성")));
+        when(odiiApiClient.getStories("theme-1", "list-1"))
+                .thenReturn(List.of());
+
+        OdiiGuideResponse response = odiiService.getAudioGuide(placeId);
+
+        assertThat(response.odiiStatus()).isEqualTo(OdiiStatus.NOT_FOUND);
+        assertThat(response.fallbackOverview()).isEqualTo("공산성 소개");
+    }
+
+    @Test
+    void 테마_조회_오류는_ERROR와_소개_문구를_반환한다() {
+        Long placeId = 12L;
+        when(heritageService.getHeritagePlace(placeId))
+                .thenReturn(createHeritagePlace(placeId, "공주 공산성", "공산성 소개"));
+        when(odiiApiClient.searchThemes("공산성"))
+                .thenThrow(new OdiiApiException("themeSearchList 실패"));
+
+        OdiiGuideResponse response = odiiService.getAudioGuide(placeId);
+
+        assertThat(response.odiiStatus()).isEqualTo(OdiiStatus.ERROR);
+        assertThat(response.audioAvailable()).isFalse();
+        assertThat(response.audioGuide()).isNull();
+        assertThat(response.guideScript()).isNull();
+        assertThat(response.fallbackOverview()).isEqualTo("공산성 소개");
+        verify(odiiApiClient, never()).getStories(anyString(), anyString());
+    }
+
+    @Test
+    void 스토리_조회_오류는_ERROR와_소개_문구를_반환한다() {
+        Long placeId = 13L;
+        when(heritageService.getHeritagePlace(placeId))
+                .thenReturn(createHeritagePlace(placeId, "공주 공산성", "공산성 소개"));
+        when(odiiApiClient.searchThemes("공산성"))
+                .thenReturn(List.of(createTheme("theme-1", "list-1", "공주 공산성")));
+        when(odiiApiClient.getStories("theme-1", "list-1"))
+                .thenThrow(new OdiiApiException("storyBasedList 실패"));
+
+        OdiiGuideResponse response = odiiService.getAudioGuide(placeId);
+
+        assertThat(response.odiiStatus()).isEqualTo(OdiiStatus.ERROR);
+        assertThat(response.fallbackOverview()).isEqualTo("공산성 소개");
+    }
+
+    @Test
+    void 예상하지_못한_프로그래밍_오류는_숨기지_않는다() {
+        Long placeId = 14L;
+        when(heritageService.getHeritagePlace(placeId))
+                .thenReturn(createHeritagePlace(placeId, "공주 공산성", "공산성 소개"));
+        when(odiiApiClient.searchThemes("공산성"))
+                .thenThrow(new IllegalStateException("unexpected"));
+
+        assertThatThrownBy(() -> odiiService.getAudioGuide(placeId))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test

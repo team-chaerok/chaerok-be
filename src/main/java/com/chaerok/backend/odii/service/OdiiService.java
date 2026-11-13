@@ -3,7 +3,9 @@ package com.chaerok.backend.odii.service;
 import com.chaerok.backend.heritage.dto.HeritagePlaceResponse;
 import com.chaerok.backend.heritage.service.HeritageService;
 import com.chaerok.backend.odii.dto.OdiiGuideResponse;
+import com.chaerok.backend.odii.dto.OdiiGuideResponse.OdiiStatus;
 import com.chaerok.backend.odii.external.OdiiApiClient;
+import com.chaerok.backend.odii.external.OdiiApiException;
 import com.chaerok.backend.odii.external.OdiiStoryItem;
 import com.chaerok.backend.odii.external.OdiiThemeItem;
 import lombok.RequiredArgsConstructor;
@@ -42,14 +44,19 @@ public class OdiiService {
                     heritagePlace.placeId(),
                     heritagePlace.title(),
                     false,
-                    heritagePlace.overview()
+                    heritagePlace.overview(),
+                    OdiiStatus.NOT_APPLICABLE
             );
         }
 
         String keyword = resolveSearchKeyword(heritagePlace.title());
 
-        List<OdiiThemeItem> themes =
-                odiiApiClient.searchThemes(keyword);
+        List<OdiiThemeItem> themes;
+        try {
+            themes = odiiApiClient.searchThemes(keyword);
+        } catch (OdiiApiException exception) {
+            return odiiError(heritagePlace);
+        }
 
         Optional<OdiiThemeItem> selectedTheme =
                 selectTheme(themes, keyword);
@@ -59,16 +66,19 @@ public class OdiiService {
                     heritagePlace.placeId(),
                     heritagePlace.title(),
                     true,
-                    heritagePlace.overview()
+                    heritagePlace.overview(),
+                    OdiiStatus.NOT_FOUND
             );
         }
 
         OdiiThemeItem theme = selectedTheme.get();
 
-        List<OdiiStoryItem> stories = odiiApiClient.getStories(
-                theme.tid(),
-                theme.tlid()
-        );
+        List<OdiiStoryItem> stories;
+        try {
+            stories = odiiApiClient.getStories(theme.tid(), theme.tlid());
+        } catch (OdiiApiException exception) {
+            return odiiError(heritagePlace);
+        }
 
         Optional<OdiiStoryItem> representativeStory =
                 selectRepresentativeStory(stories, keyword);
@@ -78,7 +88,8 @@ public class OdiiService {
                     heritagePlace.placeId(),
                     heritagePlace.title(),
                     true,
-                    heritagePlace.overview()
+                    heritagePlace.overview(),
+                    OdiiStatus.NOT_FOUND
             );
         }
 
@@ -104,7 +115,18 @@ public class OdiiService {
                 heritagePlace.placeId(),
                 heritagePlace.title(),
                 true,
-                heritagePlace.overview()
+                heritagePlace.overview(),
+                OdiiStatus.NOT_FOUND
+        );
+    }
+
+    private OdiiGuideResponse odiiError(HeritagePlaceResponse heritagePlace) {
+        return OdiiGuideResponse.withoutOdii(
+                heritagePlace.placeId(),
+                heritagePlace.title(),
+                true,
+                heritagePlace.overview(),
+                OdiiStatus.ERROR
         );
     }
 

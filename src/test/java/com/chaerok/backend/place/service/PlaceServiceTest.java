@@ -113,6 +113,8 @@ class PlaceServiceTest {
                 .isEqualTo(PlaceCategoryGroup.TOURISM);
         assertThat(responses.get(0).categoryDetail())
                 .isEqualTo(PlaceCategoryDetail.HERITAGE);
+        assertThat(responses.get(0).heritage()).isTrue();
+        verify(tourApiPlaceClient, never()).getPlaceDetail(anyString());
 
         verify(regionRepository).findById(regionId);
         verify(placeRepository)
@@ -164,6 +166,7 @@ class PlaceServiceTest {
                 .isEqualTo(PlaceCategoryGroup.TOURISM);
         assertThat(responses.get(0).categoryDetail())
                 .isEqualTo(PlaceCategoryDetail.HERITAGE);
+        assertThat(responses.get(0).heritage()).isTrue();
 
         verify(regionRepository).findById(regionId);
         verify(placeRepository)

@@ -15,6 +15,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PlaceSearchResponseTest {
 
     @Test
+    void 궁남지_검색_결과는_일반_분류여도_유적지이다() {
+        TourApiPlaceItem item = new TourApiPlaceItem(
+                "125984", null, "궁남지", "충남 부여군", null, null, null,
+                null, null, "NA", null, "NA010100", null
+        );
+
+        PlaceSearchResponse response = PlaceSearchResponse.fromTourApi(item);
+
+        assertThat(response.id()).isNull();
+        assertThat(response.heritage()).isTrue();
+    }
+
+    @Test
     @DisplayName("TourAPI 장소 응답을 장소 검색 응답으로 변환한다")
     void fromTourApi() {
         TourApiPlaceItem item = new TourApiPlaceItem(
@@ -46,6 +59,7 @@ class PlaceSearchResponseTest {
         assertThat(response.categoryGroup()).isEqualTo(PlaceCategoryGroup.TOURISM);
         assertThat(response.categoryDetail()).isEqualTo(PlaceCategoryDetail.HERITAGE);
         assertThat(response.source()).isEqualTo(PlaceSource.TOUR_API);
+        assertThat(response.heritage()).isTrue();
     }
 
     @Test
@@ -77,5 +91,6 @@ class PlaceSearchResponseTest {
         assertThat(response.categoryGroup()).isEqualTo(PlaceCategoryGroup.FOOD);
         assertThat(response.categoryDetail()).isEqualTo(PlaceCategoryDetail.SNACK);
         assertThat(response.source()).isEqualTo(PlaceSource.KAKAO_LOCAL);
+        assertThat(response.heritage()).isFalse();
     }
 }

@@ -6,6 +6,7 @@ import com.chaerok.backend.course.dto.CourseCreateRequest;
 import com.chaerok.backend.course.dto.CoursePlaceSaveRequest;
 import com.chaerok.backend.course.dto.CourseRecommendResponse;
 import com.chaerok.backend.course.dto.SelectedCourseResponse;
+import com.chaerok.backend.course.dto.SelectedCoursePlaceResponse;
 import com.chaerok.backend.course.service.CourseCommandService;
 import com.chaerok.backend.course.service.CourseRecommendService;
 import com.chaerok.backend.user.entity.UserRole;
@@ -190,6 +191,7 @@ class CourseControllerTest {
         assertThat(response.getBody().placeCount())
                 .isEqualTo(1);
         assertThat(response.getBody().completed()).isFalse();
+        assertThat(response.getBody().places().get(0).heritage()).isTrue();
 
         verify(courseCommandService).createCourse(
                 1L,
@@ -241,6 +243,7 @@ class CourseControllerTest {
         assertThat(response.getBody().placeCount())
                 .isEqualTo(2);
         assertThat(response.getBody().completed()).isFalse();
+        assertThat(response.getBody().places().get(0).heritage()).isTrue();
 
         verify(courseCommandService)
                 .addPlacesToActiveCourse(
@@ -282,6 +285,7 @@ class CourseControllerTest {
         assertThat(response.getBody().placeCount())
                 .isEqualTo(3);
         assertThat(response.getBody().completed()).isTrue();
+        assertThat(response.getBody().places().get(0).heritage()).isTrue();
 
         verify(courseCommandService).getActiveCourse(1L);
         verifyNoMoreInteractions(courseCommandService);
@@ -316,7 +320,16 @@ class CourseControllerTest {
                 "ACTIVE",
                 placeCount,
                 placeCount == 3,
-                List.of()
+                List.of(new SelectedCoursePlaceResponse(
+                        100L,
+                        "TOUR_API",
+                        "테스트 장소",
+                        "TOURISM",
+                        "HERITAGE",
+                        "서울특별시 테스트구",
+                        1,
+                        true
+                ))
         );
     }
 }
