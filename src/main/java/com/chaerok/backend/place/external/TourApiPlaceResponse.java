@@ -1,7 +1,13 @@
 package com.chaerok.backend.place.external;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
+import java.io.IOException;
 import java.util.List;
 
 public record TourApiPlaceResponse(
@@ -75,6 +81,7 @@ public record TourApiPlaceResponse(
 
     public record Body(
             @JsonProperty("items")
+            @JsonDeserialize(using = EmptyItemsDeserializer.class)
             Items items,
 
             @JsonProperty("numOfRows")
@@ -92,5 +99,19 @@ public record TourApiPlaceResponse(
             @JsonProperty("item")
             List<TourApiPlaceItem> item
     ) {
+    }
+
+    public static class EmptyItemsDeserializer extends JsonDeserializer<Items> {
+
+        @Override
+        public Items deserialize(JsonParser parser, DeserializationContext context) throws IOException {
+            if (parser.currentToken() == JsonToken.VALUE_STRING && parser.getText().isEmpty()) {
+                return null;
+            }
+            if (parser.currentToken() == JsonToken.START_OBJECT) {
+                return parser.readValueAs(Items.class);
+            }
+            return context.reportInputMismatch(Items.class, "Expected items object or empty string");
+        }
     }
 }
