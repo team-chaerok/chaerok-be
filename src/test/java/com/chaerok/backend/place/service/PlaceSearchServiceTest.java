@@ -15,6 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.InOrder;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -25,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.inOrder;
 
 @ExtendWith(MockitoExtension.class)
 class PlaceSearchServiceTest {
@@ -231,6 +233,30 @@ class PlaceSearchServiceTest {
                         "공주 카페",
                         "제민천 카페"
                 );
+        InOrder order = inOrder(regionRepository, tourApiPlaceClient, regionCenterProvider, kakaoLocalClient);
+        order.verify(regionRepository).findById(regionId);
+        order.verify(tourApiPlaceClient).searchPlacesByKeyword(keyword, "44", "150");
+        order.verify(regionCenterProvider).getCenter(region);
+        order.verify(kakaoLocalClient).searchPlacesByKeyword(keyword, center.longitude(), center.latitude());
+    }
+
+    @Test
+    @DisplayName("TourAPI와 Kakao가 모두 빈 목록이면 빈 결과를 반환한다")
+    void searchPlacesReturnsEmptyResults() {
+        Long regionId = 1L;
+        String keyword = "없는 장소";
+        RegionCenterProvider.RegionCenter center = new RegionCenterProvider.RegionCenter(
+                new BigDecimal("127.1190"), new BigDecimal("36.4465")
+        );
+        when(regionRepository.findById(regionId)).thenReturn(Optional.of(region));
+        when(region.getLdongRegnCd()).thenReturn("44");
+        when(region.getLdongSignguCd()).thenReturn("150");
+        when(regionCenterProvider.getCenter(region)).thenReturn(center);
+        when(tourApiPlaceClient.searchPlacesByKeyword(keyword, "44", "150")).thenReturn(List.of());
+        when(kakaoLocalClient.searchPlacesByKeyword(keyword, center.longitude(), center.latitude()))
+                .thenReturn(List.of());
+
+        assertThat(placeSearchService.searchPlaces(regionId, keyword)).isEmpty();
     }
 
     @Test
